@@ -1,9 +1,10 @@
 import { Home, DollarSign } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { useMockAuth } from '@/hooks/use-mock-auth'
+import { useAuth } from '@/hooks/use-auth'
+import { getRoleLabel } from '@/types/finance'
 
 export function Header() {
-  const { user, family } = useMockAuth()
+  const { user, member, family } = useAuth()
 
   const getInitials = (name?: string) => {
     if (!name) return 'U'
@@ -14,6 +15,8 @@ export function Header() {
       .substring(0, 2)
       .toUpperCase()
   }
+
+  const displayName = member?.display_name || user?.name || 'Usuário'
 
   return (
     <header className="sticky top-0 z-30 h-16 bg-white border-b border-gray-200 px-4 md:px-8 flex items-center justify-between shadow-xs">
@@ -29,14 +32,13 @@ export function Header() {
           </Badge>
         )}
       </div>
-
       <div className="flex items-center space-x-3">
         <div className="text-right hidden sm:block">
-          <p className="text-sm font-semibold text-gray-800">{user?.name}</p>
-          <p className="text-xs text-gray-500">{user?.role}</p>
+          <p className="text-sm font-semibold text-gray-800">{displayName}</p>
+          <p className="text-xs text-gray-500">{member ? getRoleLabel(member.role) : ''}</p>
         </div>
         <div className="w-10 h-10 rounded-full bg-emerald-700 text-white font-semibold flex items-center justify-center border-2 border-emerald-500 shadow-xs">
-          {getInitials(user?.name)}
+          {getInitials(displayName)}
         </div>
       </div>
     </header>

@@ -1,9 +1,17 @@
 import { Outlet } from 'react-router-dom'
-import { useMockAuth } from '@/hooks/use-mock-auth'
+import { useAuth } from '@/hooks/use-auth'
 import { Header, Sidebar, BottomNav } from '@/components/Navigation'
 
 export default function Layout() {
-  const { isAuthenticated } = useMockAuth()
+  const { isAuthenticated, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB]">
+        <div className="w-10 h-10 border-4 border-emerald-200 border-t-[#166534] rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   if (!isAuthenticated) {
     return (

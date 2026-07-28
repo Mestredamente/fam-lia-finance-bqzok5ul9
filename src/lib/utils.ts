@@ -12,3 +12,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // Add any other utility functions here
+
+export function formatBRL(val: number | null | undefined): string {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0)
+}

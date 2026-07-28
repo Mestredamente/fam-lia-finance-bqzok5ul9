@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Home, Mail, Loader2 } from 'lucide-react'
 import { z } from 'zod'
-import { useMockAuth } from '@/hooks/use-mock-auth'
+import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { PasswordInput } from '@/components/PasswordInput'
 import { toast } from '@/hooks/use-toast'
+import { getPortugueseError } from '@/lib/error-utils'
 
 const loginSchema = z.object({
   email: z.string().email('E-mail inválido'),
@@ -16,10 +17,10 @@ const loginSchema = z.object({
 
 export default function Login() {
   const navigate = useNavigate()
-  const { login, family } = useMockAuth()
+  const { login } = useAuth()
 
-  const [email, setEmail] = useState('carlos@email.com')
-  const [password, setPassword] = useState('123456')
+  const [email, setEmail] = useState('mestredamente1@gmail.com')
+  const [password, setPassword] = useState('Skip@Pass')
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({})
   const [loading, setLoading] = useState(false)
 
@@ -41,24 +42,16 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
-
     setLoading(true)
     try {
-      await login(email, password)
-      toast({
-        title: 'Sucesso!',
-        description: 'Bem-vindo à Família Finance!',
-      })
-      if (family && family.members.length > 1) {
-        navigate('/dashboard')
-      } else {
-        navigate('/onboarding')
-      }
-    } catch (err: any) {
+      const { hasFamily } = await login(email, password)
+      toast({ title: 'Sucesso!', description: 'Bem-vindo à Família Finance!' })
+      navigate(hasFamily ? '/dashboard' : '/onboarding')
+    } catch (err) {
       toast({
         variant: 'destructive',
         title: 'Erro de Autenticação',
-        description: err.message || 'E-mail ou senha incorretos',
+        description: getPortugueseError(err),
       })
     } finally {
       setLoading(false)
@@ -90,7 +83,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value)
-                    setErrors((prev) => ({ ...prev, email: undefined }))
+                    setErrors((p) => ({ ...p, email: undefined }))
                   }}
                   disabled={loading}
                   className={`pl-9 ${errors.email ? 'border-red-500' : ''}`}
@@ -106,7 +99,7 @@ export default function Login() {
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value)
-                  setErrors((prev) => ({ ...prev, password: undefined }))
+                  setErrors((p) => ({ ...p, password: undefined }))
                 }}
                 disabled={loading}
                 error={errors.password}
