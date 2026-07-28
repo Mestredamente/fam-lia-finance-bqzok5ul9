@@ -68,3 +68,11 @@ export const roleLabels: Record<MemberRole, string> = {
 export function getRoleLabel(role: string): string {
   return roleLabels[role as MemberRole] || role
 }
+
+export interface FixedBill {
+  id: string
+  name: string
+  amount: number
+  dueDateDay: number
+  status: 'Pago' | 'Pendente' | 'Atrasado'
+}

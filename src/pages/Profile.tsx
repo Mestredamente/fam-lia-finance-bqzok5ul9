@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { UserCheck, ShieldAlert, Download, Trash2, LogOut, Key, Info } from 'lucide-react'
-import { useMockAuth } from '@/hooks/use-mock-auth'
+import { useAuth } from '@/hooks/use-auth'
+import { useRealtime } from '@/hooks/use-realtime'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -20,32 +21,67 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { InviteCodeDialog } from '@/components/InviteCodeDialog'
+import { MemberRecord, getRoleLabel } from '@/types/finance'
+import { getMembersByFamilyId } from '@/services/members'
+import { createInvite, generateInviteCode } from '@/services/invites'
 import { toast } from '@/hooks/use-toast'
 
 export default function Profile() {
   const navigate = useNavigate()
-  const {
-    user,
-    family,
-    preferences,
-    updatePreferences,
-    generateInviteCode,
-    deleteAccount,
-    logout,
-  } = useMockAuth()
+  const { user, member, family, signOut, deleteAccount, updateMemberData } = useAuth()
 
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
-  const [inviteCode, setInviteCode] = useState(family?.inviteCode || 'FAM-1234')
+  const [inviteCode, setInviteCode] = useState(family?.invite_code || 'FAM-0000')
+  const [familyMembers, setFamilyMembers] = useState<MemberRecord[]>([])
+
+  const loadMembers = async () => {
+    if (!family) return
+    try {
+      const data = await getMembersByFamilyId(family.id)
+      setFamilyMembers(data)
+    } catch {
+      setFamilyMembers([])
+    }
+  }
+
+  useEffect(() => {
+    loadMembers()
+  }, [family?.id])
+
+  useRealtime('members', () => {
+    loadMembers()
+  })
 
   if (!user) return null
 
   const formatBRL = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
+  const avatarUrl = user.avatar
+    ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/users/${user.id}/${user.avatar}`
+    : undefined
+
   const handleGenerateInvite = async () => {
-    const code = await generateInviteCode()
-    setInviteCode(code)
-    setInviteModalOpen(true)
+    if (!family || !user) return
+    try {
+      const code = generateInviteCode()
+      const expiresAt = new Date()
+      expiresAt.setDate(expiresAt.getDate() + 7)
+      await createInvite({
+        family_id: family.id,
+        invite_code: code,
+        created_by: user.id,
+        expires_at: expiresAt.toISOString(),
+      })
+      setInviteCode(code)
+      setInviteModalOpen(true)
+    } catch {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Não foi possível gerar o convite.',
+      })
+    }
   }
 
   const handleDeleteAccount = async () => {
@@ -55,7 +91,7 @@ export default function Profile() {
   }
 
   const handleLogout = () => {
-    logout()
+    signOut()
     toast({ title: 'Até logo!', description: 'Você saiu da sua conta.' })
     navigate('/')
   }
@@ -64,11 +100,10 @@ export default function Profile() {
     <div className="space-y-6 max-w-2xl mx-auto animate-fade-in">
       <h1 className="text-2xl font-bold text-gray-900">Perfil do Usuário</h1>
 
-      {/* CARD 1 - IDENTIFICAÇÃO */}
       <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
         <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
           <Avatar className="h-20 w-20 border-4 border-[#22C55E]">
-            <AvatarImage src={user.avatarUrl} alt={user.name} />
+            <AvatarImage src={avatarUrl} alt={user.name} />
             <AvatarFallback className="bg-emerald-100 text-[#166534] text-2xl font-bold">
               {user.name.charAt(0)}
             </AvatarFallback>
@@ -77,9 +112,11 @@ export default function Profile() {
           <div>
             <h2 className="text-xl font-bold text-gray-900">{user.name}</h2>
             <p className="text-xs text-gray-500 mt-0.5">{user.email}</p>
-            <Badge className="bg-emerald-100 text-[#166534] hover:bg-emerald-100 mt-2 font-medium">
-              {user.role}
-            </Badge>
+            {member && (
+              <Badge className="bg-emerald-100 text-[#166534] hover:bg-emerald-100 mt-2 font-medium">
+                {getRoleLabel(member.role)}
+              </Badge>
+            )}
           </div>
 
           <Button
@@ -92,7 +129,6 @@ export default function Profile() {
         </CardContent>
       </Card>
 
-      {/* CARD 2 - DADOS FINANCEIROS */}
       <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
         <CardContent className="p-6 space-y-4">
           <h3 className="font-bold text-base text-gray-900 border-b border-gray-100 pb-2">
@@ -103,31 +139,28 @@ export default function Profile() {
             <div>
               <span className="text-xs text-gray-500 block">Renda mensal individual</span>
               <span className="text-base font-bold text-[#166534]">
-                {formatBRL(user.monthlyIncome)}
+                {formatBRL(member?.monthly_income || 0)}
               </span>
             </div>
 
             <div>
               <span className="text-xs text-gray-500 block">Dia de recebimento</span>
-              <span className="text-base font-bold text-gray-900">Dia {user.payDay}</span>
+              <span className="text-base font-bold text-gray-900">Dia {member?.payday || '-'}</span>
             </div>
 
             <div>
               <span className="text-xs text-gray-500 block">Total investido</span>
-              <span className="text-base font-bold text-blue-600">
-                {formatBRL(user.totalInvested)}
-              </span>
+              <span className="text-base font-bold text-blue-600">{formatBRL(0)}</span>
             </div>
 
             <div>
               <span className="text-xs text-gray-500 block">Total em dívidas</span>
-              <span className="text-base font-bold text-red-600">{formatBRL(user.totalDebts)}</span>
+              <span className="text-base font-bold text-red-600">{formatBRL(0)}</span>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* CARD 3 - FAMÍLIA */}
       <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
         <CardContent className="p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-2">
@@ -146,21 +179,20 @@ export default function Profile() {
           </div>
 
           <div className="space-y-3">
-            {family?.members.map((m) => (
+            {familyMembers.map((m) => (
               <div
                 key={m.id}
                 className="flex items-center justify-between p-3 bg-gray-50 rounded-xl"
               >
                 <div className="flex items-center gap-3">
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src={m.avatarUrl} alt={m.name} />
                     <AvatarFallback className="bg-emerald-100 text-[#166534] font-bold">
-                      {m.name.charAt(0)}
+                      {m.display_name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <h4 className="text-xs font-bold text-gray-900">{m.name}</h4>
-                    <span className="text-[10px] text-gray-500">{m.role}</span>
+                    <h4 className="text-xs font-bold text-gray-900">{m.display_name}</h4>
+                    <span className="text-[10px] text-gray-500">{getRoleLabel(m.role)}</span>
                   </div>
                 </div>
                 <Badge variant="outline" className="text-[10px] bg-white">
@@ -173,7 +205,6 @@ export default function Profile() {
         </CardContent>
       </Card>
 
-      {/* CARD 4 - PREFERÊNCIAS */}
       <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
         <CardContent className="p-6 space-y-4">
           <h3 className="font-bold text-base text-gray-900 border-b border-gray-100 pb-2">
@@ -186,16 +217,16 @@ export default function Profile() {
                 Notificações de vencimento
               </span>
               <Switch
-                checked={preferences.dueNotifications}
-                onCheckedChange={(val) => updatePreferences({ dueNotifications: val })}
+                checked={member?.notify_bills ?? false}
+                onCheckedChange={(val) => updateMemberData({ notify_bills: val })}
               />
             </div>
 
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-gray-700">Dicas da IA consultora</span>
               <Switch
-                checked={preferences.aiTips}
-                onCheckedChange={(val) => updatePreferences({ aiTips: val })}
+                checked={member?.notify_ai_tips ?? false}
+                onCheckedChange={(val) => updateMemberData({ notify_ai_tips: val })}
               />
             </div>
 
@@ -216,15 +247,14 @@ export default function Profile() {
                 </Tooltip>
               </div>
               <Switch
-                checked={preferences.shareDataWithSpouse}
-                onCheckedChange={(val) => updatePreferences({ shareDataWithSpouse: val })}
+                checked={member?.share_data ?? false}
+                onCheckedChange={(val) => updateMemberData({ share_data: val })}
               />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* CARD 5 - AÇÕES */}
       <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
         <CardContent className="p-6 space-y-3">
           <h3 className="font-bold text-base text-gray-900 border-b border-gray-100 pb-2">

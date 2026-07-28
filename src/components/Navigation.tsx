@@ -1,13 +1,13 @@
 import { Home, List, CreditCard, Bot, User, Home as HouseIcon } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useMockAuth } from '@/hooks/use-mock-auth'
+import { useAuth } from '@/hooks/use-auth'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 
 export function Header() {
-  const { user, family } = useMockAuth()
+  const { user, family } = useAuth()
   const navigate = useNavigate()
 
   return (
@@ -36,7 +36,14 @@ export function Header() {
         >
           <span className="text-sm font-medium text-gray-700 hidden sm:inline">{user.name}</span>
           <Avatar className="h-9 w-9 border-2 border-[#22C55E]">
-            <AvatarImage src={user.avatarUrl} alt={user.name} />
+            <AvatarImage
+              src={
+                user.avatar
+                  ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/users/${user.id}/${user.avatar}`
+                  : undefined
+              }
+              alt={user.name}
+            />
             <AvatarFallback className="bg-emerald-100 text-[#166534] font-bold">
               {user.name.charAt(0)}
             </AvatarFallback>

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, User, Home, Users, Loader2 } from 'lucide-react'
 import { z } from 'zod'
-import { useMockAuth } from '@/hooks/use-mock-auth'
+import pb from '@/lib/pocketbase/client'
+import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -18,9 +19,12 @@ import {
 import { PasswordInput } from '@/components/PasswordInput'
 import { CurrencyInput } from '@/components/CurrencyInput'
 import { TermsModal } from '@/components/TermsModal'
-import { UserRole } from '@/types/finance'
-import { mockService } from '@/lib/mock/service'
+import { MemberRole, roleLabels } from '@/types/finance'
+import { createFamily } from '@/services/families'
+import { createMember } from '@/services/members'
+import { validateInviteCode, markInviteUsed, generateInviteCode } from '@/services/invites'
 import { toast } from '@/hooks/use-toast'
+import { getPortugueseError } from '@/lib/error-utils'
 
 const step1Schema = z.object({
   name: z.string().min(2, 'Nome muito curto'),
@@ -30,26 +34,25 @@ const step1Schema = z.object({
 
 export default function Onboarding() {
   const navigate = useNavigate()
-  const { register } = useMockAuth()
+  const { signUp, refreshData } = useAuth()
 
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [loading, setLoading] = useState(false)
 
-  // Step 1 State
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<UserRole>('Esposo')
+  const [role, setRole] = useState<MemberRole>('husband')
   const [step1Errors, setStep1Errors] = useState<Record<string, string>>({})
 
-  // Step 2 State
   const [familyOption, setFamilyOption] = useState<'create' | 'join'>('create')
   const [familyName, setFamilyName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
   const [codeValid, setCodeValid] = useState<boolean | null>(null)
-  const [inviterName, setInviterName] = useState('')
+  const [validatedFamilyName, setValidatedFamilyName] = useState('')
+  const [validatedInviteId, setValidatedInviteId] = useState('')
+  const [validatedFamilyId, setValidatedFamilyId] = useState('')
 
-  // Step 3 State
   const [monthlyIncome, setMonthlyIncome] = useState(5000)
   const [payDay, setPayDay] = useState<string>('5')
   const [dueNotifications, setDueNotifications] = useState(true)
@@ -64,7 +67,7 @@ export default function Onboarding() {
     return { label: 'Forte', score: 3, color: 'bg-emerald-500' }
   }
 
-  const handleNextStep1 = () => {
+  const handleNextStep1 = async () => {
     const res = step1Schema.safeParse({ name, email, password })
     if (!res.success) {
       const errs: Record<string, string> = {}
@@ -73,40 +76,81 @@ export default function Onboarding() {
       return
     }
     setStep1Errors({})
-    setStep(2)
+    setLoading(true)
+    try {
+      await signUp(email, password, name)
+      setStep(2)
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: getPortugueseError(err),
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleValidateCode = async () => {
     if (!inviteCode) return
-    const res = await mockService.validateInviteCode(inviteCode)
-    setCodeValid(res.valid)
-    if (res.valid) {
-      setInviterName(res.inviterName || '')
-      setFamilyName(res.familyName || '')
+    const invite = await validateInviteCode(inviteCode)
+    if (invite) {
+      setCodeValid(true)
+      setValidatedInviteId(invite.id)
+      setValidatedFamilyId(invite.family_id)
+      setValidatedFamilyName(invite.expand?.family_id?.name || '')
+    } else {
+      setCodeValid(false)
     }
   }
 
   const handleFinish = async () => {
     setLoading(true)
     try {
-      await register({
-        name,
-        email,
+      const userId = pb.authStore.record?.id
+      if (!userId) throw new Error('Falha ao obter ID do usuário')
+
+      let familyId: string
+
+      if (familyOption === 'create') {
+        const famName = familyName || `Família ${name.split(' ')[0]}`
+        const code = generateInviteCode()
+        const family = await createFamily({
+          name: famName,
+          invite_code: code,
+          created_by: userId,
+        })
+        familyId = family.id
+      } else {
+        if (!validatedInviteId || !validatedFamilyId) {
+          throw new Error('Código de convite não validado')
+        }
+        familyId = validatedFamilyId
+        await markInviteUsed(validatedInviteId, userId)
+      }
+
+      await createMember({
+        family_id: familyId,
+        user_id: userId,
         role,
-        familyName:
-          familyOption === 'create' ? familyName || `Família ${name.split(' ')[0]}` : familyName,
-        monthlyIncome,
-        payDay: parseInt(payDay, 10),
-        dueNotifications,
-        aiTips,
+        display_name: name,
+        email,
+        monthly_income: monthlyIncome,
+        payday: parseInt(payDay, 10),
+        notify_bills: dueNotifications,
+        notify_ai_tips: aiTips,
+        share_data: true,
       })
+
+      await refreshData()
+
       toast({ title: 'Conta criada!', description: 'Bem-vindo à Família Finance!' })
       navigate('/dashboard')
-    } catch {
+    } catch (err) {
       toast({
         variant: 'destructive',
         title: 'Erro',
-        description: 'Não foi possível criar a conta. Tente novamente.',
+        description: getPortugueseError(err),
       })
     } finally {
       setLoading(false)
@@ -117,7 +161,6 @@ export default function Onboarding() {
 
   return (
     <div className="w-full py-6 flex flex-col items-center">
-      {/* Step Indicator */}
       <div className="w-full max-w-xs flex items-center justify-between mb-6">
         {[1, 2, 3].map((s) => {
           const isDone = step > s
@@ -143,7 +186,6 @@ export default function Onboarding() {
 
       <Card className="w-full border-none shadow-elevation rounded-2xl bg-white p-6 sm:p-8 animate-fade-in-up">
         <CardContent className="p-0 space-y-6">
-          {/* STEP 1 */}
           {step === 1 && (
             <div className="space-y-5">
               <div>
@@ -212,27 +254,27 @@ export default function Onboarding() {
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => setRole('Esposo')}
+                      onClick={() => setRole('husband')}
                       className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all ${
-                        role === 'Esposo'
+                        role === 'husband'
                           ? 'border-[#22C55E] bg-emerald-50 text-[#166534]'
                           : 'border-gray-200 bg-white text-gray-600'
                       }`}
                     >
                       <User className="h-6 w-6" />
-                      <span className="text-xs font-bold">Esposo</span>
+                      <span className="text-xs font-bold">{roleLabels.husband}</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => setRole('Esposa')}
+                      onClick={() => setRole('wife')}
                       className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all ${
-                        role === 'Esposa'
+                        role === 'wife'
                           ? 'border-[#22C55E] bg-emerald-50 text-[#166534]'
                           : 'border-gray-200 bg-white text-gray-600'
                       }`}
                     >
                       <User className="h-6 w-6" />
-                      <span className="text-xs font-bold">Esposa</span>
+                      <span className="text-xs font-bold">{roleLabels.wife}</span>
                     </button>
                   </div>
                 </div>
@@ -240,15 +282,21 @@ export default function Onboarding() {
 
               <Button
                 onClick={handleNextStep1}
-                disabled={!name || !email || password.length < 6}
+                disabled={!name || !email || password.length < 6 || loading}
                 className="w-full bg-[#166534] hover:bg-[#15803D] text-white"
               >
-                Continuar
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Criando conta...</span>
+                  </div>
+                ) : (
+                  'Continuar'
+                )}
               </Button>
             </div>
           )}
 
-          {/* STEP 2 */}
           {step === 2 && (
             <div className="space-y-5">
               <div>
@@ -324,7 +372,7 @@ export default function Onboarding() {
                   </div>
                   {codeValid === true && (
                     <p className="text-xs text-emerald-600 font-medium">
-                      Família encontrada: {familyName} (Convidado por {inviterName})
+                      Família encontrada: {validatedFamilyName}
                     </p>
                   )}
                   {codeValid === false && (
@@ -348,7 +396,6 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* STEP 3 */}
           {step === 3 && (
             <div className="space-y-5">
               <div>
