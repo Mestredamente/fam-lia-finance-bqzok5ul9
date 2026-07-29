@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-29T00:03:52.368Z",
+  "generatedAt": "2026-07-29T00:25:17.710Z",
   "collections": [
     {
       "name": "users",
@@ -189,8 +189,8 @@
       "name": "family_invites",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": "created_by = @request.auth.id || invite_code != ''",
+        "view": "created_by = @request.auth.id || invite_code != ''",
         "create": "@request.auth.id != ''",
         "update": "@request.auth.id != ''",
         "delete": "created_by = @request.auth.id"
@@ -241,6 +241,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_family_invites_code ON family_invites (invite_code)"]

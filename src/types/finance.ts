@@ -43,10 +43,11 @@ export interface InviteRecord {
   family_id: string
   invite_code: string
   created_by: string
-  used_by: string
-  used_at: string
+  used_by: string | null
+  used_at: string | null
   expires_at: string
   created: string
+  updated?: string
   expand?: {
     family_id?: FamilyRecord
   }

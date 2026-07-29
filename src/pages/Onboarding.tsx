@@ -22,7 +22,12 @@ import { TermsModal } from '@/components/TermsModal'
 import { MemberRole, roleLabels } from '@/types/finance'
 import { createFamily } from '@/services/families'
 import { createMember } from '@/services/members'
-import { validateInviteCode, markInviteUsed, generateInviteCode } from '@/services/invites'
+import {
+  validateInviteCode,
+  markInviteUsed,
+  generateInviteCode,
+  createInvite,
+} from '@/services/invites'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
 
@@ -121,6 +126,15 @@ export default function Onboarding() {
           created_by: userId,
         })
         familyId = family.id
+
+        const expiresAt = new Date()
+        expiresAt.setDate(expiresAt.getDate() + 30)
+        await createInvite({
+          family_id: familyId,
+          invite_code: code,
+          created_by: userId,
+          expires_at: expiresAt.toISOString(),
+        })
       } else {
         if (!validatedInviteId || !validatedFamilyId) {
           throw new Error('Código de convite não validado')
