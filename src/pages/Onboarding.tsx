@@ -24,7 +24,7 @@ import { createFamily } from '@/services/families'
 import { createMember } from '@/services/members'
 import {
   validateInviteCode,
-  markInviteUsed,
+  joinFamily,
   generateInviteCode,
   createInvite,
 } from '@/services/invites'
@@ -55,9 +55,6 @@ export default function Onboarding() {
   const [inviteCode, setInviteCode] = useState('')
   const [codeValid, setCodeValid] = useState<boolean | null>(null)
   const [validatedFamilyName, setValidatedFamilyName] = useState('')
-  const [validatedInviteId, setValidatedInviteId] = useState('')
-  const [validatedFamilyId, setValidatedFamilyId] = useState('')
-
   const [monthlyIncome, setMonthlyIncome] = useState(5000)
   const [payDay, setPayDay] = useState<string>('5')
   const [dueNotifications, setDueNotifications] = useState(true)
@@ -98,12 +95,10 @@ export default function Onboarding() {
 
   const handleValidateCode = async () => {
     if (!inviteCode) return
-    const invite = await validateInviteCode(inviteCode)
-    if (invite) {
+    const result = await validateInviteCode(inviteCode)
+    if (result.valid) {
       setCodeValid(true)
-      setValidatedInviteId(invite.id)
-      setValidatedFamilyId(invite.family_id)
-      setValidatedFamilyName(invite.expand?.family_id?.name || '')
+      setValidatedFamilyName(result.family_name || '')
     } else {
       setCodeValid(false)
     }
@@ -115,8 +110,6 @@ export default function Onboarding() {
       const userId = pb.authStore.record?.id
       if (!userId) throw new Error('Falha ao obter ID do usuário')
 
-      let familyId: string
-
       if (familyOption === 'create') {
         const famName = familyName || `Família ${(name || user?.name || 'Usuário').split(' ')[0]}`
         const code = generateInviteCode()
@@ -125,7 +118,7 @@ export default function Onboarding() {
           invite_code: code,
           created_by: userId,
         })
-        familyId = family.id
+        const familyId = family.id
 
         const expiresAt = new Date()
         expiresAt.setDate(expiresAt.getDate() + 30)
@@ -135,26 +128,39 @@ export default function Onboarding() {
           created_by: userId,
           expires_at: expiresAt.toISOString(),
         })
+
+        await createMember({
+          family_id: familyId,
+          user_id: userId,
+          role,
+          display_name: name || user?.name || 'Usuário',
+          email: email || user?.email || '',
+          monthly_income: monthlyIncome,
+          payday: parseInt(payDay, 10),
+          notify_bills: dueNotifications,
+          notify_ai_tips: aiTips,
+          share_data: true,
+        })
       } else {
-        if (!validatedInviteId || !validatedFamilyId) {
+        if (!codeValid) {
           throw new Error('Código de convite não validado')
         }
-        familyId = validatedFamilyId
-        await markInviteUsed(validatedInviteId, userId)
+        const joinResult = await joinFamily({
+          invite_code: inviteCode.trim().toUpperCase(),
+          user_id: userId,
+          role,
+          display_name: name || user?.name || 'Usuário',
+          email: email || user?.email || '',
+          monthly_income: monthlyIncome,
+          payday: parseInt(payDay, 10),
+          notify_bills: dueNotifications,
+          notify_ai_tips: aiTips,
+          share_data: true,
+        })
+        if (!joinResult.success) {
+          throw new Error(joinResult.error || 'Erro ao entrar na família')
+        }
       }
-
-      await createMember({
-        family_id: familyId,
-        user_id: userId,
-        role,
-        display_name: name || user?.name || 'Usuário',
-        email: email || user?.email || '',
-        monthly_income: monthlyIncome,
-        payday: parseInt(payDay, 10),
-        notify_bills: dueNotifications,
-        notify_ai_tips: aiTips,
-        share_data: true,
-      })
 
       await refreshData()
 

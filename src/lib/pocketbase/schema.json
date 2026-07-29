@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-29T00:36:14.457Z",
+  "generatedAt": "2026-07-29T00:49:15.302Z",
   "collections": [
     {
       "name": "users",
@@ -29,19 +29,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -84,24 +79,17 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
-      "indexes": [
-        "CREATE UNIQUE INDEX idx_families_invite_code ON families (invite_code)"
-      ]
+      "indexes": ["CREATE UNIQUE INDEX idx_families_invite_code ON families (invite_code)"]
     },
     {
       "name": "members",
@@ -133,12 +121,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "husband",
-            "wife",
-            "partner",
-            "child"
-          ]
+          "selectValues": ["husband", "wife", "partner", "child"]
         },
         {
           "name": "display_name",
@@ -187,19 +170,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": [
@@ -262,24 +240,17 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
-      "indexes": [
-        "CREATE UNIQUE INDEX idx_family_invites_code ON family_invites (invite_code)"
-      ]
+      "indexes": ["CREATE UNIQUE INDEX idx_family_invites_code ON family_invites (invite_code)"]
     }
   ]
 }

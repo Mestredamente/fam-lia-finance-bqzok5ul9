@@ -10,19 +10,48 @@ export function generateInviteCode(): string {
   return code
 }
 
-export const validateInviteCode = async (code: string): Promise<InviteRecord | null> => {
+export interface InviteValidationResult {
+  valid: boolean
+  family_name?: string
+  creator_name?: string
+  error?: string
+}
+
+export const validateInviteCode = async (code: string): Promise<InviteValidationResult> => {
   try {
     const normalizedCode = code.trim().toUpperCase()
-    return await pb
-      .collection('family_invites')
-      .getFirstListItem<InviteRecord>(
-        `invite_code = "${normalizedCode}" && used_by = null && expires_at > @now`,
-        { expand: 'family_id' },
-      )
+    return await pb.send(
+      `/backend/v1/validate-invite-code?invite_code=${encodeURIComponent(normalizedCode)}`,
+      { method: 'GET' },
+    )
   } catch {
-    return null
+    return { valid: false, error: 'Código inválido ou expirado.' }
   }
 }
+
+export interface JoinFamilyResult {
+  success: boolean
+  family_name?: string
+  error?: string
+}
+
+export const joinFamily = (data: {
+  invite_code: string
+  user_id: string
+  role: string
+  display_name: string
+  email: string
+  monthly_income?: number
+  payday?: number
+  notify_bills?: boolean
+  notify_ai_tips?: boolean
+  share_data?: boolean
+}): Promise<JoinFamilyResult> =>
+  pb.send('/backend/v1/join-family', {
+    method: 'POST',
+    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json' },
+  })
 
 export const createInvite = (data: {
   family_id: string
@@ -35,10 +64,4 @@ export const createInvite = (data: {
     invite_code: data.invite_code,
     created_by: data.created_by,
     expires_at: data.expires_at,
-  })
-
-export const markInviteUsed = (id: string, usedBy: string) =>
-  pb.collection('family_invites').update<InviteRecord>(id, {
-    used_by: usedBy,
-    used_at: new Date().toISOString(),
   })
