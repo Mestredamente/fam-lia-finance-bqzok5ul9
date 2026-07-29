@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-29T03:59:11.030Z",
+  "generatedAt": "2026-07-29T21:18:31.191Z",
   "collections": [
     {
       "name": "users",
@@ -87,6 +87,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "payoff_plan",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_families_invite_code ON families (invite_code)"]

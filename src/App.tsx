@@ -96,6 +96,14 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/patrimonio"
+              element={
+                <ProtectedRoute>
+                  <Patrimony />
+                </ProtectedRoute>
+              }
+            />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

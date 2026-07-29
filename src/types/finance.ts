@@ -9,11 +9,18 @@ export interface AuthUser {
   updated: string
 }
 
+export interface PayoffPlan {
+  strategy: 'snowball' | 'avalanche'
+  extraMonthly: number
+  calculatedAt: string
+}
+
 export interface FamilyRecord {
   id: string
   name: string
   invite_code: string
   created_by: string
+  payoff_plan?: PayoffPlan | null
   created: string
   updated: string
 }

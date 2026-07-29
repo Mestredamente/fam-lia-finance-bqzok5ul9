@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Users } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Users, Sparkles } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useMonthlySummary } from '@/hooks/use-monthly-summary'
@@ -12,6 +12,9 @@ import { MemberBreakdown } from '@/components/MemberBreakdown'
 import { FixedBillsSection } from '@/components/FixedBillsSection'
 import { PatrimonyDashboardCard } from '@/components/PatrimonyDashboardCard'
 import { TransactionFormSheet } from '@/components/TransactionFormSheet'
+import { FinancialHealthScore } from '@/components/FinancialHealthScore'
+import { SubscriptionAlert } from '@/components/SubscriptionAlert'
+import { ScenarioComparator } from '@/components/ScenarioComparator'
 import { MemberRecord } from '@/types/finance'
 import { getMembersByFamilyId } from '@/services/members'
 import { getMonthName } from '@/lib/utils'
@@ -25,6 +28,8 @@ export default function Dashboard() {
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [defaultIsFixed, setDefaultIsFixed] = useState(false)
+  const [showScenarioModal, setShowScenarioModal] = useState(false)
+  const [scenarioTab, setScenarioTab] = useState<string | undefined>(undefined)
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -45,7 +50,6 @@ export default function Dashboard() {
   useEffect(() => {
     loadMembers()
   }, [family?.id])
-
   useRealtime('members', () => {
     loadMembers()
   })
@@ -67,7 +71,6 @@ export default function Dashboard() {
     setSelectedMember(m)
     setShowMemberSheet(true)
   }
-
   const openForm = () => {
     setDefaultIsFixed(false)
     setShowForm(true)
@@ -75,6 +78,10 @@ export default function Dashboard() {
   const openFixedForm = () => {
     setDefaultIsFixed(true)
     setShowForm(true)
+  }
+  const openScenario = (scenario?: string) => {
+    setScenarioTab(scenario)
+    setShowScenarioModal(true)
   }
 
   const memberSummary = selectedMember ? summary.memberSummaries[selectedMember.id] : undefined
@@ -84,6 +91,9 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-900">Resumo Financeiro</h2>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => openScenario()}>
+            <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline ml-1">E se...?</span>
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -104,6 +114,8 @@ export default function Dashboard() {
           </Button>
         </div>
       </div>
+
+      <FinancialHealthScore familyId={family.id} />
 
       <DashboardSummary
         totalReceitas={summary.totalReceitas}
@@ -144,14 +156,19 @@ export default function Dashboard() {
         onMemberClick={handleMemberClick}
       />
 
+      <PatrimonyDashboardCard familyId={family.id} />
+
+      <SubscriptionAlert
+        familyId={family.id}
+        onSeeDetails={() => openScenario('cut-subscriptions')}
+      />
+
       <FixedBillsSection
         fixedBills={fixedBills}
         totalPaid={totalPaid}
         loading={billsLoading}
         onAddFixed={openFixedForm}
       />
-
-      <PatrimonyDashboardCard familyId={family.id} />
 
       <button
         onClick={openForm}
@@ -179,6 +196,12 @@ export default function Dashboard() {
         ownerId={member?.id || ''}
         onSaved={refetch}
         defaultIsFixed={defaultIsFixed}
+      />
+      <ScenarioComparator
+        open={showScenarioModal}
+        onOpenChange={setShowScenarioModal}
+        familyId={family.id}
+        initialScenario={scenarioTab}
       />
     </div>
   )

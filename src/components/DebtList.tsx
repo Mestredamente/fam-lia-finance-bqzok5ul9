@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, AlertCircle, FileText } from 'lucide-react'
+import { Plus, AlertCircle, FileText, Calculator } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useDebts } from '@/hooks/use-debts'
 import { deleteDebt, registerDebtPayment } from '@/services/debts'
@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { DebtFormSheet } from '@/components/DebtFormSheet'
 import { DebtDetailSheet } from '@/components/DebtDetailSheet'
+import { DebtPayoffCalculator } from '@/components/DebtPayoffCalculator'
 import { getDebtMeta } from '@/lib/patrimony-icons'
 import { formatBRL, cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
@@ -28,6 +29,7 @@ export function DebtList({ familyId, members }: Props) {
   const [editingDebt, setEditingDebt] = useState<DebtRecord | null>(null)
   const [detailDebt, setDetailDebt] = useState<DebtRecord | null>(null)
   const [showDetail, setShowDetail] = useState(false)
+  const [showPayoffCalc, setShowPayoffCalc] = useState(false)
 
   const filtered = memberFilter === 'all' ? debts : debts.filter((d) => d.owner_id === memberFilter)
   const commitmentHigh = incomeCommitment !== null && incomeCommitment >= 30
@@ -62,16 +64,23 @@ export function DebtList({ familyId, members }: Props) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-gray-900">Dívidas</h2>
-        <Button
-          size="sm"
-          onClick={() => {
-            setEditingDebt(null)
-            setShowForm(true)
-          }}
-          className="bg-[#166534] hover:bg-[#15803D]"
-        >
-          <Plus className="h-4 w-4 mr-1" /> Adicionar
-        </Button>
+        <div className="flex gap-2">
+          {debts.length > 0 && (
+            <Button variant="outline" size="sm" onClick={() => setShowPayoffCalc(true)}>
+              <Calculator className="h-4 w-4 mr-1" /> Simular quitação
+            </Button>
+          )}
+          <Button
+            size="sm"
+            onClick={() => {
+              setEditingDebt(null)
+              setShowForm(true)
+            }}
+            className="bg-[#166534] hover:bg-[#15803D]"
+          >
+            <Plus className="h-4 w-4 mr-1" /> Adicionar
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -261,6 +270,12 @@ export function DebtList({ familyId, members }: Props) {
         }}
         onDelete={handleDelete}
         onRegisterPayment={handleRegisterPayment}
+      />
+      <DebtPayoffCalculator
+        open={showPayoffCalc}
+        onOpenChange={setShowPayoffCalc}
+        debts={debts}
+        familyId={familyId}
       />
     </div>
   )
