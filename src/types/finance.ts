@@ -180,3 +180,71 @@ export interface InvoiceItemRecord {
     converted_transaction_id?: TransactionRecord
   }
 }
+
+export type InvestmentType =
+  | 'cdb'
+  | 'tesouro'
+  | 'acoes'
+  | 'fii'
+  | 'poupanca'
+  | 'renda_fixa'
+  | 'cripto'
+  | 'outro'
+
+export type InterestType = 'cdi' | 'fixed' | 'ipca' | 'prefixed'
+
+export interface InvestmentRecord {
+  id: string
+  family_id: string
+  owner_id: string
+  type: InvestmentType
+  name: string
+  institution: string
+  amount_invested: number
+  current_value: number
+  interest_rate: number | null
+  interest_type: InterestType | null
+  maturity_date: string | null
+  is_active: boolean
+  notes: string | null
+  created: string
+  updated: string
+  expand?: {
+    family_id?: FamilyRecord
+    owner_id?: MemberRecord
+  }
+}
+
+export type DebtType =
+  | 'financing'
+  | 'loan'
+  | 'credit_card'
+  | 'financing_home'
+  | 'financing_car'
+  | 'personal_loan'
+  | 'other'
+
+export interface DebtRecord {
+  id: string
+  family_id: string
+  owner_id: string
+  description: string
+  type: DebtType
+  total_amount: number
+  remaining_amount: number
+  installment_value: number
+  installments_total: number
+  installments_paid: number
+  installments_remaining: number
+  interest_rate: number
+  due_day: number
+  start_date: string
+  is_active: boolean
+  notes: string | null
+  created: string
+  updated: string
+  expand?: {
+    family_id?: FamilyRecord
+    owner_id?: MemberRecord
+  }
+}

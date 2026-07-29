@@ -13,6 +13,7 @@ import Transactions from '@/pages/Transactions'
 import Cards from '@/pages/Cards'
 import CardDetail from '@/pages/CardDetail'
 import InvoiceReview from '@/pages/InvoiceReview'
+import Patrimony from '@/pages/Patrimony'
 import NotFound from '@/pages/NotFound'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {

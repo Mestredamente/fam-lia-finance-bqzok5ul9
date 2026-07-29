@@ -1,4 +1,4 @@
-import { Home, List, CreditCard, Bot, User, Home as HouseIcon } from 'lucide-react'
+import { Home, List, CreditCard, TrendingUp, User, Home as HouseIcon } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { usePendingInvoicesCount } from '@/hooks/use-pending-invoices-count'
@@ -65,7 +65,7 @@ export function Sidebar() {
     { label: 'Início', path: '/dashboard', icon: Home, active: true },
     { label: 'Transações', path: '/transacoes', icon: List, active: true },
     { label: 'Cartões', path: '/cards', icon: CreditCard, active: true },
-    { label: 'IA Consultora', path: '/ia', icon: Bot, active: false },
+    { label: 'Patrimônio', path: '/patrimonio', icon: TrendingUp, active: true },
     { label: 'Perfil', path: '/profile', icon: User, active: true },
   ]
 
@@ -131,7 +131,7 @@ export function BottomNav() {
     { label: 'Início', path: '/dashboard', icon: Home, active: true },
     { label: 'Transações', path: '/transacoes', icon: List, active: true },
     { label: 'Cartões', path: '/cards', icon: CreditCard, active: true },
-    { label: 'IA', path: '/ia', icon: Bot, active: false },
+    { label: 'Patrimônio', path: '/patrimonio', icon: TrendingUp, active: true },
     { label: 'Perfil', path: '/profile', icon: User, active: true },
   ]
 

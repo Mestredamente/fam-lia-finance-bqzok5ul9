@@ -10,6 +10,7 @@ import { InviteCodeDialog } from '@/components/InviteCodeDialog'
 import { DashboardSummary } from '@/components/DashboardSummary'
 import { MemberBreakdown } from '@/components/MemberBreakdown'
 import { FixedBillsSection } from '@/components/FixedBillsSection'
+import { PatrimonyDashboardCard } from '@/components/PatrimonyDashboardCard'
 import { TransactionFormSheet } from '@/components/TransactionFormSheet'
 import { MemberRecord } from '@/types/finance'
 import { getMembersByFamilyId } from '@/services/members'
@@ -149,6 +150,8 @@ export default function Dashboard() {
         loading={billsLoading}
         onAddFixed={openFixedForm}
       />
+
+      <PatrimonyDashboardCard familyId={family.id} />
 
       <button
         onClick={openForm}

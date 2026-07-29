@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-29T03:36:53.974Z",
+  "generatedAt": "2026-07-29T03:59:11.030Z",
   "collections": [
     {
       "name": "users",
@@ -681,6 +681,254 @@
       "indexes": [
         "CREATE INDEX idx_invoice_items_invoice_id ON invoice_items (invoice_id)",
         "CREATE INDEX idx_invoice_items_family_id ON invoice_items (family_id)"
+      ]
+    },
+    {
+      "name": "investments",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "owner_id.user_id = @request.auth.id",
+        "delete": "owner_id.user_id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "family_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "families"
+        },
+        {
+          "name": "owner_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "members"
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "cdb",
+            "tesouro",
+            "acoes",
+            "fii",
+            "poupanca",
+            "renda_fixa",
+            "cripto",
+            "outro"
+          ]
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "institution",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "amount_invested",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "current_value",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "interest_rate",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "interest_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["cdi", "fixed", "ipca", "prefixed"]
+        },
+        {
+          "name": "maturity_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_investments_family_id ON investments (family_id)",
+        "CREATE INDEX idx_investments_owner_id ON investments (owner_id)"
+      ]
+    },
+    {
+      "name": "debts",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "owner_id.user_id = @request.auth.id",
+        "delete": "owner_id.user_id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "family_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "families"
+        },
+        {
+          "name": "owner_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "members"
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "financing",
+            "loan",
+            "credit_card",
+            "financing_home",
+            "financing_car",
+            "personal_loan",
+            "other"
+          ]
+        },
+        {
+          "name": "total_amount",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "remaining_amount",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "installment_value",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "installments_total",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "installments_paid",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "installments_remaining",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "interest_rate",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "due_day",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "start_date",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_debts_family_id ON debts (family_id)",
+        "CREATE INDEX idx_debts_owner_id ON debts (owner_id)"
       ]
     }
   ]

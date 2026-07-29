@@ -25,6 +25,9 @@ import { MemberRecord, TransactionRecord, getRoleLabel } from '@/types/finance'
 import { getMembersByFamilyId } from '@/services/members'
 import { getTransactionsByMember } from '@/services/transactions'
 import { createInvite, generateInviteCode } from '@/services/invites'
+import { getInvestmentsByOwner } from '@/services/investments'
+import { getDebtsByOwner } from '@/services/debts'
+import type { InvestmentRecord, DebtRecord } from '@/types/finance'
 import { toast } from '@/hooks/use-toast'
 import { formatBRL, getMonthName, getProgressBarColor } from '@/lib/utils'
 
@@ -36,6 +39,8 @@ export default function Profile() {
   const [inviteCode, setInviteCode] = useState(family?.invite_code || 'FAM-0000')
   const [familyMembers, setFamilyMembers] = useState<MemberRecord[]>([])
   const [allTransactions, setAllTransactions] = useState<TransactionRecord[]>([])
+  const [userInvestments, setUserInvestments] = useState<InvestmentRecord[]>([])
+  const [userDebts, setUserDebts] = useState<DebtRecord[]>([])
 
   const loadMembers = async () => {
     if (!family) return
@@ -55,17 +60,43 @@ export default function Profile() {
     }
   }
 
+  const loadInvestments = async () => {
+    if (!member) return
+    try {
+      setUserInvestments(await getInvestmentsByOwner(member.id))
+    } catch {
+      setUserInvestments([])
+    }
+  }
+
+  const loadUserDebts = async () => {
+    if (!member) return
+    try {
+      setUserDebts(await getDebtsByOwner(member.id))
+    } catch {
+      setUserDebts([])
+    }
+  }
+
   useEffect(() => {
     loadMembers()
   }, [family?.id])
   useEffect(() => {
     loadTransactions()
+    loadInvestments()
+    loadUserDebts()
   }, [member?.id])
   useRealtime('members', () => {
     loadMembers()
   })
   useRealtime('transactions', () => {
     loadTransactions()
+  })
+  useRealtime('investments', () => {
+    loadInvestments()
+  })
+  useRealtime('debts', () => {
+    loadUserDebts()
   })
 
   if (!user) return null
@@ -74,12 +105,13 @@ export default function Profile() {
     ? `${import.meta.env.VITE_POCKETBASE_URL}/api/files/users/${user.id}/${user.avatar}`
     : undefined
 
-  const totalInvested = allTransactions
-    .filter((t) => t.type === 'investment')
-    .reduce((s, t) => s + t.amount, 0)
-  const totalDebts = allTransactions
-    .filter((t) => t.type === 'debt_payment')
-    .reduce((s, t) => s + t.amount, 0)
+  const totalInvested = userInvestments
+    .filter((i) => i.is_active)
+    .reduce((s, i) => s + i.current_value, 0)
+  const totalDebts = userDebts
+    .filter((d) => d.is_active)
+    .reduce((s, d) => s + d.remaining_amount, 0)
+  const individualNetWorth = totalInvested - totalDebts
   const totalTransactions = allTransactions.length
 
   const now = new Date()
@@ -185,6 +217,14 @@ export default function Profile() {
             <div>
               <span className="text-xs text-gray-500 block">Total em dívidas</span>
               <span className="text-base font-bold text-red-600">{formatBRL(totalDebts)}</span>
+            </div>
+            <div>
+              <span className="text-xs text-gray-500 block">Patrimônio líquido</span>
+              <span
+                className={`text-base font-bold ${individualNetWorth >= 0 ? 'text-[#166534]' : 'text-red-600'}`}
+              >
+                {formatBRL(individualNetWorth)}
+              </span>
             </div>
             <div>
               <span className="text-xs text-gray-500 block">Total de transações</span>

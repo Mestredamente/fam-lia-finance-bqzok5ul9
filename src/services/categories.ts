@@ -36,6 +36,7 @@ export const DEFAULT_CATEGORIES: DefaultCategory[] = [
   { name: 'Restaurantes', type: 'expense', icon: 'coffee', color: '#EAB308' },
   { name: 'Salário', type: 'income', icon: 'banknote', color: '#22C55E' },
   { name: 'Outros ganhos', type: 'income', icon: 'plus-circle', color: '#10B981' },
+  { name: 'Parcelas', type: 'debt', icon: 'receipt', color: '#DC2626' },
 ]
 
 export const seedDefaultCategories = async (familyId: string) => {

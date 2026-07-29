@@ -15,6 +15,7 @@ import {
   Gift,
   Dumbbell,
   Smartphone,
+  Receipt,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -36,6 +37,7 @@ const iconMap: Record<string, LucideIcon> = {
   gift: Gift,
   dumbbell: Dumbbell,
   smartphone: Smartphone,
+  receipt: Receipt,
 }
 
 export const PREDEFINED_ICONS = [
