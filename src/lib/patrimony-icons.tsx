@@ -1,5 +1,4 @@
 import {
-  Bank,
   Landmark,
   TrendingUp,
   Building,
@@ -23,7 +22,7 @@ interface TypeMeta {
 }
 
 export const investmentTypeMeta: Record<InvestmentType, TypeMeta> = {
-  cdb: { label: 'CDB', icon: Bank, color: '#3B82F6' },
+  cdb: { label: 'CDB', icon: Landmark, color: '#3B82F6' },
   tesouro: { label: 'Tesouro', icon: Landmark, color: '#059669' },
   acoes: { label: 'Ações', icon: TrendingUp, color: '#8B5CF6' },
   fii: { label: 'FII', icon: Building, color: '#F59E0B' },
