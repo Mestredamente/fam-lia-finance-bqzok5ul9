@@ -151,11 +151,15 @@ export default function Profile() {
             <div>
               <span className="text-xs text-gray-500 block">Total investido</span>
               <span className="text-base font-bold text-blue-600">{formatBRL(0)}</span>
+              <span className="text-[10px] text-gray-400 block">
+                Nenhum investimento cadastrado
+              </span>
             </div>
 
             <div>
               <span className="text-xs text-gray-500 block">Total em dívidas</span>
               <span className="text-base font-bold text-red-600">{formatBRL(0)}</span>
+              <span className="text-[10px] text-gray-400 block">Nenhuma dívida cadastrada</span>
             </div>
           </div>
         </CardContent>

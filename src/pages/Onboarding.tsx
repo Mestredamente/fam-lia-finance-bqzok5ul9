@@ -34,9 +34,9 @@ const step1Schema = z.object({
 
 export default function Onboarding() {
   const navigate = useNavigate()
-  const { signUp, refreshData } = useAuth()
+  const { signUp, refreshData, isAuthenticated, user } = useAuth()
 
-  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [step, setStep] = useState<1 | 2 | 3>(isAuthenticated ? 2 : 1)
   const [loading, setLoading] = useState(false)
 
   const [name, setName] = useState('')
@@ -113,7 +113,7 @@ export default function Onboarding() {
       let familyId: string
 
       if (familyOption === 'create') {
-        const famName = familyName || `Família ${name.split(' ')[0]}`
+        const famName = familyName || `Família ${(name || user?.name || 'Usuário').split(' ')[0]}`
         const code = generateInviteCode()
         const family = await createFamily({
           name: famName,
@@ -133,8 +133,8 @@ export default function Onboarding() {
         family_id: familyId,
         user_id: userId,
         role,
-        display_name: name,
-        email,
+        display_name: name || user?.name || 'Usuário',
+        email: email || user?.email || '',
         monthly_income: monthlyIncome,
         payday: parseInt(payDay, 10),
         notify_bills: dueNotifications,

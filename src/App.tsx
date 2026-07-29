@@ -12,10 +12,24 @@ import Profile from '@/pages/Profile'
 import NotFound from '@/pages/NotFound'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, hasFamily, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="w-10 h-10 border-4 border-emerald-200 border-t-[#166534] rounded-full animate-spin" />
+      </div>
+    )
+  }
+
   if (!isAuthenticated) {
     return <Navigate to="/" replace />
   }
+
+  if (!hasFamily) {
+    return <Navigate to="/onboarding" replace />
+  }
+
   return <>{children}</>
 }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowUpRight, ArrowDownRight, Wallet, Plus, Users, Receipt } from 'lucide-react'
+import { ArrowUpRight, ArrowDownRight, Wallet, Plus, Users, FileText } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Card, CardContent } from '@/components/ui/card'
@@ -8,16 +8,10 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { MemberDetailSheet } from '@/components/MemberDetailSheet'
 import { InviteCodeDialog } from '@/components/InviteCodeDialog'
-import { MemberRecord, FixedBill, getRoleLabel } from '@/types/finance'
+import { MemberRecord, getRoleLabel } from '@/types/finance'
 import { getMembersByFamilyId } from '@/services/members'
 import { toast } from '@/hooks/use-toast'
-
-const MOCK_BILLS: FixedBill[] = [
-  { id: '1', name: 'Aluguel', amount: 1800, dueDateDay: 5, status: 'Pago' },
-  { id: '2', name: 'Conta de Luz', amount: 230, dueDateDay: 10, status: 'Pendente' },
-  { id: '3', name: 'Internet', amount: 99, dueDateDay: 15, status: 'Pendente' },
-  { id: '4', name: 'Plano de Saúde', amount: 450, dueDateDay: 20, status: 'Atrasado' },
-]
+import { formatBRL } from '@/lib/utils'
 
 export default function Dashboard() {
   const { family } = useAuth()
@@ -55,20 +49,16 @@ export default function Dashboard() {
 
   const inviteCode = family.invite_code
 
-  const totalIncome = members.reduce((acc, m) => acc + (m.monthly_income || 0), 0)
-  const totalExpenses = MOCK_BILLS.reduce((acc, b) => acc + b.amount, 0)
+  const totalIncome = 0
+  const totalExpenses = 0
   const totalBalance = totalIncome - totalExpenses
-  const expenseRatio =
-    totalIncome > 0 ? Math.min(Math.round((totalExpenses / totalIncome) * 1000) / 10, 100) : 0
+  const expenseRatio = 0
 
   const getProgressBarColor = (ratio: number) => {
     if (ratio <= 50) return 'bg-[#22C55E]'
     if (ratio <= 80) return 'bg-[#EAB308]'
     return 'bg-[#EF4444]'
   }
-
-  const formatBRL = (val: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
   const handleMemberClick = (m: MemberRecord) => {
     setSelectedMember(m)
@@ -133,6 +123,8 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        <p className="text-xs text-gray-400 text-center">Adicione transações para ver seu resumo</p>
 
         <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white p-4">
           <div className="space-y-2">
@@ -222,54 +214,25 @@ export default function Dashboard() {
       </section>
 
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Contas fixas deste mês</h2>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() =>
-              toast({ title: 'Em breve', description: 'Criação de novas contas fixas em breve.' })
-            }
-          >
-            Adicionar
-          </Button>
-        </div>
+        <h2 className="text-xl font-bold text-gray-900">Contas fixas deste mês</h2>
 
-        <div className="space-y-3">
-          {MOCK_BILLS.map((bill) => {
-            const badgeColors = {
-              Pago: 'bg-emerald-100 text-[#166534] border-emerald-200',
-              Pendente: 'bg-amber-100 text-amber-800 border-amber-200',
-              Atrasado: 'bg-red-100 text-red-700 border-red-200',
-            }
-            return (
-              <Card
-                key={bill.id}
-                className="border border-gray-100 shadow-subtle rounded-xl bg-white"
-              >
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600">
-                      <Receipt className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-sm text-gray-900">{bill.name}</h4>
-                      <span className="text-xs text-gray-500">Vence dia {bill.dueDateDay}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="font-bold text-sm text-gray-900">
-                      {formatBRL(bill.amount)}
-                    </span>
-                    <Badge className={`text-xs font-semibold ${badgeColors[bill.status]}`}>
-                      {bill.status}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
+        <Card className="border border-dashed border-gray-200 shadow-subtle rounded-2xl bg-white">
+          <CardContent className="p-8 flex flex-col items-center justify-center text-center space-y-3">
+            <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
+              <FileText className="h-7 w-7" />
+            </div>
+            <p className="text-sm font-medium text-gray-500">Nenhuma conta fixa cadastrada</p>
+            <Button
+              size="sm"
+              onClick={() =>
+                toast({ title: 'Em breve', description: 'Criação de novas contas fixas em breve.' })
+              }
+              className="bg-[#166534] hover:bg-[#15803D] text-white"
+            >
+              Adicionar primeira conta
+            </Button>
+          </CardContent>
+        </Card>
       </section>
 
       <button

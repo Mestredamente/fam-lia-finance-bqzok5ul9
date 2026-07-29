@@ -13,6 +13,7 @@ interface AuthContextType {
   member: MemberRecord | null
   family: FamilyRecord | null
   isAuthenticated: boolean
+  hasFamily: boolean
   loading: boolean
   login: (email: string, password: string) => Promise<{ hasFamily: boolean }>
   signUp: (email: string, password: string, name: string) => Promise<void>
@@ -157,6 +158,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         member,
         family,
         isAuthenticated,
+        hasFamily: !!member,
         loading,
         login,
         signUp,
