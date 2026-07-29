@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-29T02:33:31.815Z",
+  "generatedAt": "2026-07-29T03:08:38.713Z",
   "collections": [
     {
       "name": "users",
@@ -419,6 +419,268 @@
         "CREATE INDEX idx_transactions_family_id ON transactions (family_id)",
         "CREATE INDEX idx_transactions_owner_id ON transactions (owner_id)",
         "CREATE INDEX idx_transactions_category_id ON transactions (category_id)"
+      ]
+    },
+    {
+      "name": "credit_cards",
+      "type": "base",
+      "apiRules": {
+        "list": "family_id.created_by = @request.auth.id || owner_id.user_id = @request.auth.id",
+        "view": "family_id.created_by = @request.auth.id || owner_id.user_id = @request.auth.id",
+        "create": "@request.auth.id != ''",
+        "update": "owner_id.user_id = @request.auth.id",
+        "delete": "owner_id.user_id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "family_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "families"
+        },
+        {
+          "name": "owner_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "members"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "card_brand",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Visa", "Mastercard", "Elo", "Amex", "Outros"]
+        },
+        {
+          "name": "closing_day",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "due_day",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "credit_limit",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_credit_cards_family_id ON credit_cards (family_id)",
+        "CREATE INDEX idx_credit_cards_owner_id ON credit_cards (owner_id)"
+      ]
+    },
+    {
+      "name": "invoices",
+      "type": "base",
+      "apiRules": {
+        "list": "family_id.created_by = @request.auth.id || owner_id.user_id = @request.auth.id",
+        "view": "family_id.created_by = @request.auth.id || owner_id.user_id = @request.auth.id",
+        "create": "@request.auth.id != ''",
+        "update": "owner_id.user_id = @request.auth.id",
+        "delete": "owner_id.user_id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "card_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "credit_cards"
+        },
+        {
+          "name": "family_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "families"
+        },
+        {
+          "name": "owner_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "members"
+        },
+        {
+          "name": "month_ref",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "total_amount",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["pending", "reviewed", "paid"]
+        },
+        {
+          "name": "raw_file_url",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parsed_data",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parsed_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_invoices_card_id ON invoices (card_id)",
+        "CREATE INDEX idx_invoices_family_id ON invoices (family_id)",
+        "CREATE INDEX idx_invoices_owner_id ON invoices (owner_id)"
+      ]
+    },
+    {
+      "name": "invoice_items",
+      "type": "base",
+      "apiRules": {
+        "list": "family_id.created_by = @request.auth.id",
+        "view": "family_id.created_by = @request.auth.id",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "invoice_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "invoices"
+        },
+        {
+          "name": "family_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "families"
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "transaction_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "suggested_category_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "categories"
+        },
+        {
+          "name": "confirmed_category_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "categories"
+        },
+        {
+          "name": "is_confirmed",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "converted_transaction_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "transactions"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_invoice_items_invoice_id ON invoice_items (invoice_id)",
+        "CREATE INDEX idx_invoice_items_family_id ON invoice_items (family_id)"
       ]
     }
   ]
