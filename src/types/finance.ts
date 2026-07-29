@@ -120,3 +120,63 @@ export interface TransactionRecord {
     category_id?: CategoryRecord
   }
 }
+
+export interface CreditCardRecord {
+  id: string
+  family_id: string
+  owner_id: string
+  name: string
+  card_brand: 'Visa' | 'Mastercard' | 'Elo' | 'Amex' | 'Outros'
+  closing_day: number
+  due_day: number
+  credit_limit: number | null
+  is_active: boolean
+  created: string
+  updated: string
+  expand?: {
+    family_id?: FamilyRecord
+    owner_id?: MemberRecord
+  }
+}
+
+export interface InvoiceRecord {
+  id: string
+  card_id: string
+  family_id: string
+  owner_id: string
+  month_ref: string
+  total_amount: number
+  status: 'pending' | 'reviewed' | 'paid'
+  raw_file_url: string
+  parsed_data: string
+  parsed_at: string
+  created: string
+  updated: string
+  expand?: {
+    card_id?: CreditCardRecord
+    family_id?: FamilyRecord
+    owner_id?: MemberRecord
+  }
+}
+
+export interface InvoiceItemRecord {
+  id: string
+  invoice_id: string
+  family_id: string
+  description: string
+  amount: number
+  transaction_date: string
+  suggested_category_id: string
+  confirmed_category_id: string
+  is_confirmed: boolean
+  converted_transaction_id: string
+  created: string
+  updated: string
+  expand?: {
+    invoice_id?: InvoiceRecord
+    family_id?: FamilyRecord
+    suggested_category_id?: CategoryRecord
+    confirmed_category_id?: CategoryRecord
+    converted_transaction_id?: TransactionRecord
+  }
+}

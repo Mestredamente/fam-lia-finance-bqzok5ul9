@@ -1,6 +1,7 @@
 import { Home, List, CreditCard, Bot, User, Home as HouseIcon } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
+import { usePendingInvoicesCount } from '@/hooks/use-pending-invoices-count'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
@@ -57,11 +58,13 @@ export function Header() {
 export function Sidebar() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { family } = useAuth()
+  const pendingCount = usePendingInvoicesCount(family?.id)
 
   const navItems = [
     { label: 'Início', path: '/dashboard', icon: Home, active: true },
     { label: 'Transações', path: '/transacoes', icon: List, active: true },
-    { label: 'Cartões', path: '/cartoes', icon: CreditCard, active: false },
+    { label: 'Cartões', path: '/cards', icon: CreditCard, active: true },
     { label: 'IA Consultora', path: '/ia', icon: Bot, active: false },
     { label: 'Perfil', path: '/profile', icon: User, active: true },
   ]
@@ -88,7 +91,8 @@ export function Sidebar() {
 
       <nav className="flex-1 p-4 space-y-1">
         {navItems.map((item) => {
-          const isCurrent = location.pathname === item.path
+          const isCurrent =
+            location.pathname === item.path || location.pathname.startsWith(item.path + '/')
           return (
             <button
               key={item.label}
@@ -104,6 +108,11 @@ export function Sidebar() {
                 className={cn('h-5 w-5', isCurrent ? 'text-[#166534]' : 'text-gray-400')}
               />
               <span>{item.label}</span>
+              {item.path === '/cards' && pendingCount > 0 && (
+                <span className="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                  {pendingCount > 9 ? '9+' : pendingCount}
+                </span>
+              )}
             </button>
           )
         })}
@@ -115,11 +124,13 @@ export function Sidebar() {
 export function BottomNav() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { family } = useAuth()
+  const pendingCount = usePendingInvoicesCount(family?.id)
 
   const tabs = [
     { label: 'Início', path: '/dashboard', icon: Home, active: true },
     { label: 'Transações', path: '/transacoes', icon: List, active: true },
-    { label: 'Cartões', path: '/cartoes', icon: CreditCard, active: false },
+    { label: 'Cartões', path: '/cards', icon: CreditCard, active: true },
     { label: 'IA', path: '/ia', icon: Bot, active: false },
     { label: 'Perfil', path: '/profile', icon: User, active: true },
   ]
@@ -138,7 +149,8 @@ export function BottomNav() {
   return (
     <div className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-gray-200 flex items-center justify-around z-30 lg:hidden shadow-lg">
       {tabs.map((tab) => {
-        const isCurrent = location.pathname === tab.path
+        const isCurrent =
+          location.pathname === tab.path || location.pathname.startsWith(tab.path + '/')
         return (
           <button
             key={tab.label}
@@ -146,6 +158,11 @@ export function BottomNav() {
             className="flex flex-col items-center justify-center w-full h-full relative"
           >
             {isCurrent && <div className="absolute top-1 w-1.5 h-1.5 rounded-full bg-[#22C55E]" />}
+            {tab.path === '/cards' && pendingCount > 0 && (
+              <span className="absolute top-0 right-[25%] bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1 z-10">
+                {pendingCount > 9 ? '9+' : pendingCount}
+              </span>
+            )}
             <tab.icon
               className={cn('h-5 w-5 mt-1', isCurrent ? 'text-[#166534]' : 'text-gray-400')}
             />

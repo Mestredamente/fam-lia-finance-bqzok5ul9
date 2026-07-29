@@ -8,12 +8,14 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import { CreditCardVisual } from '@/components/CreditCardVisual'
 import { CreditCardFormSheet } from '@/components/CreditCardFormSheet'
+import { TransactionFormSheet } from '@/components/TransactionFormSheet'
 
 export default function Cards() {
   const { family, member } = useAuth()
   const navigate = useNavigate()
   const { cards, loading, error, refetch } = useCreditCards(family?.id)
   const [showForm, setShowForm] = useState(false)
+  const [showTransactionForm, setShowTransactionForm] = useState(false)
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -64,7 +66,7 @@ export default function Cards() {
           {cards.map((card) => (
             <div
               key={card.id}
-              onClick={() => navigate(`/cartoes/${card.id}/faturas`)}
+              onClick={() => navigate(`/cards/${card.id}`)}
               className="cursor-pointer group"
             >
               <CreditCardVisual card={card} ownerName={card.expand?.owner_id?.display_name} />
@@ -84,6 +86,21 @@ export default function Cards() {
         onOpenChange={setShowForm}
         familyId={family?.id || ''}
         defaultOwnerId={member?.id || ''}
+        onSaved={refetch}
+      />
+
+      <button
+        onClick={() => setShowTransactionForm(true)}
+        className="fixed bottom-20 right-6 lg:bottom-8 lg:right-8 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 z-20"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
+
+      <TransactionFormSheet
+        open={showTransactionForm}
+        onOpenChange={setShowTransactionForm}
+        familyId={family?.id || ''}
+        ownerId={member?.id || ''}
         onSaved={refetch}
       />
     </div>

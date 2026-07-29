@@ -10,6 +10,9 @@ import Onboarding from '@/pages/Onboarding'
 import Dashboard from '@/pages/Dashboard'
 import Profile from '@/pages/Profile'
 import Transactions from '@/pages/Transactions'
+import Cards from '@/pages/Cards'
+import CardDetail from '@/pages/CardDetail'
+import InvoiceReview from '@/pages/InvoiceReview'
 import NotFound from '@/pages/NotFound'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -65,6 +68,30 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Transactions />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cards"
+              element={
+                <ProtectedRoute>
+                  <Cards />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cards/:cardId"
+              element={
+                <ProtectedRoute>
+                  <CardDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cards/:cardId/invoices/:invoiceId/review"
+              element={
+                <ProtectedRoute>
+                  <InvoiceReview />
                 </ProtectedRoute>
               }
             />
