@@ -1,3 +1,4 @@
+import { ClientResponseError } from 'pocketbase'
 import pb from '@/lib/pocketbase/client'
 import type { InviteRecord } from '@/types/finance'
 
@@ -20,17 +21,48 @@ export interface InviteValidationResult {
 export const validateInviteCode = async (code: string): Promise<InviteValidationResult> => {
   try {
     const normalizedCode = code.trim().toUpperCase()
-    return await pb.send(
+    const result = await pb.send(
       `/backend/v1/validate-invite-code?invite_code=${encodeURIComponent(normalizedCode)}`,
       { method: 'GET' },
     )
-  } catch {
-    return { valid: false, error: 'Código inválido ou expirado.' }
+    return result as InviteValidationResult
+  } catch (err: unknown) {
+    if (err instanceof ClientResponseError) {
+      if (err.status === 0 || err.isAbort) {
+        return {
+          valid: false,
+          error: 'Erro de conexão. Verifique sua internet e tente novamente.',
+        }
+      }
+      const data = err.response?.data
+      if (data && typeof data === 'object') {
+        const d = data as { valid?: boolean; error?: string }
+        if (d.valid === false && d.error) {
+          return { valid: false, error: d.error }
+        }
+      }
+    }
+    if (err instanceof Error) {
+      const msg = err.message.toLowerCase()
+      if (
+        msg.includes('fetch') ||
+        msg.includes('network') ||
+        msg.includes('timeout') ||
+        msg.includes('connection')
+      ) {
+        return {
+          valid: false,
+          error: 'Erro de conexão. Verifique sua internet e tente novamente.',
+        }
+      }
+    }
+    console.error('validateInviteCode error:', err)
+    return { valid: false, error: 'Erro inesperado. Tente novamente.' }
   }
 }
 
 export interface JoinFamilyResult {
-  success: boolean
+  valid: boolean
   family_name?: string
   error?: string
 }

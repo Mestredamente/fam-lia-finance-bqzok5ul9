@@ -55,6 +55,7 @@ export default function Onboarding() {
   const [inviteCode, setInviteCode] = useState('')
   const [codeValid, setCodeValid] = useState<boolean | null>(null)
   const [validatedFamilyName, setValidatedFamilyName] = useState('')
+  const [validationError, setValidationError] = useState('')
   const [monthlyIncome, setMonthlyIncome] = useState(5000)
   const [payDay, setPayDay] = useState<string>('5')
   const [dueNotifications, setDueNotifications] = useState(true)
@@ -93,14 +94,18 @@ export default function Onboarding() {
     }
   }
 
+  const [codeError, setCodeError] = useState('')
+
   const handleValidateCode = async () => {
     if (!inviteCode) return
+    setCodeError('')
     const result = await validateInviteCode(inviteCode)
     if (result.valid) {
       setCodeValid(true)
       setValidatedFamilyName(result.family_name || '')
     } else {
       setCodeValid(false)
+      setCodeError(result.error && result.error.trim() ? result.error : 'Código não encontrado.')
     }
   }
 
@@ -157,7 +162,7 @@ export default function Onboarding() {
           notify_ai_tips: aiTips,
           share_data: true,
         })
-        if (!joinResult.success) {
+        if (!joinResult.valid) {
           throw new Error(joinResult.error || 'Erro ao entrar na família')
         }
       }
@@ -379,6 +384,7 @@ export default function Onboarding() {
                       onChange={(e) => {
                         setInviteCode(e.target.value)
                         setCodeValid(null)
+                        setCodeError('')
                       }}
                     />
                     <Button
@@ -396,8 +402,10 @@ export default function Onboarding() {
                     </p>
                   )}
                   {codeValid === false && (
-                    <p className="text-xs text-red-500">Código não encontrado.</p>
-                  )}
+                    <p className="text-xs text-red-500">
+                      {validationError || 'Código não encontrado.'}
+                    </p>
+                  )}{' '}
                 </div>
               )}
 
