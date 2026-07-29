@@ -13,6 +13,7 @@ import { FixedBillsSection } from '@/components/FixedBillsSection'
 import { PatrimonyDashboardCard } from '@/components/PatrimonyDashboardCard'
 import { TransactionFormSheet } from '@/components/TransactionFormSheet'
 import { FinancialHealthScore } from '@/components/FinancialHealthScore'
+import { InsightsSection } from '@/components/InsightsSection'
 import { SubscriptionAlert } from '@/components/SubscriptionAlert'
 import { ScenarioComparator } from '@/components/ScenarioComparator'
 import { MemberRecord } from '@/types/finance'
@@ -116,6 +117,8 @@ export default function Dashboard() {
       </div>
 
       <FinancialHealthScore familyId={family.id} />
+
+      <InsightsSection familyId={family.id} memberId={member?.id || ''} />
 
       <DashboardSummary
         totalReceitas={summary.totalReceitas}

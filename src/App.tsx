@@ -14,6 +14,7 @@ import Cards from '@/pages/Cards'
 import CardDetail from '@/pages/CardDetail'
 import InvoiceReview from '@/pages/InvoiceReview'
 import Patrimony from '@/pages/Patrimony'
+import Consultora from '@/pages/Consultora'
 import NotFound from '@/pages/NotFound'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -101,6 +102,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Patrimony />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/consultora"
+              element={
+                <ProtectedRoute>
+                  <Consultora />
                 </ProtectedRoute>
               }
             />

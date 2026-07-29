@@ -1,4 +1,4 @@
-import { Home, List, CreditCard, TrendingUp, User, Home as HouseIcon } from 'lucide-react'
+import { Home, List, CreditCard, TrendingUp, User, Home as HouseIcon, Bot } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { usePendingInvoicesCount } from '@/hooks/use-pending-invoices-count'
@@ -66,6 +66,7 @@ export function Sidebar() {
     { label: 'Transações', path: '/transacoes', icon: List, active: true },
     { label: 'Cartões', path: '/cards', icon: CreditCard, active: true },
     { label: 'Patrimônio', path: '/patrimonio', icon: TrendingUp, active: true },
+    { label: 'Consultora', path: '/consultora', icon: Bot, active: true },
     { label: 'Perfil', path: '/profile', icon: User, active: true },
   ]
 
@@ -132,6 +133,7 @@ export function BottomNav() {
     { label: 'Transações', path: '/transacoes', icon: List, active: true },
     { label: 'Cartões', path: '/cards', icon: CreditCard, active: true },
     { label: 'Patrimônio', path: '/patrimonio', icon: TrendingUp, active: true },
+    { label: 'Consultora', path: '/consultora', icon: Bot, active: true },
     { label: 'Perfil', path: '/profile', icon: User, active: true },
   ]
 
@@ -169,7 +171,7 @@ export function BottomNav() {
             <span
               className={cn(
                 'text-[10px] font-medium mt-0.5',
-                isCurrent ? 'text-[#166534] font-bold' : 'text-gray-500',
+                isCurrent ? 'text-[#166534] font-bold' : 'text-transparent',
               )}
             >
               {tab.label}

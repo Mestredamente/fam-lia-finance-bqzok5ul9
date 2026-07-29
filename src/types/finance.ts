@@ -146,6 +146,24 @@ export interface CreditCardRecord {
   }
 }
 
+export interface AIInsight {
+  titulo: string
+  descricao: string
+  tipo: 'alerta' | 'oportunidade' | 'educacao' | 'comportamento'
+  prioridade: 'alta' | 'media' | 'baixa'
+  acao_recomendada: string
+}
+
+export interface AIConversationRecord {
+  id: string
+  family_id: string
+  user_id: string
+  role: 'user' | 'assistant'
+  content: string
+  created: string
+  updated: string
+}
+
 export interface InvoiceRecord {
   id: string
   card_id: string

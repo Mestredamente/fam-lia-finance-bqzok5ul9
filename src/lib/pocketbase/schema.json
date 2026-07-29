@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-29T21:18:31.191Z",
+  "generatedAt": "2026-07-29T23:03:50.440Z",
   "collections": [
     {
       "name": "users",
@@ -935,6 +935,65 @@
       "indexes": [
         "CREATE INDEX idx_debts_family_id ON debts (family_id)",
         "CREATE INDEX idx_debts_owner_id ON debts (owner_id)"
+      ]
+    },
+    {
+      "name": "ai_conversations",
+      "type": "base",
+      "apiRules": {
+        "list": "user_id.user_id = @request.auth.id",
+        "view": "user_id.user_id = @request.auth.id",
+        "create": "user_id.user_id = @request.auth.id",
+        "update": null,
+        "delete": "user_id.user_id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "family_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "families"
+        },
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "members"
+        },
+        {
+          "name": "role",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["user", "assistant"]
+        },
+        {
+          "name": "content",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_ai_conversations_family_id ON ai_conversations (family_id)",
+        "CREATE INDEX idx_ai_conversations_user_id ON ai_conversations (user_id)",
+        "CREATE INDEX idx_ai_conversations_user_created ON ai_conversations (user_id, created)"
       ]
     }
   ]
