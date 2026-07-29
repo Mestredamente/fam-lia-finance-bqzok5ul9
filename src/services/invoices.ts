@@ -53,6 +53,6 @@ export const getPendingInvoicesCount = (familyId: string) =>
   pb
     .collection('invoices')
     .getList(1, 1, {
-      filter: `family_id = "${familyId}" && status = "pending" && parsed_at != ""`,
+      filter: `family_id = "${familyId}" && status = "pending" && parsed_at != null`,
     })
     .then((r) => r.totalItems)

@@ -1,8 +1,17 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, Plus, FileText, Calendar } from 'lucide-react'
+import {
+  ChevronLeft,
+  Plus,
+  FileText,
+  Calendar,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+} from 'lucide-react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useInvoices } from '@/hooks/use-invoices'
 import { getCreditCard } from '@/services/credit-cards'
+import { parseInvoice } from '@/services/invoices'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -10,12 +19,21 @@ import { Badge } from '@/components/ui/badge'
 import { CreditCardVisual } from '@/components/CreditCardVisual'
 import { InvoiceFormSheet } from '@/components/InvoiceFormSheet'
 import { formatBRL, getMonthName, cn } from '@/lib/utils'
+import { getParseStatus, type ParseStatus } from '@/lib/invoice-utils'
+import { toast } from '@/hooks/use-toast'
 import type { CreditCardRecord } from '@/types/finance'
 
 const invoiceStatusConfig: Record<string, { label: string; className: string }> = {
   pending: { label: 'Pendente', className: 'bg-yellow-100 text-yellow-700' },
   reviewed: { label: 'Revisada', className: 'bg-blue-100 text-blue-700' },
   paid: { label: 'Paga', className: 'bg-green-100 text-green-700' },
+}
+
+const parseStatusConfig: Record<ParseStatus, { label: string; className: string }> = {
+  processing: { label: 'Processando', className: 'bg-blue-100 text-blue-700' },
+  success: { label: 'Pendente de revisão', className: 'bg-yellow-100 text-yellow-700' },
+  error: { label: 'Erro na importação', className: 'bg-red-100 text-red-700' },
+  none: { label: '', className: '' },
 }
 
 export default function CardDetail() {
@@ -25,6 +43,19 @@ export default function CardDetail() {
   const [card, setCard] = useState<CreditCardRecord | null>(null)
   const [cardLoading, setCardLoading] = useState(true)
   const [showInvoiceForm, setShowInvoiceForm] = useState(false)
+  const [reparsingId, setReparsingId] = useState<string | null>(null)
+
+  const handleReparse = async (invId: string) => {
+    setReparsingId(invId)
+    try {
+      await parseInvoice(invId)
+      toast({ title: 'Processando fatura com IA...' })
+    } catch {
+      toast({ variant: 'destructive', title: 'Erro ao processar fatura' })
+    } finally {
+      setReparsingId(null)
+    }
+  }
 
   useEffect(() => {
     if (!cardId) return
@@ -88,7 +119,8 @@ export default function CardDetail() {
           {invoices.map((inv) => {
             const monthDate = new Date(inv.month_ref.split(' ')[0] + 'T00:00:00')
             const status = invoiceStatusConfig[inv.status] || invoiceStatusConfig.pending
-            const isParsed = !!inv.parsed_at
+            const parseStatus = getParseStatus(inv)
+            const parseConfig = parseStatusConfig[parseStatus]
             return (
               <Card
                 key={inv.id}
@@ -105,10 +137,36 @@ export default function CardDetail() {
                     </p>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <Badge className={cn('text-[9px]', status.className)}>{status.label}</Badge>
-                      {isParsed && (
-                        <Badge variant="outline" className="text-[9px] text-gray-500">
-                          Processada
+                      {parseStatus !== 'none' && (
+                        <Badge
+                          className={cn(
+                            'text-[9px] flex items-center gap-0.5',
+                            parseConfig.className,
+                          )}
+                        >
+                          {parseStatus === 'processing' && (
+                            <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                          )}
+                          {parseStatus === 'error' && <AlertCircle className="h-2.5 w-2.5" />}
+                          {parseConfig.label}
                         </Badge>
+                      )}
+                      {parseStatus === 'error' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleReparse(inv.id)
+                          }}
+                          disabled={reparsingId === inv.id}
+                          className="text-[9px] text-red-600 font-semibold hover:text-red-700 disabled:opacity-50 flex items-center gap-0.5"
+                        >
+                          {reparsingId === inv.id ? (
+                            <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-2.5 w-2.5" />
+                          )}
+                          Tentar novamente
+                        </button>
                       )}
                     </div>
                   </div>

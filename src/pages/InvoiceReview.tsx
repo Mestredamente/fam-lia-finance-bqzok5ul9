@@ -1,7 +1,16 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Loader2, FileX, RefreshCw, CheckCircle2, FileCheck } from 'lucide-react'
+import {
+  ChevronLeft,
+  Loader2,
+  FileX,
+  RefreshCw,
+  CheckCircle2,
+  FileCheck,
+  AlertCircle,
+} from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { useRealtime } from '@/hooks/use-realtime'
 import { useInvoiceItems } from '@/hooks/use-invoice-items'
 import { useCategories } from '@/hooks/use-categories'
 import { getInvoice, updateInvoice, parseInvoice, convertInvoiceItems } from '@/services/invoices'
@@ -13,6 +22,7 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { InvoiceItemRow } from '@/components/InvoiceItemRow'
 import { formatBRL, getMonthName, cn } from '@/lib/utils'
+import { getParseStatus } from '@/lib/invoice-utils'
 import { toast } from '@/hooks/use-toast'
 import type { InvoiceRecord } from '@/types/finance'
 
@@ -45,6 +55,20 @@ export default function InvoiceReview() {
       .catch(() => setError('Erro ao carregar fatura'))
       .finally(() => setLoading(false))
   }, [invoiceId])
+
+  useRealtime(
+    'invoices',
+    (e) => {
+      if (e.record.id === invoiceId) {
+        getInvoice(invoiceId)
+          .then(setInvoice)
+          .catch(() => {})
+      }
+    },
+    !!invoiceId,
+  )
+
+  const parseStatus = invoice ? getParseStatus(invoice) : 'none'
 
   const unconfirmedItems = useMemo(() => items.filter((i) => !i.is_confirmed), [items])
   const confirmedItems = useMemo(() => items.filter((i) => i.is_confirmed), [items])
@@ -188,124 +212,183 @@ export default function InvoiceReview() {
         </CardContent>
       </Card>
 
-      {itemsLoading ? (
-        <div className="space-y-3">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-xl" />
-          ))}
-        </div>
-      ) : itemsError ? (
-        <Card className="border-red-200 rounded-2xl">
-          <CardContent className="p-6 text-center space-y-3">
-            <p className="text-sm text-red-600">Erro ao carregar itens da fatura</p>
-            <Button size="sm" variant="outline" onClick={refetch}>
-              Tentar novamente
-            </Button>
+      {parseStatus === 'processing' ? (
+        <Card className="rounded-2xl border-blue-200 bg-blue-50">
+          <CardContent className="p-8 flex flex-col items-center text-center space-y-3">
+            <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center">
+              <Loader2 className="h-7 w-7 text-blue-600 animate-spin" />
+            </div>
+            <p className="text-sm font-medium text-blue-900">Processando fatura com IA...</p>
+            <p className="text-xs text-blue-600">
+              Os itens extraídos aparecerão aqui automaticamente.
+            </p>
           </CardContent>
         </Card>
-      ) : items.length === 0 ? (
-        <Card className="border-dashed border-gray-200 rounded-2xl">
+      ) : parseStatus === 'error' && !itemsLoading && items.length === 0 ? (
+        <Card className="rounded-2xl border-red-200 bg-red-50">
           <CardContent className="p-8 flex flex-col items-center text-center space-y-3">
-            <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
-              <FileX className="h-7 w-7" />
+            <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
+              <AlertCircle className="h-7 w-7 text-red-600" />
             </div>
-            <p className="text-sm font-medium text-gray-500">Nenhum item extraído</p>
+            <p className="text-sm font-medium text-red-900">Erro na importação</p>
+            <p className="text-xs text-red-600">Não foi possível processar a fatura com IA.</p>
             <Button
               size="sm"
               onClick={handleReparse}
               disabled={reparsing}
-              className="bg-[#166534] hover:bg-[#15803D]"
+              className="bg-red-600 hover:bg-red-700"
             >
               {reparsing ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-1" />
               ) : (
                 <RefreshCw className="h-4 w-4 mr-1" />
               )}
-              Processar novamente
+              Tentar novamente
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
-          {unconfirmedItems.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                Itens não confirmados ({unconfirmedItems.length})
-              </h3>
-              {unconfirmedItems.map((item) => (
-                <InvoiceItemRow
-                  key={item.id}
-                  item={item}
-                  categories={categories}
-                  onConfirm={handleConfirm}
-                  onConvert={handleConvert}
-                />
-              ))}
+        <>
+          {parseStatus === 'error' && items.length > 0 && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+              <p className="text-xs text-red-700 flex-1">Alguns itens não puderam ser extraídos.</p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleReparse}
+                disabled={reparsing}
+                className="h-7 text-xs"
+              >
+                {reparsing ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                )}
+                Tentar novamente
+              </Button>
             </div>
           )}
+          {itemsLoading ? (
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-24 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : itemsError ? (
+            <Card className="border-red-200 rounded-2xl">
+              <CardContent className="p-6 text-center space-y-3">
+                <p className="text-sm text-red-600">Erro ao carregar itens da fatura</p>
+                <Button size="sm" variant="outline" onClick={refetch}>
+                  Tentar novamente
+                </Button>
+              </CardContent>
+            </Card>
+          ) : items.length === 0 ? (
+            <Card className="border-dashed border-gray-200 rounded-2xl">
+              <CardContent className="p-8 flex flex-col items-center text-center space-y-3">
+                <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
+                  <FileX className="h-7 w-7" />
+                </div>
+                <p className="text-sm font-medium text-gray-500">Nenhum item extraído</p>
+                <Button
+                  size="sm"
+                  onClick={handleReparse}
+                  disabled={reparsing}
+                  className="bg-[#166534] hover:bg-[#15803D]"
+                >
+                  {reparsing ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                  )}
+                  Processar novamente
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              {unconfirmedItems.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Itens não confirmados ({unconfirmedItems.length})
+                  </h3>
+                  {unconfirmedItems.map((item) => (
+                    <InvoiceItemRow
+                      key={item.id}
+                      item={item}
+                      categories={categories}
+                      onConfirm={handleConfirm}
+                      onConvert={handleConvert}
+                    />
+                  ))}
+                </div>
+              )}
 
-          {confirmedItems.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                  Itens confirmados ({confirmedItems.length})
-                </h3>
-                {confirmedItems.some((i) => !i.converted_transaction_id) && (
+              {confirmedItems.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      Itens confirmados ({confirmedItems.length})
+                    </h3>
+                    {confirmedItems.some((i) => !i.converted_transaction_id) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleConvertAll}
+                        disabled={convertingAll}
+                        className="h-7 text-xs"
+                      >
+                        {convertingAll ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                        Converter todos
+                      </Button>
+                    )}
+                  </div>
+                  {confirmedItems.map((item) => (
+                    <InvoiceItemRow
+                      key={item.id}
+                      item={item}
+                      categories={categories}
+                      onConfirm={handleConfirm}
+                      onConvert={handleConvert}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                {invoice.status === 'pending' && (
                   <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleConvertAll}
-                    disabled={convertingAll}
-                    className="h-7 text-xs"
+                    onClick={() => handleStatusUpdate('reviewed')}
+                    disabled={updatingStatus || unconfirmedItems.length > 0}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700"
                   >
-                    {convertingAll ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                    Converter todos
+                    {updatingStatus ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <FileCheck className="h-4 w-4 mr-2" />
+                    )}
+                    Marcar como revisada
+                  </Button>
+                )}
+                {invoice.status === 'reviewed' && (
+                  <Button
+                    onClick={() => handleStatusUpdate('paid')}
+                    disabled={updatingStatus}
+                    className="flex-1 bg-[#22C55E] hover:bg-green-600"
+                  >
+                    {updatingStatus ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                    )}
+                    Marcar como paga
                   </Button>
                 )}
               </div>
-              {confirmedItems.map((item) => (
-                <InvoiceItemRow
-                  key={item.id}
-                  item={item}
-                  categories={categories}
-                  onConfirm={handleConfirm}
-                  onConvert={handleConvert}
-                />
-              ))}
             </div>
           )}
-
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            {invoice.status === 'pending' && (
-              <Button
-                onClick={() => handleStatusUpdate('reviewed')}
-                disabled={updatingStatus || unconfirmedItems.length > 0}
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
-              >
-                {updatingStatus ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <FileCheck className="h-4 w-4 mr-2" />
-                )}
-                Marcar como revisada
-              </Button>
-            )}
-            {invoice.status === 'reviewed' && (
-              <Button
-                onClick={() => handleStatusUpdate('paid')}
-                disabled={updatingStatus}
-                className="flex-1 bg-[#22C55E] hover:bg-green-600"
-              >
-                {updatingStatus ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                )}
-                Marcar como paga
-              </Button>
-            )}
-          </div>
-        </div>
+        </>
       )}
     </div>
   )
