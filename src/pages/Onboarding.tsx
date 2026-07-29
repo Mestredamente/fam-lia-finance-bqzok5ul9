@@ -28,6 +28,7 @@ import {
   generateInviteCode,
   createInvite,
 } from '@/services/invites'
+import { seedDefaultCategories } from '@/services/categories'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
 
@@ -124,6 +125,8 @@ export default function Onboarding() {
           created_by: userId,
         })
         const familyId = family.id
+
+        await seedDefaultCategories(familyId)
 
         const expiresAt = new Date()
         expiresAt.setDate(expiresAt.getDate() + 30)
