@@ -3,7 +3,12 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { getTransactionsByFamilyAndMonth } from '@/services/transactions'
 import type { TransactionRecord } from '@/types/finance'
 
-export function useTransactions(familyId: string | undefined, year: number, month: number) {
+export function useTransactions(
+  familyId: string | undefined,
+  year: number,
+  month: number,
+  memberId?: string,
+) {
   const [transactions, setTransactions] = useState<TransactionRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -17,14 +22,14 @@ export function useTransactions(familyId: string | undefined, year: number, mont
     setLoading(true)
     setError(null)
     try {
-      const data = await getTransactionsByFamilyAndMonth(familyId, year, month)
+      const data = await getTransactionsByFamilyAndMonth(familyId, year, month, memberId)
       setTransactions(data)
     } catch {
       setError('Erro ao carregar transações')
     } finally {
       setLoading(false)
     }
-  }, [familyId, year, month])
+  }, [familyId, year, month, memberId])
 
   useEffect(() => {
     loadData()

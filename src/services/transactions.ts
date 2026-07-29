@@ -1,16 +1,44 @@
 import pb from '@/lib/pocketbase/client'
 import type { TransactionRecord } from '@/types/finance'
 
-export const getTransactionsByFamilyAndMonth = (familyId: string, year: number, month: number) => {
+function getMonthRange(year: number, month: number) {
   const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
   const nextMonth = month === 11 ? { m: 0, y: year + 1 } : { m: month + 1, y: year }
   const endDate = `${nextMonth.y}-${String(nextMonth.m + 1).padStart(2, '0')}-01`
+  return { startDate, endDate }
+}
+
+export const getTransactionsByFamilyAndMonth = (
+  familyId: string,
+  year: number,
+  month: number,
+  memberId?: string,
+) => {
+  const { startDate, endDate } = getMonthRange(year, month)
+  let filter = `family_id = "${familyId}" && transaction_date >= "${startDate}" && transaction_date < "${endDate}"`
+  if (memberId) filter += ` && owner_id = "${memberId}"`
   return pb.collection('transactions').getFullList<TransactionRecord>({
-    filter: `family_id = "${familyId}" && transaction_date >= "${startDate}" && transaction_date < "${endDate}"`,
+    filter,
     sort: '-transaction_date',
     expand: 'owner_id,category_id',
   })
 }
+
+export const getFixedBillsByFamilyAndMonth = (familyId: string, year: number, month: number) => {
+  const { startDate, endDate } = getMonthRange(year, month)
+  return pb.collection('transactions').getFullList<TransactionRecord>({
+    filter: `family_id = "${familyId}" && is_fixed = true && transaction_date >= "${startDate}" && transaction_date < "${endDate}"`,
+    sort: 'transaction_date',
+    expand: 'owner_id,category_id',
+  })
+}
+
+export const getTransactionsByMember = (memberId: string) =>
+  pb.collection('transactions').getFullList<TransactionRecord>({
+    filter: `owner_id = "${memberId}"`,
+    sort: '-transaction_date',
+    expand: 'category_id',
+  })
 
 export const createTransaction = (data: Partial<TransactionRecord>) =>
   pb.collection('transactions').create<TransactionRecord>(data)

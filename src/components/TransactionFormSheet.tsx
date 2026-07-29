@@ -40,6 +40,7 @@ interface Props {
   ownerId: string
   editingTransaction?: TransactionRecord | null
   onSaved?: () => void
+  defaultIsFixed?: boolean
 }
 
 export function TransactionFormSheet({
@@ -49,6 +50,7 @@ export function TransactionFormSheet({
   ownerId,
   editingTransaction,
   onSaved,
+  defaultIsFixed,
 }: Props) {
   const { categories } = useCategories(familyId)
   const [type, setType] = useState<'expense' | 'income' | 'investment'>('expense')
@@ -78,11 +80,11 @@ export function TransactionFormSheet({
         setCategoryId(null)
         setDate(new Date().toISOString().split('T')[0])
         setIsShared(false)
-        setIsFixed(false)
+        setIsFixed(defaultIsFixed ?? false)
       }
       setErrors({})
     }
-  }, [open, editingTransaction])
+  }, [open, editingTransaction, defaultIsFixed])
 
   const handleSave = async () => {
     const result = schema.safeParse({

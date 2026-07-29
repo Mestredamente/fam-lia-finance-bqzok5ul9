@@ -60,7 +60,7 @@ export function Sidebar() {
 
   const navItems = [
     { label: 'Início', path: '/dashboard', icon: Home, active: true },
-    { label: 'Transações', path: '/transacoes', icon: List, active: false },
+    { label: 'Transações', path: '/transacoes', icon: List, active: true },
     { label: 'Cartões', path: '/cartoes', icon: CreditCard, active: false },
     { label: 'IA Consultora', path: '/ia', icon: Bot, active: false },
     { label: 'Perfil', path: '/profile', icon: User, active: true },
@@ -118,7 +118,7 @@ export function BottomNav() {
 
   const tabs = [
     { label: 'Início', path: '/dashboard', icon: Home, active: true },
-    { label: 'Transações', path: '/transacoes', icon: List, active: false },
+    { label: 'Transações', path: '/transacoes', icon: List, active: true },
     { label: 'Cartões', path: '/cartoes', icon: CreditCard, active: false },
     { label: 'IA', path: '/ia', icon: Bot, active: false },
     { label: 'Perfil', path: '/profile', icon: User, active: true },
