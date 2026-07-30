@@ -33,9 +33,10 @@ import {
 } from '@/components/ui/alert-dialog'
 import { InviteCodeDialog } from '@/components/InviteCodeDialog'
 import { InstallAppDialog } from '@/components/InstallAppDialog'
+import { ProfileEditSheet } from '@/components/ProfileEditSheet'
 import { MemberRecord, TransactionRecord, getRoleLabel } from '@/types/finance'
 import { getActiveMembersByFamilyId } from '@/services/members'
-import { calculateAge, formatAge } from '@/lib/member-utils'
+import { calculateAge, formatAge, getMemberAvatarUrl } from '@/lib/member-utils'
 import { getTransactionsByMember } from '@/services/transactions'
 import { createInvite, generateInviteCode } from '@/services/invites'
 import { getInvestmentsByOwner } from '@/services/investments'
@@ -54,6 +55,7 @@ export default function Profile() {
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const [inviteCode, setInviteCode] = useState(family?.invite_code || 'FAM-0000')
   const [installDialogOpen, setInstallDialogOpen] = useState(false)
+  const [editSheetOpen, setEditSheetOpen] = useState(false)
   const [familyMembers, setFamilyMembers] = useState<MemberRecord[]>([])
   const [allTransactions, setAllTransactions] = useState<TransactionRecord[]>([])
   const [userInvestments, setUserInvestments] = useState<InvestmentRecord[]>([])
@@ -201,11 +203,7 @@ export default function Profile() {
               </Badge>
             )}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => toast({ title: 'Em breve', description: 'Edição de perfil em breve.' })}
-          >
+          <Button variant="outline" size="sm" onClick={() => setEditSheetOpen(true)}>
             Editar perfil
           </Button>
         </CardContent>
@@ -319,6 +317,7 @@ export default function Profile() {
                 >
                   <div className="flex items-center gap-3">
                     <Avatar className="h-9 w-9">
+                      <AvatarImage src={getMemberAvatarUrl(m)} alt={m.display_name} />
                       <AvatarFallback className="bg-emerald-100 text-[#166534] font-bold">
                         {m.display_name.charAt(0)}
                       </AvatarFallback>
@@ -531,6 +530,7 @@ export default function Profile() {
         code={inviteCode}
       />
       <InstallAppDialog open={installDialogOpen} onOpenChange={setInstallDialogOpen} />
+      <ProfileEditSheet open={editSheetOpen} onOpenChange={setEditSheetOpen} />
     </div>
   )
 }

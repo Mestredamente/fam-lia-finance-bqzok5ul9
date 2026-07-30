@@ -120,6 +120,16 @@ routerAdd(
     if (body.share_data !== undefined) {
       member.set('share_data', body.share_data)
     }
+    member.set('is_active', true)
+    if (body.notify_bills === undefined) {
+      member.set('notify_bills', true)
+    }
+    if (body.notify_ai_tips === undefined) {
+      member.set('notify_ai_tips', false)
+    }
+    if (body.share_data === undefined) {
+      member.set('share_data', false)
+    }
     $app.save(member)
     console.log('[join-family] created member record, id:', member.getId())
 

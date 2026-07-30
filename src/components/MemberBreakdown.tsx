@@ -1,10 +1,11 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Users } from 'lucide-react'
 import { MemberRecord, getRoleLabel } from '@/types/finance'
 import { formatBRL, getProgressBarColor } from '@/lib/utils'
+import { getMemberAvatarUrl } from '@/lib/member-utils'
 import type { MemberSummary } from '@/hooks/use-monthly-summary'
 
 interface MemberBreakdownProps {
@@ -81,6 +82,7 @@ export function MemberBreakdown({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10 border-2 border-[#22C55E]">
+                      <AvatarImage src={getMemberAvatarUrl(m)} alt={m.display_name} />
                       <AvatarFallback className="bg-emerald-100 text-[#166534] font-bold">
                         {m.display_name.charAt(0)}
                       </AvatarFallback>

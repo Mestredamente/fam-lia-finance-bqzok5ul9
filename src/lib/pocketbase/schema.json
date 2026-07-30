@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-30T01:40:43.121Z",
+  "generatedAt": "2026-07-30T03:12:49.814Z",
   "collections": [
     {
       "name": "users",
@@ -247,6 +247,12 @@
         {
           "name": "is_active",
           "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avatar",
+          "type": "file",
           "required": false,
           "system": false
         }

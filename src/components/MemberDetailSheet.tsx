@@ -6,11 +6,12 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MemberRecord, getRoleLabel } from '@/types/finance'
 import { getCategoryIcon } from '@/lib/category-icons'
+import { getMemberAvatarUrl } from '@/lib/member-utils'
 import { formatBRL, formatDatePtBR, cn } from '@/lib/utils'
 import type { MemberSummary } from '@/hooks/use-monthly-summary'
 
@@ -47,6 +48,7 @@ export function MemberDetailSheet({
         <SheetHeader className="text-left space-y-4">
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16 border-2 border-[#22C55E]">
+              <AvatarImage src={getMemberAvatarUrl(member)} alt={member.display_name} />
               <AvatarFallback className="bg-emerald-100 text-[#166534] text-xl font-bold">
                 {member.display_name.charAt(0)}
               </AvatarFallback>
