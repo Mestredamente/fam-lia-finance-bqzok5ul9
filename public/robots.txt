@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /backend/
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /transacoes
+Disallow: /cards
+Disallow: /patrimonio
+Disallow: /consultora
+Disallow: /familia
+Disallow: /onboarding
+
+Sitemap: https://familiafinance.goskip.app/sitemap.xml

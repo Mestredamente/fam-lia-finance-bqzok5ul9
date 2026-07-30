@@ -1,4 +1,4 @@
-const CACHE_NAME = 'familia-finance-v1'
+const CACHE_NAME = 'familia-finance-v2'
 const PRECACHE_URLS = ['/', '/index.html', '/manifest.json', '/icon.svg']
 
 self.addEventListener('install', (event) => {

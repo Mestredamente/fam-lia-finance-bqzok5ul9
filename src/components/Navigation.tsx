@@ -6,13 +6,17 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 export function Header() {
   const { user, family } = useAuth()
   const navigate = useNavigate()
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 px-4 lg:px-8 flex items-center justify-between sticky top-0 z-30 shadow-subtle">
+    <header
+      role="banner"
+      className="h-16 bg-white border-b border-gray-200 px-4 lg:px-8 flex items-center justify-between sticky top-0 z-30 shadow-subtle theme-transition"
+    >
       <div className="flex items-center gap-3">
         <div
           className="flex items-center gap-2 cursor-pointer"
@@ -30,6 +34,7 @@ export function Header() {
         )}
       </div>
 
+      <ThemeToggle />
       {user && (
         <div
           className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
@@ -158,13 +163,20 @@ export function BottomNav() {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-gray-200 flex items-center justify-around z-30 lg:hidden shadow-lg">
+    <nav
+      role="tablist"
+      aria-label="Navegação principal"
+      className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-gray-200 flex items-center justify-around z-30 lg:hidden shadow-lg theme-transition"
+    >
       {tabs.map((tab) => {
         const isCurrent =
           location.pathname === tab.path || location.pathname.startsWith(tab.path + '/')
         return (
           <button
             key={tab.label}
+            role="tab"
+            aria-selected={isCurrent}
+            aria-label={tab.label}
             onClick={() => handleTab(tab)}
             data-tour={
               tab.path === '/transacoes'
@@ -197,6 +209,6 @@ export function BottomNav() {
           </button>
         )
       })}
-    </div>
+    </nav>
   )
 }

@@ -1,4 +1,5 @@
-import { Component, ReactNode, ErrorInfo } from 'react'
+import { Component, ReactNode, ErrorInfo, useEffect } from 'react'
+import pb from '@/lib/pocketbase/client'
 import { AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -11,6 +12,30 @@ interface State {
   error: Error | null
 }
 
+function GlobalErrorHandler() {
+  useEffect(() => {
+    const handleError = (
+      message: string,
+      source: string,
+      lineno: number,
+      colno: number,
+      error: Error,
+    ) => {
+      console.error('Window error:', { message, source, lineno, colno, error })
+    }
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      console.error('Unhandled promise rejection:', event.reason)
+    }
+    window.onerror = handleError as any
+    window.onunhandledrejection = handleRejection
+    return () => {
+      window.onerror = null
+      window.onunhandledrejection = null
+    }
+  }, [])
+  return null
+}
+
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { hasError: false, error: null }
 
@@ -20,6 +45,16 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('ErrorBoundary caught:', error, info)
+    if (pb.authStore.isValid) {
+      pb.send('/backend/v1/log-error', {
+        method: 'POST',
+        body: JSON.stringify({
+          error_message: error.message,
+          stack_trace: info.componentStack || '',
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      }).catch(() => {})
+    }
   }
 
   render() {
@@ -53,6 +88,11 @@ export class ErrorBoundary extends Component<Props, State> {
         </div>
       )
     }
-    return this.props.children
+    return (
+      <>
+        <GlobalErrorHandler />
+        {this.props.children}
+      </>
+    )
   }
 }

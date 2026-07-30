@@ -1,131 +1,104 @@
-# Projeto Criado com o Skip
+# Família Finance
 
-Este projeto foi criado de ponta a ponta com o [Skip](https://goskip.dev).
+Aplicativo completo de gestão financeira familiar com login, onboarding, dashboard e perfil do usuário, usando dados simulados e integração com PocketBase (Skip Cloud).
 
-## 🚀 Stack Tecnológica
+## Versão
+1.0.0
 
-- **React 19** - Biblioteca JavaScript para construção de interfaces
-- **Vite** - Build tool extremamente rápida
-- **TypeScript** - Superset tipado do JavaScript
-- **Shadcn UI** - Componentes reutilizáveis e acessíveis
-- **Tailwind CSS** - Framework CSS utility-first
-- **React Router** - Roteamento para aplicações React
-- **React Hook Form** - Gerenciamento de formulários performático
-- **Zod** - Validação de schemas TypeScript-first
-- **Recharts** - Biblioteca de gráficos para React
+## Descrição
+O Família Finance é um aplicativo PWA de gestão financeira familiar que oferece controle de gastos, orçamento, investimentos, dívidas, cartões de crédito, terapia financeira com IA, diário emocional, desafios e planejador doméstico. Tudo em português brasileiro, com suporte a modo escuro e acessibilidade WCAG 2.1 AA.
 
-## 📋 Pré-requisitos
+## Tech Stack
+- **React 19** — Framework de UI
+- **TypeScript** — Tipagem estática
+- **Vite** — Build tool e dev server
+- **TailwindCSS 3** — Estilização utilitária
+- **shadcn/ui** — Componentes de UI acessíveis
+- **PocketBase (Skip Cloud)** — Backend e banco de dados
+- **lucide-react** — Ícones
+- **recharts** — Gráficos
+- **zod** — Validação de schemas
 
-- Node.js 18+
-- npm
+## Setup Local
 
-## 🔧 Instalação
+### Pré-requisitos
+- Node.js 20+
+- pnpm
 
-```bash
-npm install
+### Passos
+1. Clone o repositório
+2. Instale as dependências: `pnpm install`
+3. Configure as variáveis de ambiente: copie `.env.example` para `.env` e preencha `VITE_POCKETBASE_URL`
+4. Inicie o dev server: `pnpm dev`
+5. Acesse: `http://localhost:5173`
+
+## Variáveis de Ambiente
+| Variável | Descrição |
+|---|---|
+| `VITE_POCKETBASE_URL` | URL do backend PocketBase (Skip Cloud) |
+
+## Estrutura de Pastas
+```
+src/
+├── components/      # Componentes reutilizáveis
+├── hooks/           # Hooks customizados (auth, theme, realtime, etc.)
+├── lib/             # Utilitários e helpers
+├── pages/           # Páginas da aplicação
+├── services/        # Camada de dados (PocketBase CRUD)
+├── types/           # Definições de tipos TypeScript
+└── main.tsx         # Entrypoint
+pocketbase/
+├── hooks/           # Funções serverless (rotas customizadas)
+└── migrations/      # Migrações de schema do PocketBase
+public/              # Assets estáticos (manifest, sw, icons)
 ```
 
-## 💻 Scripts Disponíveis
+## Coleções do Banco de Dados
+- `users` — Usuários autenticados
+- `families` — Famílias
+- `members` — Membros da família
+- `family_invites` — Convites
+- `categories` — Categorias de transações
+- `transactions` — Transações financeiras
+- `credit_cards` — Cartões de crédito
+- `invoices` — Faturas
+- `invoice_items` — Itens de fatura
+- `investments` — Investimentos
+- `debts` — Dívidas
+- `ai_conversations` — Conversas com IA
+- `emotional_journal` — Diário emocional
+- `challenges` — Desafios financeiros
+- `household_tasks` — Tarefas domésticas
 
-### Desenvolvimento
+## Edge Functions / Hooks
+- `financial_advisor` — Consultora financeira com IA (chat + insights)
+- `parse_invoice` — Parse de faturas de cartão
+- `convert_invoice_items` — Conversão de itens em transações
+- `emotional_analysis` — Análise emocional de gastos
+- `validate_invite_code` — Validação de códigos de convite
+- `join_family` — Entrar em uma família via convite
+- `log-error` — Recebimento de erros do frontend
+- `health-check` — Verificação de saúde da aplicação
 
-```bash
-# Iniciar servidor de desenvolvimento
-npm start
-# ou
-npm run dev
-```
+## Deploy
+O deploy é gerenciado pelo Skip Cloud. O build de produção usa Vite com minificação, code splitting e compressão.
 
-Abre a aplicação em modo de desenvolvimento em [http://localhost:5173](http://localhost:5173).
+1. Faça push das alterações
+2. O Skip Cloud builda e deploya automaticamente
+3. URLs de produção:
+   - Frontend: `https://familiafinance.goskip.app`
+   - Backend: `https://familia-finance-8ef10.shrd00.internal.goskip.dev`
 
-### Build
+## Acessibilidade
+- WCAG 2.1 AA compliance
+- Navegação por teclado
+- ARIA labels e roles
+- Skip links
+- Suporte a leitores de tela
+- Contraste de cores adequado
 
-```bash
-# Build para produção
-npm run build
-
-# Build para desenvolvimento
-npm run build:dev
-```
-
-Gera os arquivos otimizados para produção na pasta `dist/`.
-
-### Preview
-
-```bash
-# Visualizar build de produção localmente
-npm run preview
-```
-
-Permite visualizar a build de produção localmente antes do deploy.
-
-### Linting e Formatação
-
-```bash
-# Executar linter
-npm run lint
-
-# Executar linter e corrigir problemas automaticamente
-npm run lint:fix
-
-# Formatar código com Oxfmt
-npm run format
-```
-
-## 📁 Estrutura do Projeto
-
-```
-.
-├── src/              # Código fonte da aplicação
-├── public/           # Arquivos estáticos
-├── dist/             # Build de produção (gerado)
-├── node_modules/     # Dependências (gerado)
-└── package.json      # Configurações e dependências do projeto
-```
-
-## 🎨 Componentes UI
-
-Este template inclui uma biblioteca completa de componentes Shadcn UI baseados em Radix UI:
-
-- Accordion
-- Alert Dialog
-- Avatar
-- Button
-- Checkbox
-- Dialog
-- Dropdown Menu
-- Form
-- Input
-- Label
-- Select
-- Switch
-- Tabs
-- Toast
-- Tooltip
-- E muito mais...
-
-## 📝 Ferramentas de Qualidade de Código
-
-- **TypeScript**: Tipagem estática
-- **Oxlint**: Linter extremamente rápido
-- **Oxfmt**: Formatação automática de código
-
-## 🔄 Workflow de Desenvolvimento
-
-1. Instale as dependências: `npm install`
-2. Inicie o servidor de desenvolvimento: `npm start`
-3. Faça suas alterações
-4. Verifique o código: `npm run lint`
-5. Formate o código: `npm run format`
-6. Crie a build: `npm run build`
-7. Visualize a build: `npm run preview`
-
-## 📦 Build e Deploy
-
-Para criar uma build otimizada para produção:
-
-```bash
-npm run build
-```
-
-Os arquivos otimizados serão gerados na pasta `dist/` e estarão prontos para deploy.
+## Modo Escuro
+- Toggle no header e na página de perfil
+- Opções: Claro, Escuro, Sistema
+- Persistência em localStorage
+- Transições suaves de 200ms

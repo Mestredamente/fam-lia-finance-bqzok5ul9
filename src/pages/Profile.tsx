@@ -40,11 +40,14 @@ import { getInvestmentsByOwner } from '@/services/investments'
 import { getDebtsByOwner } from '@/services/debts'
 import type { InvestmentRecord, DebtRecord } from '@/types/finance'
 import { toast } from '@/hooks/use-toast'
-import { formatBRL, getMonthName, getProgressBarColor } from '@/lib/utils'
+import { formatBRL, getMonthName, getProgressBarColor, cn } from '@/lib/utils'
+import { useTheme } from '@/hooks/use-theme'
+import { Sun, Moon, Monitor } from 'lucide-react'
 
 export default function Profile() {
   const navigate = useNavigate()
   const { user, member, family, signOut, deleteAccount, updateMemberData } = useAuth()
+  const { theme, setTheme } = useTheme()
 
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const [inviteCode, setInviteCode] = useState(family?.invite_code || 'FAM-0000')
@@ -395,6 +398,46 @@ export default function Profile() {
                 onCheckedChange={(val) => updateMemberData({ share_data: val })}
               />
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
+        <CardContent className="p-6 space-y-4">
+          <h3 className="font-bold text-base text-gray-900 border-b border-gray-100 pb-2">
+            Aparência
+          </h3>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => setTheme('light')}
+              className={cn(
+                'flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all',
+                theme === 'light' ? 'border-[#166534] bg-emerald-50' : 'border-gray-200',
+              )}
+            >
+              <Sun className="h-5 w-5" />
+              <span className="text-xs font-medium">Claro</span>
+            </button>
+            <button
+              onClick={() => setTheme('dark')}
+              className={cn(
+                'flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all',
+                theme === 'dark' ? 'border-[#166534] bg-emerald-50' : 'border-gray-200',
+              )}
+            >
+              <Moon className="h-5 w-5" />
+              <span className="text-xs font-medium">Escuro</span>
+            </button>
+            <button
+              onClick={() => setTheme('system')}
+              className={cn(
+                'flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all',
+                theme === 'system' ? 'border-[#166534] bg-emerald-50' : 'border-gray-200',
+              )}
+            >
+              <Monitor className="h-5 w-5" />
+              <span className="text-xs font-medium">Sistema</span>
+            </button>
           </div>
         </CardContent>
       </Card>

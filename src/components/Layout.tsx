@@ -27,7 +27,12 @@ export default function Layout() {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
-        <main className="flex-1 p-4 md:p-6 lg:p-8 pb-20 lg:pb-8 max-w-[1200px] w-full mx-auto animate-fade-in">
+        <main
+          id="main-content"
+          role="main"
+          tabIndex={-1}
+          className="flex-1 p-4 md:p-6 lg:p-8 pb-20 lg:pb-8 max-w-[1200px] w-full mx-auto animate-fade-in outline-none theme-transition"
+        >
           <PullToRefresh
             onRefresh={async () => {
               window.dispatchEvent(new CustomEvent('ff-refresh'))

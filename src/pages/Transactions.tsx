@@ -247,6 +247,7 @@ export default function Transactions() {
 
       <button
         onClick={openForm}
+        aria-label="Adicionar transação"
         className="fixed bottom-20 right-6 lg:bottom-8 lg:right-8 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 z-20"
       >
         <Plus className="h-6 w-6" />
