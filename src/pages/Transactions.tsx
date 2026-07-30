@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { TransactionFormSheet } from '@/components/TransactionFormSheet'
 import { TransactionDetailSheet } from '@/components/TransactionDetailSheet'
+import { ExportButton } from '@/components/ExportButton'
 import { getCategoryIcon } from '@/lib/category-icons'
 import { formatBRL, cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
@@ -105,6 +106,7 @@ export default function Transactions() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">Transações</h1>
         <div className="flex items-center gap-2">
+          <ExportButton transactions={filtered} month={month} year={year} />
           <Button
             variant="ghost"
             size="icon"

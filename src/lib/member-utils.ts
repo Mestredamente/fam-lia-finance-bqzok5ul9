@@ -1,4 +1,4 @@
-import type { MemberRole } from '@/types/finance'
+import type { MemberRole, MemberRecord } from '@/types/finance'
 
 export function calculateAge(birthDate: string | null | undefined): number | null {
   if (!birthDate) return null
@@ -84,3 +84,14 @@ export const roleGroups: RoleGroup[] = [
     ],
   },
 ]
+
+export function getMemberAvatarUrl(member: MemberRecord): string | undefined {
+  if (member.avatar_url) return member.avatar_url
+  if (member.avatar) {
+    return `${import.meta.env.VITE_POCKETBASE_URL}/api/files/members/${member.id}/${member.avatar}`
+  }
+  if (member.expand?.user_id?.avatar) {
+    return `${import.meta.env.VITE_POCKETBASE_URL}/api/files/users/${member.expand.user_id.id}/${member.expand.user_id.avatar}`
+  }
+  return undefined
+}

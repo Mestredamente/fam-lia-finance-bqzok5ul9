@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Loader2 } from 'lucide-react'
 import { z } from 'zod'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -8,6 +8,8 @@ import { Switch } from '@/components/ui/switch'
 import { CurrencyInput } from '@/components/CurrencyInput'
 import { CategoryPicker } from '@/components/CategoryPicker'
 import { useCategories } from '@/hooks/use-categories'
+import { useCategorizationRules } from '@/hooks/use-categorization-rules'
+import { findMatchingCategory } from '@/lib/auto-categorize'
 import { createTransaction, updateTransaction } from '@/services/transactions'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
@@ -62,6 +64,15 @@ export function TransactionFormSheet({
   const [isFixed, setIsFixed] = useState(false)
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const { rules } = useCategorizationRules(familyId)
+  const userTouchedCategory = useRef(false)
+
+  useEffect(() => {
+    if (editingTransaction || userTouchedCategory.current) return
+    if (!description.trim() || rules.length === 0) return
+    const matched = findMatchingCategory(description, rules)
+    if (matched) setCategoryId(matched)
+  }, [description, rules, editingTransaction])
 
   useEffect(() => {
     if (open) {
@@ -83,6 +94,7 @@ export function TransactionFormSheet({
         setIsFixed(defaultIsFixed ?? false)
       }
       setErrors({})
+      userTouchedCategory.current = false
     }
   }, [open, editingTransaction, defaultIsFixed])
 
@@ -205,7 +217,10 @@ export function TransactionFormSheet({
               <CategoryPicker
                 categories={categories}
                 selectedId={categoryId}
-                onSelect={setCategoryId}
+                onSelect={(id) => {
+                  userTouchedCategory.current = true
+                  setCategoryId(id)
+                }}
                 familyId={familyId}
                 type={type}
               />

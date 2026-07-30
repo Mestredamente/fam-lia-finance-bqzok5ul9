@@ -47,3 +47,14 @@ export const updateTransaction = (id: string, data: Partial<TransactionRecord>) 
   pb.collection('transactions').update<TransactionRecord>(id, data)
 
 export const deleteTransaction = (id: string) => pb.collection('transactions').delete(id)
+
+export const getTransactionsByFamilyAndDateRange = (
+  familyId: string,
+  startDate: string,
+  endDate: string,
+) =>
+  pb.collection('transactions').getFullList<TransactionRecord>({
+    filter: `family_id = "${familyId}" && transaction_date >= "${startDate}" && transaction_date < "${endDate}"`,
+    sort: '-transaction_date',
+    expand: 'owner_id,category_id',
+  })

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Loader2 } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Loader2, Camera, X } from 'lucide-react'
 import { z } from 'zod'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { CurrencyInput } from '@/components/CurrencyInput'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   Select,
   SelectContent,
@@ -18,7 +19,8 @@ import {
 } from '@/components/ui/select'
 import { createMember, updateMember } from '@/services/members'
 import { createInvite, generateInviteCode } from '@/services/invites'
-import { roleGroups } from '@/lib/member-utils'
+import { roleGroups, getMemberAvatarUrl } from '@/lib/member-utils'
+import pb from '@/lib/pocketbase/client'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
 import type { MemberRecord, MemberRole } from '@/types/finance'
@@ -53,6 +55,7 @@ interface Props {
   creatorId: string
   editingMember?: MemberRecord | null
   isCreatorRoleLocked?: boolean
+  canEditRole?: boolean
   onSaved?: (inviteCode?: string) => void
 }
 
@@ -63,6 +66,7 @@ export function MemberFormSheet({
   creatorId,
   editingMember,
   isCreatorRoleLocked,
+  canEditRole = true,
   onSaved,
 }: Props) {
   const [displayName, setDisplayName] = useState('')
@@ -76,12 +80,18 @@ export function MemberFormSheet({
   const [sendInvite, setSendInvite] = useState(true)
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [originalRole, setOriginalRole] = useState<MemberRole>('husband')
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | undefined>(undefined)
+  const [removeAvatar, setRemoveAvatar] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (open) {
       if (editingMember) {
         setDisplayName(editingMember.display_name)
         setRole(editingMember.role)
+        setOriginalRole(editingMember.role)
         setBirthDate(
           editingMember.birth_date ? editingMember.birth_date.split(' ')[0].split('T')[0] : '',
         )
@@ -91,6 +101,7 @@ export function MemberFormSheet({
         setMonthlyIncome(editingMember.monthly_income ?? 0)
         setMonthlyAllowance(editingMember.monthly_allowance ?? 0)
         setSendInvite(false)
+        setAvatarPreview(getMemberAvatarUrl(editingMember))
       } else {
         setDisplayName('')
         setRole('husband')
@@ -101,10 +112,28 @@ export function MemberFormSheet({
         setMonthlyIncome(0)
         setMonthlyAllowance(0)
         setSendInvite(true)
+        setAvatarPreview(undefined)
       }
       setErrors({})
+      setAvatarFile(null)
+      setRemoveAvatar(false)
     }
   }, [open, editingMember])
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setAvatarFile(file)
+      setAvatarPreview(URL.createObjectURL(file))
+      setRemoveAvatar(false)
+    }
+  }
+
+  const handleRemoveAvatar = () => {
+    setAvatarFile(null)
+    setAvatarPreview(undefined)
+    setRemoveAvatar(true)
+  }
 
   const handleSave = async () => {
     const result = schema.safeParse({
@@ -140,12 +169,19 @@ export function MemberFormSheet({
         monthly_allowance: monthlyAllowance || null,
         is_active: true,
       }
+      let memberId: string
       let inviteCode: string | undefined
       if (editingMember) {
         await updateMember(editingMember.id, memberData)
-        toast({ title: 'Membro atualizado' })
+        memberId = editingMember.id
+        if (role !== originalRole) {
+          toast({ title: 'Papel familiar atualizado com sucesso' })
+        } else {
+          toast({ title: 'Membro atualizado' })
+        }
       } else {
-        await createMember(memberData)
+        const created = await createMember(memberData)
+        memberId = created.id
         if (!isDependent && sendInvite) {
           inviteCode = generateInviteCode()
           const expiresAt = new Date()
@@ -159,6 +195,20 @@ export function MemberFormSheet({
         }
         toast({ title: 'Membro adicionado com sucesso' })
       }
+
+      if (avatarFile) {
+        const formData = new FormData()
+        formData.append('avatar', avatarFile)
+        const updated = await pb.collection('members').update<MemberRecord>(memberId, formData)
+        if (updated.avatar) {
+          const avatarUrl = `${import.meta.env.VITE_POCKETBASE_URL}/api/files/members/${memberId}/${updated.avatar}`
+          await updateMember(memberId, { avatar_url: avatarUrl })
+        }
+      } else if (removeAvatar && editingMember) {
+        await pb.collection('members').update(memberId, { avatar: null })
+        await updateMember(memberId, { avatar_url: null })
+      }
+
       onOpenChange(false)
       onSaved?.(inviteCode)
     } catch (err) {
@@ -175,6 +225,36 @@ export function MemberFormSheet({
           <SheetTitle>{editingMember ? 'Editar membro' : 'Adicionar membro'}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 mt-4">
+          <div className="flex flex-col items-center gap-3">
+            <div className="relative">
+              <Avatar className="h-20 w-20 border-4 border-[#22C55E]">
+                <AvatarImage src={avatarPreview} alt={displayName} />
+                <AvatarFallback className="bg-emerald-100 text-[#166534] text-2xl font-bold">
+                  {displayName.charAt(0).toUpperCase() || '?'}
+                </AvatarFallback>
+              </Avatar>
+              {avatarPreview && (
+                <button
+                  onClick={handleRemoveAvatar}
+                  className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+              <Camera className="h-4 w-4 mr-2" />
+              {avatarPreview ? 'Trocar foto' : 'Adicionar foto'}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
+          </div>
+
           <div>
             <Label className="text-xs font-semibold text-gray-700">Nome</Label>
             <Input
@@ -188,11 +268,11 @@ export function MemberFormSheet({
             )}
           </div>
           <div>
-            <Label className="text-xs font-semibold text-gray-700">Papel na família</Label>
+            <Label className="text-xs font-semibold text-gray-700">Papel familiar</Label>
             <Select
               value={role}
               onValueChange={(v) => setRole(v as MemberRole)}
-              disabled={isCreatorRoleLocked}
+              disabled={isCreatorRoleLocked || !canEditRole}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione" />

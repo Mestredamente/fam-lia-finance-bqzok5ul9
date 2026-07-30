@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-30T01:40:43.121Z",
+  "generatedAt": "2026-07-30T03:36:24.684Z",
   "collections": [
     {
       "name": "users",
@@ -247,6 +247,12 @@
         {
           "name": "is_active",
           "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "avatar",
+          "type": "file",
           "required": false,
           "system": false
         }
@@ -1418,6 +1424,63 @@
         "CREATE INDEX idx_household_tasks_status ON household_tasks (status)",
         "CREATE INDEX idx_household_tasks_due_date ON household_tasks (due_date)",
         "CREATE INDEX idx_household_tasks_created ON household_tasks (created)"
+      ]
+    },
+    {
+      "name": "categorization_rules",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "family_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "families"
+        },
+        {
+          "name": "keyword",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "category_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "categories"
+        },
+        {
+          "name": "match_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["contains", "starts_with"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_categorization_rules_family_id ON categorization_rules (family_id)"
       ]
     }
   ]

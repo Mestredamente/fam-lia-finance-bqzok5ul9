@@ -29,6 +29,7 @@ const InvoiceReview = lazy(() => import('@/pages/InvoiceReview'))
 const Patrimony = lazy(() => import('@/pages/Patrimony'))
 const Consultora = lazy(() => import('@/pages/Consultora'))
 const FamilyManagement = lazy(() => import('@/pages/FamilyManagement'))
+const CategorizationRules = lazy(() => import('@/pages/CategorizationRules'))
 
 function NavigationGuard() {
   const location = useLocation()
@@ -142,6 +143,10 @@ function AppInner() {
                     <Route
                       path="/familia"
                       element={<ProtectedRoute>{withSuspense(FamilyManagement)}</ProtectedRoute>}
+                    />
+                    <Route
+                      path="/regras-categorizacao"
+                      element={<ProtectedRoute>{withSuspense(CategorizationRules)}</ProtectedRoute>}
                     />
                   </Route>
                   <Route path="*" element={<SmartCatchAll />} />

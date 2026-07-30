@@ -16,6 +16,8 @@ import { FinancialHealthScore } from '@/components/FinancialHealthScore'
 import { InsightsSection } from '@/components/InsightsSection'
 import { SubscriptionAlert } from '@/components/SubscriptionAlert'
 import { ScenarioComparator } from '@/components/ScenarioComparator'
+import { ExportButton } from '@/components/ExportButton'
+import { MonthlyChartsSection } from '@/components/MonthlyChartsSection'
 import { MemberRecord } from '@/types/finance'
 import { getMembersByFamilyId } from '@/services/members'
 import { getMonthName } from '@/lib/utils'
@@ -35,7 +37,13 @@ export default function Dashboard() {
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
 
-  const { summary, loading, error, refetch } = useMonthlySummary(family?.id, year, month)
+  const {
+    summary,
+    transactions: monthTransactions,
+    loading,
+    error,
+    refetch,
+  } = useMonthlySummary(family?.id, year, month)
   const { fixedBills, totalPaid, loading: billsLoading } = useFixedBills(family?.id, year, month)
 
   const loadMembers = async () => {
@@ -92,6 +100,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-900">Resumo Financeiro</h2>
         <div className="flex items-center gap-2">
+          <ExportButton transactions={monthTransactions} month={month} year={year} />
           <Button variant="outline" size="sm" onClick={() => openScenario()}>
             <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline ml-1">E se...?</span>
           </Button>
@@ -131,6 +140,8 @@ export default function Dashboard() {
           onRetry={refetch}
         />
       </div>
+
+      <MonthlyChartsSection familyId={family.id} year={year} month={month} />
 
       {members.length <= 1 && (
         <section className="p-5 bg-[#F0FDF4] border border-[#22C55E] rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-subtle">

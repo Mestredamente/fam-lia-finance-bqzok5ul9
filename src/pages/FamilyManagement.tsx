@@ -6,7 +6,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   AlertDialog,
@@ -20,8 +20,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { MemberFormSheet } from '@/components/MemberFormSheet'
 import { InviteCodeDialog } from '@/components/InviteCodeDialog'
-import { getActiveMembersByFamilyId, softDeleteMember } from '@/services/members'
-import { calculateAge, formatAge } from '@/lib/member-utils'
+import { getMembersByFamilyId, deleteMember } from '@/services/members'
+import { calculateAge, formatAge, getMemberAvatarUrl } from '@/lib/member-utils'
 import { getRoleLabel, type MemberRecord } from '@/types/finance'
 import { formatBRL } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
@@ -44,7 +44,7 @@ export default function FamilyManagement() {
   const loadMembers = async () => {
     if (!family) return
     try {
-      setMembers(await getActiveMembersByFamilyId(family.id))
+      setMembers(await getMembersByFamilyId(family.id))
     } catch {
       setMembers([])
     } finally {
@@ -71,7 +71,7 @@ export default function FamilyManagement() {
     if (!removingMember) return
     setRemoving(true)
     try {
-      await softDeleteMember(removingMember.id)
+      await deleteMember(removingMember.id)
       toast({ title: 'Membro removido' })
       setRemovingMember(null)
       loadMembers()
@@ -107,9 +107,11 @@ export default function FamilyManagement() {
 
       <div className="flex items-center justify-between">
         <span className="text-sm text-gray-600">
-          {members.length} {members.length === 1 ? 'membro ativo' : 'membros ativos'}
+          {members.length} {members.length === 1 ? 'membro' : 'membros'}
           {members.some((m) => m.is_dependent) &&
             ` • ${members.filter((m) => m.is_dependent).length} dependentes`}
+          {members.some((m) => !m.is_active) &&
+            ` • ${members.filter((m) => !m.is_active).length} inativos`}
         </span>
         {isCreator && (
           <Button
@@ -136,7 +138,7 @@ export default function FamilyManagement() {
               <Users className="h-6 w-6 text-[#166534]" />
             </div>
             <p className="text-sm text-gray-500">
-              Nenhum membro ativo. Adicione membros para gerenciar sua família.
+              Nenhum membro cadastrado. Adicione membros para gerenciar sua família.
             </p>
           </CardContent>
         </Card>
@@ -152,6 +154,7 @@ export default function FamilyManagement() {
                 <CardContent className="p-4 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <Avatar className="h-11 w-11 border-2 border-[#22C55E] shrink-0">
+                      <AvatarImage src={getMemberAvatarUrl(m)} alt={m.display_name} />
                       <AvatarFallback className="bg-emerald-100 text-[#166534] font-bold">
                         {m.display_name.charAt(0)}
                       </AvatarFallback>
@@ -167,6 +170,9 @@ export default function FamilyManagement() {
                           <span className="text-xs text-gray-400">• {m.occupation}</span>
                         )}
                       </div>
+                      {m.email && (
+                        <span className="text-xs text-gray-400 truncate block">{m.email}</span>
+                      )}
                       {m.monthly_income ? (
                         <span className="text-xs font-medium text-[#166534]">
                           {formatBRL(m.monthly_income)}
@@ -175,6 +181,11 @@ export default function FamilyManagement() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    {!m.is_active && (
+                      <Badge className="bg-gray-100 text-gray-500 hover:bg-gray-100 text-[10px]">
+                        Inativo
+                      </Badge>
+                    )}
                     {m.is_dependent && (
                       <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 text-[10px]">
                         Dependente
@@ -215,16 +226,19 @@ export default function FamilyManagement() {
         creatorId={user?.id || ''}
         editingMember={editingMember}
         isCreatorRoleLocked={editingMember?.user_id === family.created_by}
+        canEditRole={isCreator}
         onSaved={handleSaved}
       />
 
       <AlertDialog open={!!removingMember} onOpenChange={(v) => !v && setRemovingMember(null)}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover {removingMember?.display_name}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Tem certeza que deseja remover {removingMember?.display_name} da família?
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-gray-600">
-              As transações cadastradas por este membro serão mantidas para histórico, mas o membro
-              não aparecerá mais na lista ativa.
+              O membro será removido permanentemente da família. As transações já registradas serão
+              mantidas para histórico.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

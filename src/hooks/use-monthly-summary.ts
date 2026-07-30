@@ -87,5 +87,5 @@ export function useMonthlySummary(familyId: string | undefined, year: number, mo
     return { totalReceitas, totalDespesas, saldo, porcentagemGasta, memberSummaries }
   }, [transactions])
 
-  return { summary, loading, error, refetch: loadData }
+  return { summary, transactions, loading, error, refetch: loadData }
 }
