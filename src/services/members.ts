@@ -10,6 +10,15 @@ export const getMembersByFamilyId = (familyId: string) =>
     sort: 'created',
   })
 
+export const getActiveMembersByFamilyId = (familyId: string) =>
+  pb.collection('members').getFullList<MemberRecord>({
+    filter: `family_id = "${familyId}" && is_active = true`,
+    sort: 'created',
+  })
+
+export const softDeleteMember = (id: string) =>
+  pb.collection('members').update<MemberRecord>(id, { is_active: false })
+
 export const createMember = (data: Partial<MemberRecord>) =>
   pb.collection('members').create<MemberRecord>(data)
 

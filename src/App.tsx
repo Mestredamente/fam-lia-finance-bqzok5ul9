@@ -1,8 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider, useAuth } from '@/hooks/use-auth'
+import pb from '@/lib/pocketbase/client'
+import { toast } from '@/hooks/use-toast'
 
 import Layout from '@/components/Layout'
 import Login from '@/pages/Login'
@@ -15,7 +18,44 @@ import CardDetail from '@/pages/CardDetail'
 import InvoiceReview from '@/pages/InvoiceReview'
 import Patrimony from '@/pages/Patrimony'
 import Consultora from '@/pages/Consultora'
-import NotFound from '@/pages/NotFound'
+import FamilyManagement from '@/pages/FamilyManagement'
+
+function NavigationGuard() {
+  const location = useLocation()
+  const { loading } = useAuth()
+  const prevPath = useRef(location.pathname)
+
+  useEffect(() => {
+    if (loading) return
+    if (prevPath.current !== location.pathname) {
+      prevPath.current = location.pathname
+      if (pb.authStore.record && !pb.authStore.isValid) {
+        pb.authStore.clear()
+        toast({
+          title: 'Sessão expirada',
+          description: 'Sua sessão expirou. Faça login novamente.',
+          variant: 'destructive',
+        })
+      }
+    }
+  }, [location.pathname, loading])
+
+  return null
+}
+
+function SmartCatchAll() {
+  const { isAuthenticated, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="w-10 h-10 border-4 border-emerald-200 border-t-[#166534] rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  return <Navigate to={isAuthenticated ? '/dashboard' : '/'} replace />
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, hasFamily, loading } = useAuth()
@@ -45,6 +85,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <NavigationGuard />
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<Login />} />
@@ -113,8 +154,16 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/familia"
+              element={
+                <ProtectedRoute>
+                  <FamilyManagement />
+                </ProtectedRoute>
+              }
+            />
           </Route>
-          <Route path="*" element={<NotFound />} />
+          <Route path="*" element={<SmartCatchAll />} />
         </Routes>
       </TooltipProvider>
     </BrowserRouter>

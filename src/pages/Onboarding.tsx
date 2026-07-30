@@ -332,6 +332,13 @@ export default function Onboarding() {
                 <p className="text-xs text-gray-500">Passo 2 de 3: Configuração familiar</p>
               </div>
 
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <p className="text-xs text-gray-600">
+                  Você poderá adicionar outros membros (filhos, avós, etc.) a qualquer momento pelo
+                  perfil.
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"

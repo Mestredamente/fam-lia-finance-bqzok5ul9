@@ -1,4 +1,26 @@
-export type MemberRole = 'husband' | 'wife' | 'partner' | 'child'
+export type MemberRole =
+  | 'husband'
+  | 'wife'
+  | 'partner'
+  | 'son'
+  | 'daughter'
+  | 'stepson'
+  | 'stepdaughter'
+  | 'father'
+  | 'mother'
+  | 'father_in_law'
+  | 'mother_in_law'
+  | 'grandfather'
+  | 'grandmother'
+  | 'brother'
+  | 'sister'
+  | 'uncle'
+  | 'aunt'
+  | 'nephew'
+  | 'niece'
+  | 'cousin'
+  | 'other'
+  | 'child'
 
 export interface AuthUser {
   id: string
@@ -28,7 +50,7 @@ export interface FamilyRecord {
 export interface MemberRecord {
   id: string
   family_id: string
-  user_id: string
+  user_id?: string | null
   role: MemberRole
   display_name: string
   email: string
@@ -37,6 +59,13 @@ export interface MemberRecord {
   notify_bills: boolean
   notify_ai_tips: boolean
   share_data: boolean
+  birth_date?: string | null
+  is_dependent: boolean
+  monthly_allowance?: number | null
+  monthly_income_real?: number | null
+  occupation?: string | null
+  avatar_url?: string | null
+  is_active: boolean
   created: string
   updated: string
   expand?: {
@@ -69,7 +98,25 @@ export interface UserPreferences {
 export const roleLabels: Record<MemberRole, string> = {
   husband: 'Esposo',
   wife: 'Esposa',
-  partner: 'Cônjuge',
+  partner: 'Parceiro(a)',
+  son: 'Filho',
+  daughter: 'Filha',
+  stepson: 'Enteado',
+  stepdaughter: 'Enteada',
+  father: 'Pai',
+  mother: 'Mãe',
+  father_in_law: 'Sogro',
+  mother_in_law: 'Sogra',
+  grandfather: 'Avô',
+  grandmother: 'Avó',
+  brother: 'Irmão',
+  sister: 'Irmã',
+  uncle: 'Tio',
+  aunt: 'Tia',
+  nephew: 'Sobrinho',
+  niece: 'Sobrinha',
+  cousin: 'Primo(a)',
+  other: 'Outro',
   child: 'Filho(a)',
 }
 

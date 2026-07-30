@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { UserCheck, ShieldAlert, Download, Trash2, LogOut, Key, Info } from 'lucide-react'
+import { UserCheck, ShieldAlert, Download, Trash2, LogOut, Key, Info, Users } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Card, CardContent } from '@/components/ui/card'
@@ -22,7 +22,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { InviteCodeDialog } from '@/components/InviteCodeDialog'
 import { MemberRecord, TransactionRecord, getRoleLabel } from '@/types/finance'
-import { getMembersByFamilyId } from '@/services/members'
+import { getActiveMembersByFamilyId } from '@/services/members'
+import { calculateAge, formatAge } from '@/lib/member-utils'
 import { getTransactionsByMember } from '@/services/transactions'
 import { createInvite, generateInviteCode } from '@/services/invites'
 import { getInvestmentsByOwner } from '@/services/investments'
@@ -45,7 +46,7 @@ export default function Profile() {
   const loadMembers = async () => {
     if (!family) return
     try {
-      setFamilyMembers(await getMembersByFamilyId(family.id))
+      setFamilyMembers(await getActiveMembersByFamilyId(family.id))
     } catch {
       setFamilyMembers([])
     }
@@ -277,38 +278,66 @@ export default function Profile() {
               <h3 className="font-bold text-base text-gray-900">{family?.name || 'Sua Família'}</h3>
               <span className="text-xs text-gray-500">Membros cadastrados</span>
             </div>
-            <Button
-              size="sm"
-              onClick={handleGenerateInvite}
-              className="bg-[#166534] hover:bg-[#15803D] text-white"
-            >
-              <Key className="h-4 w-4 mr-1.5" />
-              Gerar novo convite
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => navigate('/familia')}>
+                <Users className="h-4 w-4 mr-1.5" />
+                Gerenciar
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleGenerateInvite}
+                className="bg-[#166534] hover:bg-[#15803D] text-white"
+              >
+                <Key className="h-4 w-4 mr-1.5" />
+                Convite
+              </Button>
+            </div>
           </div>
           <div className="space-y-3">
-            {familyMembers.map((m) => (
-              <div
-                key={m.id}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-xl"
-              >
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-9 w-9">
-                    <AvatarFallback className="bg-emerald-100 text-[#166534] font-bold">
-                      {m.display_name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h4 className="text-xs font-bold text-gray-900">{m.display_name}</h4>
-                    <span className="text-[10px] text-gray-500">{getRoleLabel(m.role)}</span>
+            {familyMembers.map((m) => {
+              const age = calculateAge(m.birth_date)
+              return (
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-xl"
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-9 w-9">
+                      <AvatarFallback className="bg-emerald-100 text-[#166534] font-bold">
+                        {m.display_name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs font-bold text-gray-900">{m.display_name}</h4>
+                        {m.is_dependent && (
+                          <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 text-[9px] px-1.5 py-0">
+                            Dependente
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-gray-500">{getRoleLabel(m.role)}</span>
+                        {age !== null && (
+                          <span className="text-[10px] text-gray-400">
+                            • {formatAge(m.birth_date)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                  <Badge variant="outline" className="text-[10px] bg-white">
+                    <UserCheck className="h-3 w-3 mr-1 text-[#22C55E]" />
+                    Ativo
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="text-[10px] bg-white">
-                  <UserCheck className="h-3 w-3 mr-1 text-[#22C55E]" />
-                  Ativo
-                </Badge>
-              </div>
-            ))}
+              )
+            })}
+          </div>
+          <div className="text-xs text-gray-500 pt-1">
+            {familyMembers.length} {familyMembers.length === 1 ? 'membro ativo' : 'membros ativos'}
+            {familyMembers.some((m) => m.is_dependent) &&
+              ` • ${familyMembers.filter((m) => m.is_dependent).length} dependentes`}
           </div>
         </CardContent>
       </Card>

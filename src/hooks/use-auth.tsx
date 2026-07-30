@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
 import pb from '@/lib/pocketbase/client'
+import { toast } from '@/hooks/use-toast'
 import type { AuthUser, FamilyRecord, MemberRecord } from '@/types/finance'
 import {
   getMemberByUserId,
@@ -88,6 +89,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       unsubscribe()
     }
   }, [loadUserData])
+
+  useEffect(() => {
+    const checkSession = () => {
+      if (pb.authStore.record && !pb.authStore.isValid) {
+        pb.authStore.clear()
+        setUser(null)
+        setMember(null)
+        setFamily(null)
+        setIsAuthenticated(false)
+        toast({
+          title: 'Sessão expirada',
+          description: 'Sua sessão expirou. Faça login novamente.',
+          variant: 'destructive',
+        })
+      }
+    }
+
+    const interval = setInterval(checkSession, 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   const login = async (email: string, password: string) => {
     const authData = await pb.collection('users').authWithPassword(email, password)
