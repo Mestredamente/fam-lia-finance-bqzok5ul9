@@ -1,16 +1,119 @@
-<!-- HTML template for the frontend react app: https://developer.mozilla.org/en-US/docs/Web/HTML -->
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Um incrível projeto do Skip</title>
-    <meta name="description" content="Projeto gerado usando Skip (https://goskip.dev)" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Família Finance — Gestão financeira familiar com IA</title>
+    <meta
+      name="description"
+      content="Gestão financeira familiar com IA: controle de gastos, orçamento, investimentos, dívidas e terapia financeira. Organize as finanças da sua família."
+    />
     <meta name="author" content="Skip (https://goskip.dev)" />
+    <meta name="theme-color" content="#10B981" />
+
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Família Finance" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Família Finance — Gestão financeira familiar com IA" />
+    <meta
+      property="og:description"
+      content="Controle de gastos, orçamento, investimentos e bem-estar emocional para sua família."
+    />
     <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="pt_BR" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Família Finance — Gestão financeira familiar com IA" />
+    <meta
+      name="twitter:description"
+      content="Controle de gastos, orçamento, investimentos e bem-estar emocional para sua família."
+    />
+    <meta name="twitter:image" content="/og-image.png" />
+
+    <style>
+      #ff-splash {
+        position: fixed;
+        inset: 0;
+        background: #10b981;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      #ff-splash.ff-splash-fade-out {
+        opacity: 0;
+        transition: opacity 0.3s ease-out;
+        pointer-events: none;
+      }
+      .ff-splash-logo {
+        animation: ff-splash-fade-in 0.5s ease-out;
+      }
+      .ff-splash-spinner {
+        width: 32px;
+        height: 32px;
+        margin-top: 24px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: ff-splash-spin 0.8s linear infinite;
+      }
+      .ff-splash-version {
+        position: absolute;
+        bottom: 20px;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 11px;
+        font-family: system-ui, sans-serif;
+      }
+      @keyframes ff-splash-fade-in {
+        from {
+          opacity: 0;
+          transform: scale(0.8);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      @keyframes ff-splash-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
   </head>
 
   <body>
+    <div id="ff-splash">
+      <div class="ff-splash-logo">
+        <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="32" cy="32" r="30" fill="white" />
+          <text
+            x="32"
+            y="41"
+            font-size="26"
+            font-weight="bold"
+            fill="#10B981"
+            text-anchor="middle"
+            font-family="system-ui, sans-serif"
+          >
+            FF
+          </text>
+        </svg>
+      </div>
+      <div class="ff-splash-spinner"></div>
+      <div class="ff-splash-version">v1.0.0</div>
+    </div>
+
     <div id="root"></div>
     <!-- @skip-protected: Do not remove. Required for app features. -->
     <script src="https://goskip.dev/skip.js"></script>

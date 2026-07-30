@@ -172,6 +172,9 @@ export default function Onboarding() {
 
       await refreshData()
 
+      localStorage.setItem('ff_onboarding_complete', 'true')
+      localStorage.setItem('ff_tour_pending', 'true')
+
       toast({ title: 'Conta criada!', description: 'Bem-vindo à Família Finance!' })
       navigate('/dashboard')
     } catch (err) {

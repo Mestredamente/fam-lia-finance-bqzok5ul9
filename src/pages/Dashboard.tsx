@@ -120,15 +120,17 @@ export default function Dashboard() {
 
       <InsightsSection familyId={family.id} memberId={member?.id || ''} />
 
-      <DashboardSummary
-        totalReceitas={summary.totalReceitas}
-        totalDespesas={summary.totalDespesas}
-        saldo={summary.saldo}
-        porcentagemGasta={summary.porcentagemGasta}
-        loading={loading}
-        error={error}
-        onRetry={refetch}
-      />
+      <div data-tour="dashboard-summary">
+        <DashboardSummary
+          totalReceitas={summary.totalReceitas}
+          totalDespesas={summary.totalDespesas}
+          saldo={summary.saldo}
+          porcentagemGasta={summary.porcentagemGasta}
+          loading={loading}
+          error={error}
+          onRetry={refetch}
+        />
+      </div>
 
       {members.length <= 1 && (
         <section className="p-5 bg-[#F0FDF4] border border-[#22C55E] rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-subtle">
@@ -174,6 +176,7 @@ export default function Dashboard() {
       />
 
       <button
+        data-tour="add-transaction"
         onClick={openForm}
         className="fixed bottom-20 right-6 lg:bottom-8 lg:right-8 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 z-20"
       >

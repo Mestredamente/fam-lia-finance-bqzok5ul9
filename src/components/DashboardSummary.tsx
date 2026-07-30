@@ -2,6 +2,7 @@ import { ArrowUpRight, ArrowDownRight, Wallet, AlertCircle } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AnimatedCounter } from '@/components/AnimatedCounter'
 import { formatBRL, getProgressBarColor } from '@/lib/utils'
 
 interface DashboardSummaryProps {
@@ -72,7 +73,7 @@ export function DashboardSummary({
                 Receitas
               </span>
               <span className="text-2xl font-extrabold text-[#166534] transition-all duration-300">
-                {formatBRL(totalReceitas)}
+                <AnimatedCounter value={totalReceitas} format={formatBRL} />
               </span>
             </div>
             <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-[#166534]">
@@ -87,7 +88,7 @@ export function DashboardSummary({
                 Despesas
               </span>
               <span className="text-2xl font-extrabold text-red-600 transition-all duration-300">
-                {formatBRL(totalDespesas)}
+                <AnimatedCounter value={totalDespesas} format={formatBRL} />
               </span>
             </div>
             <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center text-red-600">
@@ -102,7 +103,7 @@ export function DashboardSummary({
                 Saldo do mês
               </span>
               <span className="text-2xl font-extrabold text-blue-700 transition-all duration-300">
-                {formatBRL(saldo)}
+                <AnimatedCounter value={saldo} format={formatBRL} />
               </span>
             </div>
             <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700">

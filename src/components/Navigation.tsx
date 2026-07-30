@@ -98,6 +98,15 @@ export function Sidebar() {
             <button
               key={item.label}
               onClick={() => handleNav(item)}
+              data-tour={
+                item.path === '/transacoes'
+                  ? 'nav-transacoes'
+                  : item.path === '/cards'
+                    ? 'nav-cards'
+                    : item.path === '/consultora'
+                      ? 'nav-consultora'
+                      : undefined
+              }
               className={cn(
                 'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all relative',
                 isCurrent
@@ -157,6 +166,15 @@ export function BottomNav() {
           <button
             key={tab.label}
             onClick={() => handleTab(tab)}
+            data-tour={
+              tab.path === '/transacoes'
+                ? 'nav-transacoes'
+                : tab.path === '/cards'
+                  ? 'nav-cards'
+                  : tab.path === '/consultora'
+                    ? 'nav-consultora'
+                    : undefined
+            }
             className="flex flex-col items-center justify-center w-full h-full relative"
           >
             {isCurrent && <div className="absolute top-1 w-1.5 h-1.5 rounded-full bg-[#22C55E]" />}

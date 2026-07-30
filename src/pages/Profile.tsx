@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { UserCheck, ShieldAlert, Download, Trash2, LogOut, Key, Info, Users } from 'lucide-react'
+import {
+  UserCheck,
+  ShieldAlert,
+  Download,
+  Trash2,
+  LogOut,
+  Key,
+  Info,
+  Users,
+  BookOpen,
+} from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Card, CardContent } from '@/components/ui/card'
@@ -394,6 +404,17 @@ export default function Profile() {
           <h3 className="font-bold text-base text-gray-900 border-b border-gray-100 pb-2">
             Ações de Conta
           </h3>
+          <Button
+            variant="outline"
+            className="w-full justify-start text-gray-700 text-xs font-semibold"
+            onClick={() => {
+              localStorage.setItem('ff_tour_pending', 'true')
+              navigate('/dashboard')
+            }}
+          >
+            <BookOpen className="h-4 w-4 mr-2" />
+            Rever tutorial
+          </Button>
           <Button
             variant="outline"
             className="w-full justify-start text-gray-700 text-xs font-semibold"

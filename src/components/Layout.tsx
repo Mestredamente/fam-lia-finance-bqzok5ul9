@@ -1,16 +1,15 @@
 import { Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { Header, Sidebar, BottomNav } from '@/components/Navigation'
+import { LoadingScreen } from '@/components/LoadingScreen'
+import { OnboardingTour } from '@/components/OnboardingTour'
+import { PullToRefresh } from '@/components/PullToRefresh'
 
 export default function Layout() {
   const { isAuthenticated, loading } = useAuth()
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB]">
-        <div className="w-10 h-10 border-4 border-emerald-200 border-t-[#166534] rounded-full animate-spin" />
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   if (!isAuthenticated) {
@@ -29,10 +28,18 @@ export default function Layout() {
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className="flex-1 p-4 md:p-6 lg:p-8 pb-20 lg:pb-8 max-w-[1200px] w-full mx-auto animate-fade-in">
-          <Outlet />
+          <PullToRefresh
+            onRefresh={async () => {
+              window.dispatchEvent(new CustomEvent('ff-refresh'))
+              await new Promise((r) => setTimeout(r, 800))
+            }}
+          >
+            <Outlet />
+          </PullToRefresh>
         </main>
       </div>
       <BottomNav />
+      <OnboardingTour />
     </div>
   )
 }

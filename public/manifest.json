@@ -1,0 +1,27 @@
+{
+  "name": "Família Finance",
+  "short_name": "Família Finance",
+  "description": "Gestão financeira familiar com IA, controle de gastos, investimentos e bem-estar emocional",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#10B981",
+  "categories": ["finance", "productivity", "lifestyle"],
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 256x256 512x512 1024x1024",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

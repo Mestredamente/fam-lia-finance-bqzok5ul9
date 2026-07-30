@@ -4,6 +4,11 @@ import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider, useAuth } from '@/hooks/use-auth'
+import { useSwUpdate } from '@/hooks/use-sw-update'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { OfflineBanner } from '@/components/OfflineBanner'
+import { InstallPrompt } from '@/components/InstallPrompt'
+import { LoadingScreen } from '@/components/LoadingScreen'
 import pb from '@/lib/pocketbase/client'
 import { toast } from '@/hooks/use-toast'
 
@@ -46,13 +51,7 @@ function NavigationGuard() {
 function SmartCatchAll() {
   const { isAuthenticated, loading } = useAuth()
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="w-10 h-10 border-4 border-emerald-200 border-t-[#166534] rounded-full animate-spin" />
-      </div>
-    )
-  }
+  if (loading) return <LoadingScreen />
 
   return <Navigate to={isAuthenticated ? '/dashboard' : '/'} replace />
 }
@@ -60,114 +59,116 @@ function SmartCatchAll() {
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, hasFamily, loading } = useAuth()
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="w-10 h-10 border-4 border-emerald-200 border-t-[#166534] rounded-full animate-spin" />
-      </div>
-    )
-  }
+  if (loading) return <LoadingScreen />
 
-  if (!isAuthenticated) {
-    return <Navigate to="/" replace />
-  }
+  if (!isAuthenticated) return <Navigate to="/" replace />
 
-  if (!hasFamily) {
-    return <Navigate to="/onboarding" replace />
-  }
+  if (!hasFamily) return <Navigate to="/onboarding" replace />
 
   return <>{children}</>
 }
 
+function AppInner() {
+  useSwUpdate()
+
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <OfflineBanner />
+        <InstallPrompt />
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <NavigationGuard />
+          <Routes>
+            <Route element={<Layout />}>
+              <Route path="/" element={<Login />} />
+              <Route path="/onboarding" element={<Onboarding />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/transacoes"
+                element={
+                  <ProtectedRoute>
+                    <Transactions />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/cards"
+                element={
+                  <ProtectedRoute>
+                    <Cards />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/cards/:cardId"
+                element={
+                  <ProtectedRoute>
+                    <CardDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/cards/:cardId/invoices/:invoiceId/review"
+                element={
+                  <ProtectedRoute>
+                    <InvoiceReview />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/patrimonio"
+                element={
+                  <ProtectedRoute>
+                    <Patrimony />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/consultora"
+                element={
+                  <ProtectedRoute>
+                    <Consultora />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/familia"
+                element={
+                  <ProtectedRoute>
+                    <FamilyManagement />
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
+            <Route path="*" element={<SmartCatchAll />} />
+          </Routes>
+        </TooltipProvider>
+      </BrowserRouter>
+    </AuthProvider>
+  )
+}
+
 const App = () => (
-  <AuthProvider>
-    <BrowserRouter>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <NavigationGuard />
-        <Routes>
-          <Route element={<Layout />}>
-            <Route path="/" element={<Login />} />
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/transacoes"
-              element={
-                <ProtectedRoute>
-                  <Transactions />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/cards"
-              element={
-                <ProtectedRoute>
-                  <Cards />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/cards/:cardId"
-              element={
-                <ProtectedRoute>
-                  <CardDetail />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/cards/:cardId/invoices/:invoiceId/review"
-              element={
-                <ProtectedRoute>
-                  <InvoiceReview />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/patrimonio"
-              element={
-                <ProtectedRoute>
-                  <Patrimony />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/consultora"
-              element={
-                <ProtectedRoute>
-                  <Consultora />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/familia"
-              element={
-                <ProtectedRoute>
-                  <FamilyManagement />
-                </ProtectedRoute>
-              }
-            />
-          </Route>
-          <Route path="*" element={<SmartCatchAll />} />
-        </Routes>
-      </TooltipProvider>
-    </BrowserRouter>
-  </AuthProvider>
+  <ErrorBoundary>
+    <AppInner />
+  </ErrorBoundary>
 )
 
 export default App
