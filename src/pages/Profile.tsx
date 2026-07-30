@@ -10,6 +10,7 @@ import {
   Info,
   Users,
   BookOpen,
+  Smartphone,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -31,6 +32,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { InviteCodeDialog } from '@/components/InviteCodeDialog'
+import { InstallAppDialog } from '@/components/InstallAppDialog'
 import { MemberRecord, TransactionRecord, getRoleLabel } from '@/types/finance'
 import { getActiveMembersByFamilyId } from '@/services/members'
 import { calculateAge, formatAge } from '@/lib/member-utils'
@@ -51,6 +53,7 @@ export default function Profile() {
 
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const [inviteCode, setInviteCode] = useState(family?.invite_code || 'FAM-0000')
+  const [installDialogOpen, setInstallDialogOpen] = useState(false)
   const [familyMembers, setFamilyMembers] = useState<MemberRecord[]>([])
   const [allTransactions, setAllTransactions] = useState<TransactionRecord[]>([])
   const [userInvestments, setUserInvestments] = useState<InvestmentRecord[]>([])
@@ -450,6 +453,14 @@ export default function Profile() {
           <Button
             variant="outline"
             className="w-full justify-start text-gray-700 text-xs font-semibold"
+            onClick={() => setInstallDialogOpen(true)}
+          >
+            <Smartphone className="h-4 w-4 mr-2" />
+            Instalar app
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-start text-gray-700 text-xs font-semibold"
             onClick={() => {
               localStorage.setItem('ff_tour_pending', 'true')
               navigate('/dashboard')
@@ -519,6 +530,7 @@ export default function Profile() {
         onOpenChange={setInviteModalOpen}
         code={inviteCode}
       />
+      <InstallAppDialog open={installDialogOpen} onOpenChange={setInstallDialogOpen} />
     </div>
   )
 }

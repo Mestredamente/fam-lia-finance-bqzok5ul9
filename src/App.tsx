@@ -8,6 +8,7 @@ import { ThemeProvider } from '@/hooks/use-theme'
 import { AnnouncerProvider } from '@/hooks/use-announcer'
 import { OfflineQueueProvider } from '@/hooks/use-offline-queue'
 import { useSwUpdate } from '@/hooks/use-sw-update'
+import { useNotifications } from '@/hooks/use-notifications'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { OfflineBanner } from '@/components/OfflineBanner'
 import { InstallPrompt } from '@/components/InstallPrompt'
@@ -58,6 +59,11 @@ function SmartCatchAll() {
   return <Navigate to={isAuthenticated ? '/dashboard' : '/'} replace />
 }
 
+function NotificationChecker() {
+  useNotifications()
+  return null
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, hasFamily, loading } = useAuth()
   if (loading) return <LoadingScreen />
@@ -88,6 +94,7 @@ function AppInner() {
       <AnnouncerProvider>
         <OfflineQueueProvider>
           <AuthProvider>
+            <NotificationChecker />
             <BrowserRouter>
               <SkipLink />
               <OfflineBanner />
