@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-29T23:03:50.440Z",
+  "generatedAt": "2026-07-29T23:54:46.265Z",
   "collections": [
     {
       "name": "users",
@@ -988,12 +988,224 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "mode",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["chat", "therapy"]
         }
       ],
       "indexes": [
         "CREATE INDEX idx_ai_conversations_family_id ON ai_conversations (family_id)",
         "CREATE INDEX idx_ai_conversations_user_id ON ai_conversations (user_id)",
         "CREATE INDEX idx_ai_conversations_user_created ON ai_conversations (user_id, created)"
+      ]
+    },
+    {
+      "name": "emotional_journal",
+      "type": "base",
+      "apiRules": {
+        "list": "user_id.user_id = @request.auth.id",
+        "view": "user_id.user_id = @request.auth.id",
+        "create": "user_id.user_id = @request.auth.id",
+        "update": "user_id.user_id = @request.auth.id",
+        "delete": "user_id.user_id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "family_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "families"
+        },
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "members"
+        },
+        {
+          "name": "transaction_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "transactions"
+        },
+        {
+          "name": "emotion",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "anxiety",
+            "happiness",
+            "guilt",
+            "relief",
+            "frustration",
+            "pride",
+            "fear",
+            "impulse",
+            "gratitude",
+            "stress"
+          ]
+        },
+        {
+          "name": "trigger",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "note",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "spending_amount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_emotional_journal_user_id ON emotional_journal (user_id)",
+        "CREATE INDEX idx_emotional_journal_family_id ON emotional_journal (family_id)",
+        "CREATE INDEX idx_emotional_journal_created ON emotional_journal (created)"
+      ]
+    },
+    {
+      "name": "challenges",
+      "type": "base",
+      "apiRules": {
+        "list": "user_id.user_id = @request.auth.id || family_id.created_by = @request.auth.id",
+        "view": "user_id.user_id = @request.auth.id || family_id.created_by = @request.auth.id",
+        "create": "user_id.user_id = @request.auth.id",
+        "update": "user_id.user_id = @request.auth.id",
+        "delete": "user_id.user_id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "family_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "families"
+        },
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "members"
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "spending_freeze",
+            "savings_goal",
+            "no_impulse",
+            "category_cut",
+            "emotional_awareness",
+            "custom"
+          ]
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "target_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "current_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "start_date",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "end_date",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["active", "completed", "failed", "abandoned"]
+        },
+        {
+          "name": "points",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "badge_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["none", "bronze", "silver", "gold", "platinum"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_challenges_family_id ON challenges (family_id)",
+        "CREATE INDEX idx_challenges_user_id ON challenges (user_id)",
+        "CREATE INDEX idx_challenges_status ON challenges (status)"
       ]
     }
   ]
