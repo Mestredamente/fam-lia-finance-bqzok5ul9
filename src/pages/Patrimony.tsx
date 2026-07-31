@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
-import { getMembersByFamilyId } from '@/services/members'
+import { getActiveMembersByFamilyId } from '@/services/members'
 import { InvestmentList } from '@/components/InvestmentList'
 import { DebtList } from '@/components/DebtList'
 import { cn } from '@/lib/utils'
@@ -13,7 +13,7 @@ export default function Patrimony() {
 
   useEffect(() => {
     if (family)
-      getMembersByFamilyId(family.id)
+      getActiveMembersByFamilyId(family.id)
         .then(setMembers)
         .catch(() => {})
   }, [family?.id])

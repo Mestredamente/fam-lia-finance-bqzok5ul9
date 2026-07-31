@@ -10,17 +10,11 @@ export const getMembersByFamilyId = (familyId: string) =>
     sort: 'created',
   })
 
-export const getActiveMembersByFamilyId = async (familyId: string) => {
-  const active = await pb.collection('members').getFullList<MemberRecord>({
+export const getActiveMembersByFamilyId = (familyId: string) =>
+  pb.collection('members').getFullList<MemberRecord>({
     filter: `family_id = "${familyId}" && is_active = true`,
     sort: 'created',
   })
-  if (active.length > 0) return active
-  return pb.collection('members').getFullList<MemberRecord>({
-    filter: `family_id = "${familyId}"`,
-    sort: 'created',
-  })
-}
 
 export const softDeleteMember = (id: string) =>
   pb.collection('members').update<MemberRecord>(id, { is_active: false })
@@ -31,4 +25,5 @@ export const createMember = (data: Partial<MemberRecord>) =>
 export const updateMember = (id: string, data: Partial<MemberRecord>) =>
   pb.collection('members').update<MemberRecord>(id, data)
 
-export const deleteMember = (id: string) => pb.collection('members').delete(id)
+export const deleteMember = (id: string) =>
+  pb.send(`/backend/v1/members/${id}/cascade`, { method: 'DELETE' })

@@ -172,9 +172,20 @@ export default function Profile() {
   }
 
   const handleDeleteAccount = async () => {
-    await deleteAccount()
-    toast({ title: 'Conta excluída', description: 'Sua conta foi removida com sucesso.' })
-    navigate('/')
+    try {
+      await deleteAccount()
+      toast({ title: 'Conta excluída', description: 'Sua conta foi removida com sucesso.' })
+      navigate('/')
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description:
+          err instanceof Error
+            ? err.message
+            : 'Não foi possível excluir sua conta. Tente novamente.',
+      })
+    }
   }
 
   const handleLogout = () => {
@@ -290,7 +301,9 @@ export default function Profile() {
         <CardContent className="p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-gray-100 pb-2">
             <div>
-              <h3 className="font-bold text-base text-gray-900">{family?.name || 'Sua Família'}</h3>
+              <h3 className="font-bold text-base text-gray-900">
+                {family?.name || 'Seu Domicílio'}
+              </h3>
               <span className="text-xs text-gray-500">Membros cadastrados</span>
             </div>
             <div className="flex gap-2">
@@ -383,7 +396,7 @@ export default function Profile() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-semibold text-gray-700">
-                  Compartilhar dados com cônjuge
+                  Compartilhar dados com quem mora com você
                 </span>
                 <Tooltip>
                   <TooltipTrigger>
@@ -391,8 +404,9 @@ export default function Profile() {
                   </TooltipTrigger>
                   <TooltipContent>
                     <p className="w-48 text-[11px]">
-                      Quando ativado, seu cônjuge pode ver suas transações, investimentos e dívidas.
-                    </p>
+                      Quando ativado, quem mora com você pode ver suas transações, investimentos e
+                      dívidas.
+                    </p>{' '}
                   </TooltipContent>
                 </Tooltip>
               </div>

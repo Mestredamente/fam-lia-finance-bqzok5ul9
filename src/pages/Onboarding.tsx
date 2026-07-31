@@ -31,6 +31,7 @@ import {
 import { seedDefaultCategories } from '@/services/categories'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
+import { extractFieldErrors } from '@/lib/pocketbase/errors'
 
 const step1Schema = z.object({
   name: z.string().min(2, 'Nome muito curto'),
@@ -48,7 +49,7 @@ export default function Onboarding() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<MemberRole>('husband')
+  const [role, setRole] = useState<MemberRole>('self')
   const [step1Errors, setStep1Errors] = useState<Record<string, string>>({})
 
   const [familyOption, setFamilyOption] = useState<'create' | 'join'>('create')
@@ -85,11 +86,19 @@ export default function Onboarding() {
       await signUp(email, password, name)
       setStep(2)
     } catch (err) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro',
-        description: getPortugueseError(err),
-      })
+      const fieldErrors = extractFieldErrors(err)
+      if (fieldErrors.email) {
+        setStep1Errors({
+          email:
+            'Este e-mail já possui uma conta. Faça login primeiro e depois use o código de convite na página da família.',
+        })
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: getPortugueseError(err),
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -106,7 +115,11 @@ export default function Onboarding() {
       setValidatedFamilyName(result.family_name || '')
     } else {
       setCodeValid(false)
-      setCodeError(result.error && result.error.trim() ? result.error : 'Código não encontrado.')
+      setCodeError(
+        result.error && result.error.trim()
+          ? result.error
+          : 'Convite inválido ou já utilizado. Solicite um novo convite.',
+      )
     }
   }
 
@@ -166,7 +179,21 @@ export default function Onboarding() {
           share_data: true,
         })
         if (!joinResult.valid) {
-          throw new Error(joinResult.error || 'Erro ao entrar na família')
+          const joinError =
+            joinResult.error || 'Convite inválido ou já utilizado. Solicite um novo convite.'
+          if (joinError.includes('já faz parte')) {
+            // User is already a member — proceed to dashboard
+          } else {
+            // Clean up orphaned auth user to avoid ghost accounts
+            try {
+              if (userId) await pb.collection('users').delete(userId)
+            } catch {
+              /* intentionally ignored */
+            }
+            pb.authStore.clear()
+            setStep(1)
+            throw new Error(joinError)
+          }
         }
       }
 
@@ -192,6 +219,9 @@ export default function Onboarding() {
 
   return (
     <div className="w-full py-6 flex flex-col items-center">
+      <p className="text-xs text-gray-500 text-center mb-4 max-w-xs">
+        Finanças para quem mora junto — seja qual for o seu arranjo
+      </p>
       <div className="w-full max-w-xs flex items-center justify-between mb-6">
         {[1, 2, 3].map((s) => {
           const isDone = step > s
@@ -281,8 +311,34 @@ export default function Onboarding() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-700">Papel na família</label>
+                  <label className="text-xs font-semibold text-gray-700">
+                    Seu papel no domicílio
+                  </label>
                   <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setRole('self')}
+                      className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all ${
+                        role === 'self'
+                          ? 'border-[#22C55E] bg-emerald-50 text-[#166534]'
+                          : 'border-gray-200 bg-white text-gray-600'
+                      }`}
+                    >
+                      <User className="h-6 w-6" />
+                      <span className="text-xs font-bold">Eu / Titular</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRole('partner')}
+                      className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all ${
+                        role === 'partner'
+                          ? 'border-[#22C55E] bg-emerald-50 text-[#166534]'
+                          : 'border-gray-200 bg-white text-gray-600'
+                      }`}
+                    >
+                      <User className="h-6 w-6" />
+                      <span className="text-xs font-bold">Parceiro(a)</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => setRole('husband')}
@@ -293,7 +349,7 @@ export default function Onboarding() {
                       }`}
                     >
                       <User className="h-6 w-6" />
-                      <span className="text-xs font-bold">{roleLabels.husband}</span>
+                      <span className="text-xs font-bold">Esposo</span>
                     </button>
                     <button
                       type="button"
@@ -305,7 +361,19 @@ export default function Onboarding() {
                       }`}
                     >
                       <User className="h-6 w-6" />
-                      <span className="text-xs font-bold">{roleLabels.wife}</span>
+                      <span className="text-xs font-bold">Esposa</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRole('roommate')}
+                      className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all col-span-2 ${
+                        role === 'roommate'
+                          ? 'border-[#22C55E] bg-emerald-50 text-[#166534]'
+                          : 'border-gray-200 bg-white text-gray-600'
+                      }`}
+                    >
+                      <User className="h-6 w-6" />
+                      <span className="text-xs font-bold">Colega de moradia</span>
                     </button>
                   </div>
                 </div>
@@ -331,8 +399,8 @@ export default function Onboarding() {
           {step === 2 && (
             <div className="space-y-5">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Sua família</h2>
-                <p className="text-xs text-gray-500">Passo 2 de 3: Configuração familiar</p>
+                <h2 className="text-xl font-bold text-gray-900">Seu domicílio</h2>
+                <p className="text-xs text-gray-500">Passo 2 de 3: Configuração do domicílio</p>
               </div>
 
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
@@ -353,9 +421,9 @@ export default function Onboarding() {
                   }`}
                 >
                   <Home className="h-6 w-6 text-[#166534]" />
-                  <span className="text-xs font-bold text-gray-900">Criar nova família</span>
+                  <span className="text-xs font-bold text-gray-900">Criar novo domicílio</span>
                   <span className="text-[10px] text-gray-500">
-                    Você será o admin e poderá convidar seu cônjuge
+                    Você será o admin e poderá convidar quem mora com você
                   </span>
                 </button>
 
@@ -369,7 +437,7 @@ export default function Onboarding() {
                   }`}
                 >
                   <Users className="h-6 w-6 text-[#166534]" />
-                  <span className="text-xs font-bold text-gray-900">Entrar em uma família</span>
+                  <span className="text-xs font-bold text-gray-900">Entrar em um domicílio</span>
                   <span className="text-[10px] text-gray-500">
                     Digite o código de convite recebido
                   </span>
@@ -378,9 +446,9 @@ export default function Onboarding() {
 
               {familyOption === 'create' ? (
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-gray-700">Nome da família</label>
+                  <label className="text-xs font-semibold text-gray-700">Nome do domicílio</label>
                   <Input
-                    placeholder="Ex: Família Silva"
+                    placeholder="Ex: Casa dos Silva"
                     value={familyName}
                     onChange={(e) => setFamilyName(e.target.value)}
                   />
@@ -416,9 +484,9 @@ export default function Onboarding() {
                   )}
                   {codeValid === false && (
                     <p className="text-xs text-red-500">
-                      {validationError || 'Código não encontrado.'}
+                      {codeError || 'Convite inválido ou já utilizado. Solicite um novo convite.'}
                     </p>
-                  )}{' '}
+                  )}
                 </div>
               )}
 

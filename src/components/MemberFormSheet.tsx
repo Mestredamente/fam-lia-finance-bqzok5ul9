@@ -268,7 +268,7 @@ export function MemberFormSheet({
             )}
           </div>
           <div>
-            <Label className="text-xs font-semibold text-gray-700">Papel familiar</Label>
+            <Label className="text-xs font-semibold text-gray-700">Papel no domicílio</Label>
             <Select
               value={role}
               onValueChange={(v) => setRole(v as MemberRole)}

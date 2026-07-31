@@ -1,8 +1,17 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Share2, Calendar, Receipt } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Share2,
+  Calendar,
+  Receipt,
+  FileDown,
+  Upload,
+} from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useTransactions } from '@/hooks/use-transactions'
-import { getMembersByFamilyId } from '@/services/members'
+import { getActiveMembersByFamilyId } from '@/services/members'
 import { deleteTransaction } from '@/services/transactions'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,6 +20,8 @@ import { Badge } from '@/components/ui/badge'
 import { TransactionFormSheet } from '@/components/TransactionFormSheet'
 import { TransactionDetailSheet } from '@/components/TransactionDetailSheet'
 import { ExportButton } from '@/components/ExportButton'
+import { BankImportSheet } from '@/components/BankImportSheet'
+import { generateMonthlyPDF } from '@/lib/pdf-report'
 import { getCategoryIcon } from '@/lib/category-icons'
 import { formatBRL, cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
@@ -47,6 +58,7 @@ export default function Transactions() {
   const [memberFilter, setMemberFilter] = useState('all')
   const [members, setMembers] = useState<MemberRecord[]>([])
   const [showForm, setShowForm] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [editingTx, setEditingTx] = useState<TransactionRecord | null>(null)
   const [detailTx, setDetailTx] = useState<TransactionRecord | null>(null)
   const [showDetail, setShowDetail] = useState(false)
@@ -61,7 +73,7 @@ export default function Transactions() {
 
   useEffect(() => {
     if (family)
-      getMembersByFamilyId(family.id)
+      getActiveMembersByFamilyId(family.id)
         .then(setMembers)
         .catch(() => {})
   }, [family?.id])
@@ -106,7 +118,19 @@ export default function Transactions() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">Transações</h1>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
+            <Upload className="h-4 w-4" />
+            <span className="hidden sm:inline ml-1">Importar</span>
+          </Button>
           <ExportButton transactions={filtered} month={month} year={year} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => generateMonthlyPDF(filtered, month, year)}
+          >
+            <FileDown className="h-4 w-4" />
+            <span className="hidden sm:inline ml-1">Relatório</span>
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -270,6 +294,13 @@ export default function Transactions() {
         isOwner={detailTx?.owner_id === member?.id}
         onEdit={openEdit}
         onDelete={handleDelete}
+      />
+      <BankImportSheet
+        open={showImport}
+        onOpenChange={setShowImport}
+        familyId={family.id}
+        memberId={member?.id || ''}
+        onImported={refetch}
       />
     </div>
   )

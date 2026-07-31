@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { MemberFormSheet } from '@/components/MemberFormSheet'
 import { InviteCodeDialog } from '@/components/InviteCodeDialog'
-import { getMembersByFamilyId, deleteMember } from '@/services/members'
+import { getActiveMembersByFamilyId, softDeleteMember } from '@/services/members'
 import { calculateAge, formatAge, getMemberAvatarUrl } from '@/lib/member-utils'
 import { getRoleLabel, type MemberRecord } from '@/types/finance'
 import { formatBRL } from '@/lib/utils'
@@ -44,7 +44,7 @@ export default function FamilyManagement() {
   const loadMembers = async () => {
     if (!family) return
     try {
-      setMembers(await getMembersByFamilyId(family.id))
+      setMembers(await getActiveMembersByFamilyId(family.id))
     } catch {
       setMembers([])
     } finally {
@@ -71,8 +71,8 @@ export default function FamilyManagement() {
     if (!removingMember) return
     setRemoving(true)
     try {
-      await deleteMember(removingMember.id)
-      toast({ title: 'Membro removido' })
+      await softDeleteMember(removingMember.id)
+      toast({ title: 'Membro desativado' })
       setRemovingMember(null)
       loadMembers()
     } catch (err) {
@@ -100,7 +100,7 @@ export default function FamilyManagement() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gerenciar Família</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Gerenciar Domicílio</h1>
           <p className="text-xs text-gray-500">Adicione, edite ou remova membros</p>
         </div>
       </div>
@@ -110,8 +110,6 @@ export default function FamilyManagement() {
           {members.length} {members.length === 1 ? 'membro' : 'membros'}
           {members.some((m) => m.is_dependent) &&
             ` • ${members.filter((m) => m.is_dependent).length} dependentes`}
-          {members.some((m) => !m.is_active) &&
-            ` • ${members.filter((m) => !m.is_active).length} inativos`}
         </span>
         {isCreator && (
           <Button
@@ -138,7 +136,7 @@ export default function FamilyManagement() {
               <Users className="h-6 w-6 text-[#166534]" />
             </div>
             <p className="text-sm text-gray-500">
-              Nenhum membro cadastrado. Adicione membros para gerenciar sua família.
+              Nenhum membro cadastrado. Adicione membros para gerenciar seu domicílio.
             </p>
           </CardContent>
         </Card>
@@ -234,11 +232,12 @@ export default function FamilyManagement() {
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Tem certeza que deseja remover {removingMember?.display_name} da família?
+              Tem certeza que deseja desativar {removingMember?.display_name} da família?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-gray-600">
-              O membro será removido permanentemente da família. As transações já registradas serão
-              mantidas para histórico.
+              O membro será desativado e não aparecerá mais nos listas e relatórios da família. Os
+              dados financeiros associados serão mantidos para histórico. Esta ação pode ser
+              revertida pelo administrador.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -248,7 +247,7 @@ export default function FamilyManagement() {
               disabled={removing}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
-              {removing ? 'Removendo...' : 'Remover'}
+              {removing ? 'Desativando...' : 'Desativar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

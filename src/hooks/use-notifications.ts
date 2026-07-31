@@ -3,7 +3,11 @@ import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
 import { getUpcomingAndOverdueTasks } from '@/services/household-tasks'
 import { getChallengesByFamilyId } from '@/services/challenges'
-import { getTransactionsByFamilyAndMonth } from '@/services/transactions'
+import {
+  getTransactionsByFamilyAndMonth,
+  getTransactionsByFamilyAndDateRange,
+} from '@/services/transactions'
+import { getBudgetsByFamilyId } from '@/services/budgets'
 import {
   notificationsSupported,
   sendNotification,
@@ -19,59 +23,115 @@ export function useNotifications() {
 
   useEffect(() => {
     if (!user || !family || !member) return
-    if (!notificationsSupported() || Notification.permission !== 'granted') return
+    if (!notificationsSupported()) return
+
+    if (Notification.permission === 'default') {
+      const hasAsked = localStorage.getItem('ff_notif_asked')
+      if (!hasAsked) {
+        localStorage.setItem('ff_notif_asked', '1')
+        Notification.requestPermission()
+      }
+    }
+
+    if (Notification.permission !== 'granted') return
 
     const checkAll = async () => {
       const todayKey = getTodayKey()
       const now = new Date()
 
-      try {
-        const invoices = await pb.collection('invoices').getFullList<InvoiceRecord>({
-          filter: `family_id = "${family.id}" && status = "pending"`,
-          expand: 'card_id',
-        })
-        for (const inv of invoices) {
-          const card = inv.expand?.card_id
-          if (!card) continue
-          const monthRef = new Date(inv.month_ref)
-          const dueDate = new Date(monthRef.getFullYear(), monthRef.getMonth() + 1, card.due_day)
-          const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / 86400000)
-          if (diffDays >= 0 && diffDays <= 2) {
-            const key = `invoice_${inv.id}_${todayKey}`
-            if (!hasNotificationBeenSent(key)) {
-              const dayText =
-                diffDays === 0 ? 'hoje' : diffDays === 1 ? 'amanhã' : `em ${diffDays} dias`
-              sendNotification(
-                'Fatura vencendo',
-                `Sua fatura do cartão ${card.name} vence ${dayText}`,
-              )
-              markNotificationSent(key)
+      if (member.notify_bills) {
+        try {
+          const invoices = await pb.collection('invoices').getFullList<InvoiceRecord>({
+            filter: `family_id = "${family.id}" && status = "pending"`,
+            expand: 'card_id',
+          })
+          for (const inv of invoices) {
+            const card = inv.expand?.card_id
+            if (!card) continue
+            const monthRef = new Date(inv.month_ref)
+            const dueDate = new Date(monthRef.getFullYear(), monthRef.getMonth() + 1, card.due_day)
+            const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / 86400000)
+            if (diffDays >= 0 && diffDays <= 3) {
+              const key = `invoice_${inv.id}_${todayKey}`
+              if (!hasNotificationBeenSent(key)) {
+                const dayText =
+                  diffDays === 0 ? 'hoje' : diffDays === 1 ? 'amanhã' : `em ${diffDays} dias`
+                sendNotification(
+                  'Fatura vencendo',
+                  `Sua fatura do cartão ${card.name} vence ${dayText}`,
+                )
+                markNotificationSent(key)
+              }
             }
           }
+        } catch {
+          /* noop */
         }
-      } catch {
-        /* noop */
+
+        try {
+          const tasks = await getUpcomingAndOverdueTasks(family.id, 1)
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          for (const task of tasks) {
+            if (!task.due_date) continue
+            const due = new Date(task.due_date.split('T')[0] + 'T00:00:00')
+            const diffHours = (due.getTime() - today.getTime()) / 3600000
+            if (diffHours <= 24) {
+              const key = `task_${task.id}_${todayKey}`
+              if (!hasNotificationBeenSent(key)) {
+                const dayText = diffHours <= 0 ? 'vence hoje' : 'vence amanhã'
+                sendNotification(task.title, `${task.title} ${dayText}`)
+                markNotificationSent(key)
+              }
+            }
+          }
+        } catch {
+          /* noop */
+        }
       }
 
-      try {
-        const tasks = await getUpcomingAndOverdueTasks(family.id, 1)
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        for (const task of tasks) {
-          if (!task.due_date) continue
-          const due = new Date(task.due_date.split('T')[0] + 'T00:00:00')
-          const diffDays = Math.round((due.getTime() - today.getTime()) / 86400000)
-          if (diffDays <= 1) {
-            const key = `task_${task.id}_${todayKey}`
-            if (!hasNotificationBeenSent(key)) {
-              const dayText = diffDays <= 0 ? 'vence hoje' : 'vence amanhã'
-              sendNotification(task.title, `${task.title} ${dayText}`)
-              markNotificationSent(key)
+      if (member.notify_ai_tips) {
+        try {
+          const budgets = await getBudgetsByFamilyId(family.id)
+          const now2 = new Date()
+          const startDate = `${now2.getFullYear()}-${String(now2.getMonth() + 1).padStart(2, '0')}-01`
+          const nextMonth = now2.getMonth() === 11 ? 0 : now2.getMonth() + 1
+          const nextYear = now2.getMonth() === 11 ? now2.getFullYear() + 1 : now2.getFullYear()
+          const endDate = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-01`
+          const transactions = await getTransactionsByFamilyAndDateRange(
+            family.id,
+            startDate,
+            endDate,
+          )
+          for (const budget of budgets) {
+            if (!budget.is_active) continue
+            const spent = transactions
+              .filter(
+                (t: any) =>
+                  t.type === 'expense' &&
+                  t.category_id === budget.category_id &&
+                  (!budget.member_id || t.owner_id === budget.member_id),
+              )
+              .reduce((s: number, t: any) => s + t.amount, 0)
+            const pct = (spent / budget.monthly_limit) * 100
+            if (pct >= 80) {
+              const threshold = pct >= 100 ? 100 : 80
+              const key = `budget_${budget.id}_${threshold}_${todayKey}`
+              if (!hasNotificationBeenSent(key)) {
+                const cat = budget.expand?.category_id
+                const title = pct >= 100 ? 'Orçamento excedido!' : 'Orçamento quase no limite'
+                const msg =
+                  pct >= 100
+                    ? `Orçamento excedido: ${cat?.name || 'Categoria'} gastou ${Math.round(pct)}% do limite`
+                    : `${cat?.name || 'Categoria'} atingiu ${Math.round(pct)}% do orçamento`
+                sendNotification(title, msg)
+                markNotificationSent(key)
+              }
             }
           }
+        } catch {
+          /* noop */
         }
-      } catch {
-        /* noop */
       }
 
       try {

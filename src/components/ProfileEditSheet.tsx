@@ -191,7 +191,7 @@ export function ProfileEditSheet({ open, onOpenChange }: Props) {
           </div>
 
           <div>
-            <Label className="text-xs font-semibold text-gray-700">Papel familiar</Label>
+            <Label className="text-xs font-semibold text-gray-700">Papel no domicílio</Label>
             <Select value={role} onValueChange={(v) => setRole(v as MemberRole)}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione" />
@@ -263,7 +263,7 @@ export function ProfileEditSheet({ open, onOpenChange }: Props) {
             </div>
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
               <Label className="text-xs font-semibold text-gray-700">
-                Compartilhar dados com cônjuge
+                Compartilhar dados com quem mora com você
               </Label>
               <Switch checked={shareData} onCheckedChange={setShareData} />
             </div>

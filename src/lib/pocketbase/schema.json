@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-30T03:36:24.684Z",
+  "generatedAt": "2026-07-31T02:35:55.304Z",
   "collections": [
     {
       "name": "users",
@@ -149,7 +149,16 @@
             "niece",
             "cousin",
             "other",
-            "child"
+            "child",
+            "self",
+            "roommate",
+            "cohabitant",
+            "boyfriend",
+            "girlfriend",
+            "co_parent",
+            "guardian",
+            "dependent_adult",
+            "household_member"
           ]
         },
         {
@@ -1481,6 +1490,70 @@
       ],
       "indexes": [
         "CREATE INDEX idx_categorization_rules_family_id ON categorization_rules (family_id)"
+      ]
+    },
+    {
+      "name": "budgets",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "family_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "families"
+        },
+        {
+          "name": "category_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "categories"
+        },
+        {
+          "name": "member_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "members"
+        },
+        {
+          "name": "monthly_limit",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_budgets_family_id ON budgets (family_id)",
+        "CREATE INDEX idx_budgets_category_id ON budgets (category_id)"
       ]
     }
   ]

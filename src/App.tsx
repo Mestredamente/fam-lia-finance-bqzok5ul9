@@ -30,6 +30,9 @@ const Patrimony = lazy(() => import('@/pages/Patrimony'))
 const Consultora = lazy(() => import('@/pages/Consultora'))
 const FamilyManagement = lazy(() => import('@/pages/FamilyManagement'))
 const CategorizationRules = lazy(() => import('@/pages/CategorizationRules'))
+const Budgets = lazy(() => import('@/pages/Budgets'))
+const MonthlyEvolution = lazy(() => import('@/pages/MonthlyEvolution'))
+const Challenges = lazy(() => import('@/pages/Challenges'))
 
 function NavigationGuard() {
   const location = useLocation()
@@ -52,6 +55,13 @@ function NavigationGuard() {
   }, [location.pathname, loading])
 
   return null
+}
+
+function HomeRedirect() {
+  const { isAuthenticated, loading } = useAuth()
+  if (loading) return <LoadingScreen />
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />
+  return withSuspense(Login)
 }
 
 function SmartCatchAll() {
@@ -106,7 +116,7 @@ function AppInner() {
                 <NavigationGuard />
                 <Routes>
                   <Route element={<Layout />}>
-                    <Route path="/" element={withSuspense(Login)} />
+                    <Route path="/" element={<HomeRedirect />} />
                     <Route path="/onboarding" element={withSuspense(Onboarding)} />
                     <Route
                       path="/dashboard"
@@ -147,6 +157,18 @@ function AppInner() {
                     <Route
                       path="/regras-categorizacao"
                       element={<ProtectedRoute>{withSuspense(CategorizationRules)}</ProtectedRoute>}
+                    />
+                    <Route
+                      path="/orcamentos"
+                      element={<ProtectedRoute>{withSuspense(Budgets)}</ProtectedRoute>}
+                    />
+                    <Route
+                      path="/evolucao"
+                      element={<ProtectedRoute>{withSuspense(MonthlyEvolution)}</ProtectedRoute>}
+                    />
+                    <Route
+                      path="/challenges"
+                      element={<ProtectedRoute>{withSuspense(Challenges)}</ProtectedRoute>}
                     />
                   </Route>
                   <Route path="*" element={<SmartCatchAll />} />

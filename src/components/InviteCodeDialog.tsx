@@ -24,7 +24,7 @@ export function InviteCodeDialog({ open, onOpenChange, code }: InviteCodeDialogP
     setCopied(true)
     toast({
       title: 'Código copiado!',
-      description: 'Envie o código para seu cônjuge para que ele possa se juntar à família.',
+      description: 'Envie o código para quem mora com você para compartilharem as finanças.',
     })
     setTimeout(() => setCopied(false), 2000)
   }
@@ -38,7 +38,7 @@ export function InviteCodeDialog({ open, onOpenChange, code }: InviteCodeDialogP
           </div>
           <DialogTitle className="text-xl font-bold text-gray-900">Código de Convite</DialogTitle>
           <DialogDescription className="text-sm text-gray-500">
-            Compartilhe este código com seu cônjuge para sincronizar suas finanças familiares.
+            Compartilhe este código com quem mora com você para sincronizar suas finanças.
           </DialogDescription>
         </DialogHeader>
 

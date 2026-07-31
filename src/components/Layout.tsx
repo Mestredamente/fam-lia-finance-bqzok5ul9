@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
+import { useExpenseNotifications } from '@/hooks/use-expense-notifications'
 import { Header, Sidebar, BottomNav } from '@/components/Navigation'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { OnboardingTour } from '@/components/OnboardingTour'
@@ -7,6 +8,7 @@ import { PullToRefresh } from '@/components/PullToRefresh'
 
 export default function Layout() {
   const { isAuthenticated, loading } = useAuth()
+  useExpenseNotifications(isAuthenticated)
 
   if (loading) {
     return <LoadingScreen />

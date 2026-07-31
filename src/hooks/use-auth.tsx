@@ -166,9 +166,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   )
 
   const deleteAccount = useCallback(async () => {
-    if (!member || !user) return
-    await deleteMemberSvc(member.id)
-    await pb.collection('users').delete(user.id)
+    if (!member || !user) throw new Error('Dados de usuário não encontrados.')
+    try {
+      await deleteMemberSvc(member.id)
+    } catch {
+      throw new Error('Não foi possível excluir sua conta. Tente novamente.')
+    }
+    try {
+      await pb.collection('users').delete(user.id)
+    } catch {
+      // Member data is already deleted via cascade. If auth user deletion
+      // fails (e.g., already cascade-deleted), we still clear local state.
+    }
+    localStorage.removeItem('ff_onboarding_complete')
+    localStorage.removeItem('ff_tour_pending')
+    localStorage.removeItem('ff_notifications')
     signOut()
   }, [member, user])
 

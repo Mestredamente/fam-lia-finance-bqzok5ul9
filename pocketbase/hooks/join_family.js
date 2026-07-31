@@ -26,7 +26,30 @@ routerAdd(
       return e.json(200, { valid: false, error: 'Dados incompletos.' })
     }
 
-    var validRoles = ['husband', 'wife', 'partner', 'child']
+    var validRoles = [
+      'husband',
+      'wife',
+      'partner',
+      'son',
+      'daughter',
+      'stepson',
+      'stepdaughter',
+      'father',
+      'mother',
+      'father_in_law',
+      'mother_in_law',
+      'grandfather',
+      'grandmother',
+      'brother',
+      'sister',
+      'uncle',
+      'aunt',
+      'nephew',
+      'niece',
+      'cousin',
+      'other',
+      'child',
+    ]
     if (validRoles.indexOf(role) === -1) {
       console.log('[join-family] invalid role:', role)
       return e.json(200, { valid: false, error: 'Papel inválido.' })

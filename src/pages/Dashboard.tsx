@@ -1,26 +1,24 @@
-import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Users, Sparkles } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { ChevronLeft, ChevronRight, Plus, Sparkles, Palette } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useMonthlySummary } from '@/hooks/use-monthly-summary'
-import { useFixedBills } from '@/hooks/use-fixed-bills'
 import { Button } from '@/components/ui/button'
 import { MemberDetailSheet } from '@/components/MemberDetailSheet'
 import { InviteCodeDialog } from '@/components/InviteCodeDialog'
-import { DashboardSummary } from '@/components/DashboardSummary'
-import { MemberBreakdown } from '@/components/MemberBreakdown'
-import { FixedBillsSection } from '@/components/FixedBillsSection'
-import { PatrimonyDashboardCard } from '@/components/PatrimonyDashboardCard'
+import { UnifiedHealthCard } from '@/components/UnifiedHealthCard'
+import { OverviewGrid } from '@/components/OverviewGrid'
+import { DashboardTabs } from '@/components/DashboardTabs'
 import { TransactionFormSheet } from '@/components/TransactionFormSheet'
-import { FinancialHealthScore } from '@/components/FinancialHealthScore'
-import { InsightsSection } from '@/components/InsightsSection'
-import { SubscriptionAlert } from '@/components/SubscriptionAlert'
 import { ScenarioComparator } from '@/components/ScenarioComparator'
 import { ExportButton } from '@/components/ExportButton'
-import { MonthlyChartsSection } from '@/components/MonthlyChartsSection'
 import { MemberRecord } from '@/types/finance'
-import { getMembersByFamilyId } from '@/services/members'
+import { getActiveMembersByFamilyId } from '@/services/members'
 import { getMonthName } from '@/lib/utils'
+import { Switch } from '@/components/ui/switch'
+import { BudgetProgressSection } from '@/components/BudgetProgressSection'
+import { useColorPersonalization } from '@/hooks/use-color-personalization'
+import { Link } from 'react-router-dom'
 
 export default function Dashboard() {
   const { family, member } = useAuth()
@@ -44,24 +42,56 @@ export default function Dashboard() {
     error,
     refetch,
   } = useMonthlySummary(family?.id, year, month)
-  const { fixedBills, totalPaid, loading: billsLoading } = useFixedBills(family?.id, year, month)
 
-  const loadMembers = async () => {
+  const {
+    enabled: colorEnabled,
+    toggle: toggleColor,
+    primaryColor,
+  } = useColorPersonalization(family?.id)
+
+  const loadMembers = useCallback(async () => {
     if (!family) return
     try {
-      const data = await getMembersByFamilyId(family.id)
+      const data = await getActiveMembersByFamilyId(family.id)
       setMembers(data)
     } catch {
       setMembers([])
     }
-  }
+  }, [family?.id])
 
   useEffect(() => {
     loadMembers()
-  }, [family?.id])
+  }, [loadMembers])
+
   useRealtime('members', () => {
     loadMembers()
   })
+  useRealtime('transactions', () => {
+    refetch()
+  })
+  useRealtime('categories', () => {
+    refetch()
+  })
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadMembers()
+    }, 10000)
+    return () => clearInterval(interval)
+  }, [loadMembers])
+
+  useEffect(() => {
+    const handleFocus = () => loadMembers()
+    const handleVisibilityChange = () => {
+      if (!document.hidden) loadMembers()
+    }
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [loadMembers])
 
   if (!family) {
     return (
@@ -104,6 +134,20 @@ export default function Dashboard() {
           <Button variant="outline" size="sm" onClick={() => openScenario()}>
             <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline ml-1">E se...?</span>
           </Button>
+          <div className="flex items-center gap-1.5 px-2">
+            <Palette className="h-4 w-4 text-gray-400" />
+            <Switch checked={colorEnabled} onCheckedChange={toggleColor} />
+          </div>
+          <Link to="/orcamentos">
+            <Button variant="outline" size="sm">
+              <span className="hidden sm:inline">Orçamentos</span>
+            </Button>
+          </Link>
+          <Link to="/evolucao">
+            <Button variant="outline" size="sm">
+              <span className="hidden sm:inline">Evolução</span>
+            </Button>
+          </Link>
           <Button
             variant="ghost"
             size="icon"
@@ -125,65 +169,42 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <FinancialHealthScore familyId={family.id} />
+      <UnifiedHealthCard
+        familyId={family.id}
+        totalReceitas={summary.totalReceitas}
+        totalDespesas={summary.totalDespesas}
+        saldo={summary.saldo}
+        porcentagemGasta={summary.porcentagemGasta}
+        loading={loading}
+        error={error}
+        onRetry={refetch}
+      />
 
-      <InsightsSection familyId={family.id} memberId={member?.id || ''} />
-
-      <div data-tour="dashboard-summary">
-        <DashboardSummary
-          totalReceitas={summary.totalReceitas}
-          totalDespesas={summary.totalDespesas}
-          saldo={summary.saldo}
-          porcentagemGasta={summary.porcentagemGasta}
-          loading={loading}
-          error={error}
-          onRetry={refetch}
-        />
-      </div>
-
-      <MonthlyChartsSection familyId={family.id} year={year} month={month} />
-
-      {members.length <= 1 && (
-        <section className="p-5 bg-[#F0FDF4] border border-[#22C55E] rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-subtle">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-[#166534] shrink-0">
-              <Users className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-gray-900">Convide seu cônjuge</h3>
-              <p className="text-xs text-gray-600">
-                Seu cônjuge ainda não entrou. Compartilhe as finanças familiares!
-              </p>
-            </div>
-          </div>
-          <Button
-            onClick={() => setShowInviteModal(true)}
-            className="bg-[#166534] hover:bg-[#15803D] text-white shrink-0 text-xs font-semibold"
-          >
-            Gerar código de convite
-          </Button>
-        </section>
-      )}
-
-      <MemberBreakdown
+      <OverviewGrid
+        familyId={family.id}
+        year={year}
+        month={month}
         members={members}
         memberSummaries={summary.memberSummaries}
         loading={loading}
         onMemberClick={handleMemberClick}
+        onInvite={() => setShowInviteModal(true)}
       />
 
-      <PatrimonyDashboardCard familyId={family.id} />
-
-      <SubscriptionAlert
+      <BudgetProgressSection
         familyId={family.id}
-        onSeeDetails={() => openScenario('cut-subscriptions')}
+        year={year}
+        month={month}
+        primaryColor={primaryColor}
       />
 
-      <FixedBillsSection
-        fixedBills={fixedBills}
-        totalPaid={totalPaid}
-        loading={billsLoading}
+      <DashboardTabs
+        familyId={family.id}
+        memberId={member?.id || ''}
+        year={year}
+        month={month}
         onAddFixed={openFixedForm}
+        onSeeSubscriptions={() => openScenario('cut-subscriptions')}
       />
 
       <button

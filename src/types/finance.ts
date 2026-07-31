@@ -1,7 +1,12 @@
 export type MemberRole =
+  | 'self'
   | 'husband'
   | 'wife'
   | 'partner'
+  | 'boyfriend'
+  | 'girlfriend'
+  | 'cohabitant'
+  | 'roommate'
   | 'son'
   | 'daughter'
   | 'stepson'
@@ -10,6 +15,8 @@ export type MemberRole =
   | 'mother'
   | 'father_in_law'
   | 'mother_in_law'
+  | 'co_parent'
+  | 'guardian'
   | 'grandfather'
   | 'grandmother'
   | 'brother'
@@ -19,6 +26,8 @@ export type MemberRole =
   | 'nephew'
   | 'niece'
   | 'cousin'
+  | 'dependent_adult'
+  | 'household_member'
   | 'other'
   | 'child'
 
@@ -96,9 +105,14 @@ export interface UserPreferences {
 }
 
 export const roleLabels: Record<MemberRole, string> = {
+  self: 'Eu / Titular',
   husband: 'Esposo',
   wife: 'Esposa',
   partner: 'Parceiro(a)',
+  boyfriend: 'Namorado',
+  girlfriend: 'Namorada',
+  cohabitant: 'Coabitante',
+  roommate: 'Colega de moradia',
   son: 'Filho',
   daughter: 'Filha',
   stepson: 'Enteado',
@@ -107,6 +121,8 @@ export const roleLabels: Record<MemberRole, string> = {
   mother: 'Mãe',
   father_in_law: 'Sogro',
   mother_in_law: 'Sogra',
+  co_parent: 'Copai/mãe',
+  guardian: 'Guardião(ã)',
   grandfather: 'Avô',
   grandmother: 'Avó',
   brother: 'Irmão',
@@ -116,6 +132,8 @@ export const roleLabels: Record<MemberRole, string> = {
   nephew: 'Sobrinho',
   niece: 'Sobrinha',
   cousin: 'Primo(a)',
+  dependent_adult: 'Adulto dependente',
+  household_member: 'Membro do domicílio',
   other: 'Outro',
   child: 'Filho(a)',
 }

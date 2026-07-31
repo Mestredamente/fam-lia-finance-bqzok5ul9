@@ -1,4 +1,15 @@
-import { Home, List, CreditCard, TrendingUp, User, Home as HouseIcon, Bot } from 'lucide-react'
+import {
+  Home,
+  List,
+  CreditCard,
+  TrendingUp,
+  User,
+  Home as HouseIcon,
+  Bot,
+  Wallet,
+  LineChart,
+  Trophy,
+} from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { usePendingInvoicesCount } from '@/hooks/use-pending-invoices-count'
@@ -7,6 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { NotificationCenter } from '@/components/NotificationCenter'
 
 export function Header() {
   const { user, family } = useAuth()
@@ -35,6 +47,7 @@ export function Header() {
       </div>
 
       <ThemeToggle />
+      <NotificationCenter />
       {user && (
         <div
           className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
@@ -71,6 +84,9 @@ export function Sidebar() {
     { label: 'Transações', path: '/transacoes', icon: List, active: true },
     { label: 'Cartões', path: '/cards', icon: CreditCard, active: true },
     { label: 'Patrimônio', path: '/patrimonio', icon: TrendingUp, active: true },
+    { label: 'Orçamentos', path: '/orcamentos', icon: Wallet, active: true },
+    { label: 'Evolução', path: '/evolucao', icon: LineChart, active: true },
+    { label: 'Desafios', path: '/challenges', icon: Trophy, active: true },
     { label: 'Consultora', path: '/consultora', icon: Bot, active: true },
     { label: 'Perfil', path: '/profile', icon: User, active: true },
   ]
@@ -92,7 +108,12 @@ export function Sidebar() {
         <div className="w-10 h-10 rounded-xl bg-[#166534] flex items-center justify-center text-white">
           <HouseIcon className="h-6 w-6" />
         </div>
-        <span className="font-bold text-xl text-gray-900">Família Finance</span>
+        <div>
+          <span className="font-bold text-xl text-gray-900 block">Família Finance</span>
+          <span className="text-[10px] text-gray-500 leading-tight block">
+            Finanças para quem mora junto — seja qual for o seu arranjo
+          </span>
+        </div>
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
@@ -147,7 +168,9 @@ export function BottomNav() {
     { label: 'Transações', path: '/transacoes', icon: List, active: true },
     { label: 'Cartões', path: '/cards', icon: CreditCard, active: true },
     { label: 'Patrimônio', path: '/patrimonio', icon: TrendingUp, active: true },
+    { label: 'Orçamentos', path: '/orcamentos', icon: Wallet, active: true },
     { label: 'Consultora', path: '/consultora', icon: Bot, active: true },
+    { label: 'Desafios', path: '/challenges', icon: Trophy, active: true },
     { label: 'Perfil', path: '/profile', icon: User, active: true },
   ]
 

@@ -33,11 +33,19 @@ export interface RoleGroup {
 
 export const roleGroups: RoleGroup[] = [
   {
+    label: 'Titular',
+    options: [{ value: 'self', label: 'Eu / Titular' }],
+  },
+  {
     label: 'Núcleo',
     options: [
       { value: 'husband', label: 'Esposo' },
       { value: 'wife', label: 'Esposa' },
       { value: 'partner', label: 'Parceiro(a)' },
+      { value: 'boyfriend', label: 'Namorado' },
+      { value: 'girlfriend', label: 'Namorada' },
+      { value: 'cohabitant', label: 'Coabitante' },
+      { value: 'roommate', label: 'Colega de moradia' },
     ],
   },
   {
@@ -50,19 +58,21 @@ export const roleGroups: RoleGroup[] = [
     ],
   },
   {
-    label: 'Avós',
-    options: [
-      { value: 'grandfather', label: 'Avô' },
-      { value: 'grandmother', label: 'Avó' },
-    ],
-  },
-  {
-    label: 'Pais/Sogros',
+    label: 'Pais/Tutores',
     options: [
       { value: 'father', label: 'Pai' },
       { value: 'mother', label: 'Mãe' },
       { value: 'father_in_law', label: 'Sogro' },
       { value: 'mother_in_law', label: 'Sogra' },
+      { value: 'co_parent', label: 'Copai/mãe' },
+      { value: 'guardian', label: 'Guardião(ã)' },
+    ],
+  },
+  {
+    label: 'Avós',
+    options: [
+      { value: 'grandfather', label: 'Avô' },
+      { value: 'grandmother', label: 'Avó' },
     ],
   },
   {
@@ -80,6 +90,8 @@ export const roleGroups: RoleGroup[] = [
     label: 'Outros',
     options: [
       { value: 'cousin', label: 'Primo(a)' },
+      { value: 'dependent_adult', label: 'Adulto dependente' },
+      { value: 'household_member', label: 'Membro do domicílio' },
       { value: 'other', label: 'Outro' },
     ],
   },

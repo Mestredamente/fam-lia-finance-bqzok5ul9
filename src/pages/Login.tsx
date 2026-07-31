@@ -69,7 +69,9 @@ export default function Login() {
               <Home className="h-10 w-10" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Família Finance</h1>
-            <p className="text-sm text-gray-500">Gestão financeira simples e compartilhada</p>
+            <p className="text-sm text-gray-500">
+              Finanças para quem mora junto — seja qual for o seu arranjo
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
