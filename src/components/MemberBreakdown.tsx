@@ -42,7 +42,7 @@ export function MemberBreakdown({
 
   return (
     <div className="space-y-0.5">
-      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-2 pb-1.5 text-[10px] font-semibold text-gray-400 uppercase border-b border-gray-100">
+      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-2 pb-1.5 text-xs font-semibold text-gray-400 uppercase border-b border-gray-100">
         <span>Membro</span>
         <span className="text-right">Rec.</span>
         <span className="text-right">Desp.</span>

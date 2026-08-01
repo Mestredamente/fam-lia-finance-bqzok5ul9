@@ -228,25 +228,27 @@ export default function Profile() {
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <span className="text-xs text-gray-500 block">Renda mensal individual</span>
+              <span className="text-xs font-medium text-gray-500 block">
+                Renda mensal individual
+              </span>
               <span className="text-base font-bold text-[#166534]">
                 {formatBRL(member?.monthly_income)}
               </span>
             </div>
             <div>
-              <span className="text-xs text-gray-500 block">Dia de recebimento</span>
+              <span className="text-xs font-medium text-gray-500 block">Dia de recebimento</span>
               <span className="text-base font-bold text-gray-900">Dia {member?.payday || '-'}</span>
             </div>
             <div>
-              <span className="text-xs text-gray-500 block">Total investido</span>
+              <span className="text-xs font-medium text-gray-500 block">Total investido</span>
               <span className="text-base font-bold text-blue-600">{formatBRL(totalInvested)}</span>
             </div>
             <div>
-              <span className="text-xs text-gray-500 block">Total em dívidas</span>
+              <span className="text-xs font-medium text-gray-500 block">Total em dívidas</span>
               <span className="text-base font-bold text-red-600">{formatBRL(totalDebts)}</span>
             </div>
             <div>
-              <span className="text-xs text-gray-500 block">Patrimônio líquido</span>
+              <span className="text-xs font-medium text-gray-500 block">Patrimônio líquido</span>
               <span
                 className={`text-base font-bold ${individualNetWorth >= 0 ? 'text-[#166534]' : 'text-red-600'}`}
               >
@@ -254,9 +256,9 @@ export default function Profile() {
               </span>
             </div>
             <div>
-              <span className="text-xs text-gray-500 block">Total de transações</span>
+              <span className="text-xs font-medium text-gray-500 block">Total de transações</span>
               <span className="text-base font-bold text-gray-900">{totalTransactions}</span>
-            </div>
+            </div>{' '}
           </div>
         </CardContent>
       </Card>
@@ -268,15 +270,15 @@ export default function Profile() {
           </h3>
           <div className="grid grid-cols-3 gap-3">
             <div className="p-3 bg-emerald-50 rounded-xl text-center">
-              <span className="text-[10px] text-gray-500 block">Receitas</span>
+              <span className="text-xs font-medium text-gray-500 block">Receitas</span>
               <span className="text-sm font-bold text-[#166534]">{formatBRL(monthReceitas)}</span>
             </div>
             <div className="p-3 bg-red-50 rounded-xl text-center">
-              <span className="text-[10px] text-gray-500 block">Despesas</span>
+              <span className="text-xs font-medium text-gray-500 block">Despesas</span>
               <span className="text-sm font-bold text-red-600">{formatBRL(monthDespesas)}</span>
             </div>
             <div className="p-3 bg-blue-50 rounded-xl text-center">
-              <span className="text-[10px] text-gray-500 block">Saldo</span>
+              <span className="text-xs font-medium text-gray-500 block">Saldo</span>
               <span className="text-sm font-bold text-blue-700">{formatBRL(monthSaldo)}</span>
             </div>
           </div>
@@ -340,22 +342,20 @@ export default function Profile() {
                       <div className="flex items-center gap-2">
                         <h4 className="text-xs font-bold text-gray-900">{m.display_name}</h4>
                         {m.is_dependent && (
-                          <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 text-[9px] px-1.5 py-0">
+                          <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 text-xs px-1.5 py-0">
                             Dependente
                           </Badge>
                         )}
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-gray-500">{getRoleLabel(m.role)}</span>
+                        <span className="text-xs text-gray-500">{getRoleLabel(m.role)}</span>
                         {age !== null && (
-                          <span className="text-[10px] text-gray-400">
-                            • {formatAge(m.birth_date)}
-                          </span>
+                          <span className="text-xs text-gray-400">• {formatAge(m.birth_date)}</span>
                         )}
                       </div>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-[10px] bg-white">
+                  <Badge variant="outline" className="text-xs bg-white">
                     <UserCheck className="h-3 w-3 mr-1 text-[#22C55E]" />
                     Ativo
                   </Badge>

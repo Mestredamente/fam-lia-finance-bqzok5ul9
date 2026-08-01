@@ -153,9 +153,7 @@ export function EmotionalDiaryFormSheet({
                   )}
                 >
                   <span className="text-xl">{e.emoji}</span>
-                  <span className="text-[9px] text-gray-600 text-center leading-tight">
-                    {e.label}
-                  </span>
+                  <span className="text-xs text-gray-600 text-center leading-tight">{e.label}</span>
                 </button>
               ))}
             </div>
@@ -186,7 +184,7 @@ export function EmotionalDiaryFormSheet({
               maxLength={500}
               rows={3}
             />
-            <p className="text-[10px] text-gray-400 mt-0.5">{note.length}/500</p>
+            <p className="text-xs text-gray-400 mt-0.5">{note.length}/500</p>
           </div>
           <div>
             <Label className="text-xs font-semibold text-gray-700">Valor gasto (opcional)</Label>

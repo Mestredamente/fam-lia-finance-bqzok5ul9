@@ -136,13 +136,10 @@ export default function CardDetail() {
                       {getMonthName(monthDate.getMonth())} {monthDate.getFullYear()}
                     </p>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <Badge className={cn('text-[9px]', status.className)}>{status.label}</Badge>
+                      <Badge className={cn('text-xs', status.className)}>{status.label}</Badge>
                       {parseStatus !== 'none' && (
                         <Badge
-                          className={cn(
-                            'text-[9px] flex items-center gap-0.5',
-                            parseConfig.className,
-                          )}
+                          className={cn('text-xs flex items-center gap-0.5', parseConfig.className)}
                         >
                           {parseStatus === 'processing' && (
                             <Loader2 className="h-2.5 w-2.5 animate-spin" />
@@ -158,7 +155,7 @@ export default function CardDetail() {
                             handleReparse(inv.id)
                           }}
                           disabled={reparsingId === inv.id}
-                          className="text-[9px] text-red-600 font-semibold hover:text-red-700 disabled:opacity-50 flex items-center gap-0.5"
+                          className="text-xs text-red-600 font-semibold hover:text-red-700 disabled:opacity-50 flex items-center gap-0.5"
                         >
                           {reparsingId === inv.id ? (
                             <Loader2 className="h-2.5 w-2.5 animate-spin" />

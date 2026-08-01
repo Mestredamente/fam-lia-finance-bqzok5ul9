@@ -211,14 +211,12 @@ export function InvestmentList({ familyId, members }: Props) {
                         {formatBRL(ret)} ({retPct.toFixed(1)}%)
                       </div>
                       {inv.maturity_date && (
-                        <p className="text-[10px] text-gray-400">
+                        <p className="text-xs text-gray-400">
                           Vence em {new Date(inv.maturity_date).toLocaleDateString('pt-BR')}
                         </p>
                       )}
                       {inv.expand?.owner_id && (
-                        <p className="text-[10px] text-gray-400">
-                          {inv.expand.owner_id.display_name}
-                        </p>
+                        <p className="text-xs text-gray-400">{inv.expand.owner_id.display_name}</p>
                       )}
                     </CardContent>
                   </Card>

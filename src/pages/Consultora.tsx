@@ -194,7 +194,7 @@ export default function Consultora() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-bold text-gray-900">Consultora Financeira</h2>
-            <Badge className="bg-[#166534] text-white hover:bg-[#166534] text-[9px] h-4 px-1.5">
+            <Badge className="bg-[#166534] text-white hover:bg-[#166534] text-xs h-4 px-1.5">
               IA
             </Badge>
           </div>

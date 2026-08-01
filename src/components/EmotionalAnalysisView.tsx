@@ -150,7 +150,7 @@ export function EmotionalAnalysisView({
                 <div className="flex items-start justify-between gap-2">
                   <h4 className="text-sm font-bold text-gray-900">{s.titulo}</h4>
                   {s.tecnica_ccb && (
-                    <Badge className="bg-emerald-100 text-[#166534] text-[10px] shrink-0">
+                    <Badge className="bg-emerald-100 text-[#166534] text-xs shrink-0">
                       {s.tecnica_ccb}
                     </Badge>
                   )}

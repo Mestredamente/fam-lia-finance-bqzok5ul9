@@ -227,7 +227,7 @@ export function DebtList({ familyId, members }: Props) {
                           />
                         </div>
                       </div>
-                      <p className="text-[10px] text-gray-400">
+                      <p className="text-xs text-gray-400">
                         Juros: {debt.interest_rate}% a.m.
                         {debt.expand?.owner_id ? ` • ${debt.expand.owner_id.display_name}` : ''}
                       </p>

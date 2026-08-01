@@ -20,7 +20,7 @@ export function NotificationCenter() {
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5 text-gray-600" />
           {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
+            <span className="absolute top-1 right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
@@ -66,7 +66,7 @@ export function NotificationCenter() {
                       {n.title}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">{n.description}</p>
-                    <span className="text-[10px] text-gray-300">{timeAgo(n.timestamp)}</span>
+                    <span className="text-xs text-gray-300">{timeAgo(n.timestamp)}</span>
                   </div>
                 </div>
               </div>

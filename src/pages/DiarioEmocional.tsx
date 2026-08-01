@@ -109,7 +109,7 @@ export default function DiarioEmocional() {
                   <span className="text-sm font-bold text-red-600">
                     {formatBRL(summary.totalSpent)}
                   </span>
-                  <p className="text-[10px] text-gray-400">gasto emocional</p>
+                  <p className="text-xs text-gray-400">gasto emocional</p>
                 </div>
               </div>
               <Badge
@@ -156,7 +156,7 @@ export default function DiarioEmocional() {
                           <div className="flex items-start gap-2">
                             <span className="text-xl">{meta.emoji}</span>
                             <div className="flex-1 min-w-0">
-                              <Badge className={`text-[10px] ${meta.color}`}>{meta.label}</Badge>
+                              <Badge className={`text-xs ${meta.color}`}>{meta.label}</Badge>
                               <p className="text-xs text-gray-700 mt-1">Gatilho: {entry.trigger}</p>
                               {entry.note && (
                                 <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
@@ -169,7 +169,7 @@ export default function DiarioEmocional() {
                                 </p>
                               )}
                               {entry.transaction_id && (
-                                <Badge variant="outline" className="text-[9px] mt-1">
+                                <Badge variant="outline" className="text-xs mt-1">
                                   Ver transação
                                 </Badge>
                               )}

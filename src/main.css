@@ -126,6 +126,13 @@
   [data-theme='dark'] .bg-gray-100 {
     background-color: hsl(var(--muted));
   }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
   .animate-slide-left {
     animation: slide-left 0.3s ease-in-out;
   }

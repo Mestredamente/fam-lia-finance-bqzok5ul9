@@ -141,7 +141,7 @@ export default function Budgets() {
                           {cat?.name || 'Sem categoria'}
                         </h3>
                         {budget.expand?.member_id && (
-                          <Badge variant="outline" className="text-[10px] mt-0.5">
+                          <Badge variant="outline" className="text-xs mt-0.5">
                             {budget.expand.member_id.display_name}
                           </Badge>
                         )}

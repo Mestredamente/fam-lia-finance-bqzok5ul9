@@ -110,7 +110,7 @@ export function InstallAppDialog({
             {notifSupported && notifPermission === 'denied' && (
               <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-xl text-left">
                 <BellOff className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-[11px] text-amber-700">
+                <p className="text-xs text-amber-700">
                   Notificações bloqueadas. Ative nas configurações do navegador para receber
                   lembretes.
                 </p>
@@ -142,7 +142,7 @@ export function InstallAppDialog({
                   </div>
                   <div className="flex-1">
                     <p className="text-xs font-semibold text-gray-900">{step.title}</p>
-                    <p className="text-[11px] text-gray-500">{step.desc}</p>
+                    <p className="text-xs text-gray-500">{step.desc}</p>
                     <step.icon className="h-5 w-5 text-[#166534] mt-1" />
                   </div>
                 </div>
@@ -169,7 +169,7 @@ export function InstallAppDialog({
 
         <div className="flex items-start gap-2 pt-2 border-t border-gray-100">
           <Info className="h-3.5 w-3.5 text-gray-400 shrink-0 mt-0.5" />
-          <p className="text-[10px] text-gray-400 leading-relaxed">
+          <p className="text-xs text-gray-400 leading-relaxed">
             As notificações funcionam quando o app está aberto ou em segundo plano. Notificações
             push (que funcionam com o app fechado) serão implementadas futuramente com serviço
             server-side.

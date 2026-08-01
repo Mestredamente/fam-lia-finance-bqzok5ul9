@@ -39,7 +39,7 @@ export function MonthlyChartsSection({ familyId, year, month }: Props) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
-        <CardContent className="p-5">
+        <CardContent className="p-3 sm:p-5">
           <h3 className="font-bold text-sm text-gray-900 mb-4">Despesas por Categoria</h3>
           {hasPieData ? (
             <ChartContainer config={pieConfig} className="h-48 w-full">
@@ -85,7 +85,7 @@ export function MonthlyChartsSection({ familyId, year, month }: Props) {
       </Card>
 
       <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
-        <CardContent className="p-5">
+        <CardContent className="p-3 sm:p-5">
           <h3 className="font-bold text-sm text-gray-900 mb-4">Receitas x Despesas (12 meses)</h3>
           {hasBarData ? (
             <ChartContainer config={barConfig} className="h-64 w-full">

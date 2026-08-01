@@ -176,7 +176,7 @@ export function InvestmentFormSheet({
                     )}
                   >
                     <Icon className="h-5 w-5" style={{ color: meta.color }} />
-                    <span className="text-[10px] font-medium text-gray-700">{meta.label}</span>
+                    <span className="text-xs font-medium text-gray-700">{meta.label}</span>
                   </button>
                 )
               })}

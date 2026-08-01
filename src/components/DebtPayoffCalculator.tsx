@@ -225,7 +225,7 @@ export function DebtPayoffCalculator({ open, onOpenChange, debts, familyId }: Pr
               <h4 className="text-sm font-bold text-gray-900">Linha do tempo</h4>
               {results.chosen.payoffOrder.map((d, i) => (
                 <div key={d.id} className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-500 w-20 truncate">{d.description}</span>
+                  <span className="text-xs text-gray-500 w-20 truncate">{d.description}</span>
                   <div className="flex-1 bg-gray-100 h-6 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full flex items-center justify-end pr-2"
@@ -234,7 +234,7 @@ export function DebtPayoffCalculator({ open, onOpenChange, debts, familyId }: Pr
                         backgroundColor: COLORS[i % COLORS.length],
                       }}
                     >
-                      <span className="text-[9px] text-white font-bold">Mês {d.month}</span>
+                      <span className="text-xs text-white font-bold">Mês {d.month}</span>
                     </div>
                   </div>
                 </div>

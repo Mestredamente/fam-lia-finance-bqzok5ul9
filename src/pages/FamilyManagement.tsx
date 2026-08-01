@@ -180,12 +180,12 @@ export default function FamilyManagement() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {!m.is_active && (
-                      <Badge className="bg-gray-100 text-gray-500 hover:bg-gray-100 text-[10px]">
+                      <Badge className="bg-gray-100 text-gray-500 hover:bg-gray-100 text-xs">
                         Inativo
                       </Badge>
                     )}
                     {m.is_dependent && (
-                      <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 text-[10px]">
+                      <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 text-xs">
                         Dependente
                       </Badge>
                     )}

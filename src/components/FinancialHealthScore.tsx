@@ -70,7 +70,7 @@ export function FinancialHealthScore({ familyId }: { familyId: string }) {
               <span className="text-xl font-extrabold" style={{ color }}>
                 {score}
               </span>
-              <span className="text-[9px] text-gray-400">/ 100</span>
+              <span className="text-xs text-gray-400">/ 100</span>
             </div>
           </div>
           <div className="flex-1">
@@ -103,9 +103,7 @@ export function FinancialHealthScore({ familyId }: { familyId: string }) {
                         {f.score}/{f.maxScore}
                       </span>
                     </div>
-                    {f.suggestion && (
-                      <p className="text-[10px] text-gray-500 mt-0.5">{f.suggestion}</p>
-                    )}
+                    {f.suggestion && <p className="text-xs text-gray-500 mt-0.5">{f.suggestion}</p>}
                   </div>
                 </div>
               )

@@ -160,12 +160,12 @@ export default function CategorizationRules() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-sm text-gray-900">"{rule.keyword}"</span>
-                      <Badge variant="outline" className="text-[10px]">
+                      <Badge variant="outline" className="text-xs">
                         {rule.match_type === 'contains' ? 'contém' : 'começa com'}
                       </Badge>
                       <span className="text-xs text-gray-400">→</span>
                       <Badge
-                        className="text-[10px]"
+                        className="text-xs"
                         style={{
                           backgroundColor: (cat?.color || '#999') + '20',
                           color: cat?.color || '#999',

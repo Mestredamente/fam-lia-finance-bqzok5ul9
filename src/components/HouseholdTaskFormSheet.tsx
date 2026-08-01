@@ -213,7 +213,7 @@ export function HouseholdTaskFormSheet({
                     >
                       <Icon className="h-4 w-4" style={{ color: meta.color }} />
                     </div>
-                    <span className="text-[9px] font-medium text-gray-600 text-center leading-tight">
+                    <span className="text-xs font-medium text-gray-600 text-center leading-tight">
                       {meta.label}
                     </span>
                   </button>

@@ -68,13 +68,13 @@ export function MemberDetailSheet({
         <div className="mt-6 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-              <span className="text-[10px] text-gray-500 block">Renda mensal</span>
+              <span className="text-xs text-gray-500 block">Renda mensal</span>
               <span className="text-sm font-bold text-[#166534]">
                 {member.monthly_income ? formatBRL(member.monthly_income) : 'Não cadastrada'}
               </span>
             </div>
             <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
-              <span className="text-[10px] text-gray-500 block">Dia de pagamento</span>
+              <span className="text-xs text-gray-500 block">Dia de pagamento</span>
               <span className="text-sm font-bold text-blue-700">
                 {member.payday ? `Dia ${member.payday}` : 'Não definido'}
               </span>
@@ -83,19 +83,19 @@ export function MemberDetailSheet({
 
           <div className="grid grid-cols-3 gap-3">
             <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-center">
-              <span className="text-[10px] text-gray-500 block">Receitas</span>
+              <span className="text-xs font-medium text-gray-500 block">Receitas</span>
               <span className="text-sm font-bold text-[#166534]">
                 {formatBRL(data.totalReceitas)}
               </span>
             </div>
             <div className="p-3 bg-red-50 rounded-xl border border-red-100 text-center">
-              <span className="text-[10px] text-gray-500 block">Despesas</span>
+              <span className="text-xs font-medium text-gray-500 block">Despesas</span>
               <span className="text-sm font-bold text-red-600">
                 {formatBRL(data.totalDespesas)}
               </span>
             </div>
             <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 text-center">
-              <span className="text-[10px] text-gray-500 block">Saldo</span>
+              <span className="text-xs font-medium text-gray-500 block">Saldo</span>
               <span className="text-sm font-bold text-blue-700">{formatBRL(data.saldo)}</span>
             </div>
           </div>
@@ -128,9 +128,7 @@ export function MemberDetailSheet({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-gray-900 truncate">{t.description}</p>
-                      <p className="text-[10px] text-gray-500">
-                        {formatDatePtBR(t.transaction_date)}
-                      </p>
+                      <p className="text-xs text-gray-500">{formatDatePtBR(t.transaction_date)}</p>
                     </div>
                     <span className={cn('text-xs font-bold whitespace-nowrap', color)}>
                       {prefix}

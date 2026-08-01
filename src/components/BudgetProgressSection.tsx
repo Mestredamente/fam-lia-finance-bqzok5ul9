@@ -12,10 +12,9 @@ interface Props {
   familyId: string
   year: number
   month: number
-  primaryColor?: string | null
 }
 
-export function BudgetProgressSection({ familyId, year, month, primaryColor }: Props) {
+export function BudgetProgressSection({ familyId, year, month }: Props) {
   const { budgets, loading: budgetsLoading } = useBudgets(familyId)
   const [transactions, setTransactions] = useState<TransactionRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -64,7 +63,7 @@ export function BudgetProgressSection({ familyId, year, month, primaryColor }: P
         {progress.map(({ budget, spent, pct, color }) => {
           const cat = budget.expand?.category_id
           const Icon = getCategoryIcon(cat?.icon || 'wallet')
-          const accent = primaryColor || cat?.color || '#999'
+          const accent = cat?.color || '#999'
           return (
             <div key={budget.id} className="space-y-1">
               <div className="flex items-center justify-between text-xs">

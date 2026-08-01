@@ -56,7 +56,7 @@ function InsightCard({ insight }: { insight: AIInsight }) {
           </div>
           <div className="flex-1 min-w-0">
             <h4 className="text-sm font-bold text-gray-900 leading-tight">{insight.titulo}</h4>
-            <Badge variant="secondary" className="text-[10px] mt-1 h-5">
+            <Badge variant="secondary" className="text-xs mt-1 h-5">
               {TYPE_LABELS[insight.tipo] || insight.tipo}
             </Badge>
           </div>
@@ -71,7 +71,7 @@ function InsightCard({ insight }: { insight: AIInsight }) {
           </div>
         )}
         <div className="flex items-center gap-1 pt-0.5">
-          <span className="text-[10px] text-gray-400">{expanded ? 'Ver menos' : 'Ver mais'}</span>
+          <span className="text-xs text-gray-400">{expanded ? 'Ver menos' : 'Ver mais'}</span>
           <ChevronDown
             className={cn('h-3 w-3 text-gray-400 transition-transform', expanded && 'rotate-180')}
           />
@@ -111,7 +111,7 @@ export function InsightsSection({ familyId, memberId }: { familyId: string; memb
         </div>
         <h3 className="text-base font-bold text-gray-900">Insights da consultora</h3>
       </div>
-      <div className="flex gap-3 overflow-x-auto pb-2 snap-x lg:grid lg:grid-cols-3 lg:overflow-visible">
+      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-3 lg:overflow-visible">
         {insights.slice(0, 5).map((insight, i) => (
           <InsightCard key={i} insight={insight} />
         ))}

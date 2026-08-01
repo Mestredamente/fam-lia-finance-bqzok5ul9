@@ -145,37 +145,41 @@ export default function MonthlyEvolution() {
         </Button>
       </div>
       <div className="flex flex-wrap gap-2">
-        {[3, 6, 12].map((m) => (
+        <div className="flex gap-1">
+          {[3, 6, 12].map((m) => (
+            <Button
+              key={m}
+              variant={months === m ? 'default' : 'outline'}
+              size="sm"
+              className={cn('h-8 px-2 text-xs', months === m && 'bg-[#166534] hover:bg-[#15803D]')}
+              onClick={() => setMonths(m)}
+            >
+              {m}m
+            </Button>
+          ))}
+        </div>
+        <div className="flex gap-1">
           <Button
-            key={m}
-            variant={months === m ? 'default' : 'outline'}
+            variant={viewMode === 'bar' ? 'default' : 'outline'}
             size="sm"
-            className={cn(months === m && 'bg-[#166534] hover:bg-[#15803D]')}
-            onClick={() => setMonths(m)}
+            className={cn('h-8 px-2 text-xs', viewMode === 'bar' && 'bg-[#166534]')}
+            onClick={() => setViewMode('bar')}
           >
-            {m} meses
+            Barras
           </Button>
-        ))}
-        <Button
-          variant={viewMode === 'bar' ? 'default' : 'outline'}
-          size="sm"
-          className={cn(viewMode === 'bar' && 'bg-[#166534]')}
-          onClick={() => setViewMode('bar')}
-        >
-          Barras
-        </Button>
-        <Button
-          variant={viewMode === 'line' ? 'default' : 'outline'}
-          size="sm"
-          className={cn(viewMode === 'line' && 'bg-[#166534]')}
-          onClick={() => setViewMode('line')}
-        >
-          Linhas
-        </Button>
+          <Button
+            variant={viewMode === 'line' ? 'default' : 'outline'}
+            size="sm"
+            className={cn('h-8 px-2 text-xs', viewMode === 'line' && 'bg-[#166534]')}
+            onClick={() => setViewMode('line')}
+          >
+            Linhas
+          </Button>
+        </div>
         <select
           value={memberFilter}
           onChange={(e) => setMemberFilter(e.target.value)}
-          className="text-sm border rounded-lg px-3 py-1.5 bg-white"
+          className="text-xs border rounded-lg px-2 py-1.5 bg-white max-w-[140px]"
         >
           <option value="all">Todos</option>
           {members.map((m) => (
@@ -189,7 +193,7 @@ export default function MonthlyEvolution() {
         <Skeleton className="h-72 rounded-2xl" />
       ) : (
         <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
-          <CardContent className="p-5">
+          <CardContent className="p-3 sm:p-5">
             <h3 className="font-bold text-sm text-gray-900 mb-4">Receitas x Despesas</h3>
             <ChartContainer config={config} className="h-72 w-full">
               {viewMode === 'bar' ? (

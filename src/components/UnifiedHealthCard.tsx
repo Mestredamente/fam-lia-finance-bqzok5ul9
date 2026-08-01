@@ -62,64 +62,92 @@ export function UnifiedHealthCard({
 
   return (
     <Card className="border-none shadow-subtle rounded-2xl bg-white">
-      <CardContent className="p-5">
-        <div className="flex items-center gap-5">
-          <div
-            className="relative w-16 h-16 shrink-0 cursor-pointer"
-            onClick={() => !isEmpty && setExpanded(!expanded)}
-          >
-            <svg
-              className="w-16 h-16"
-              viewBox="0 0 100 100"
-              style={{ transform: 'rotate(-90deg)' }}
+      <CardContent className="p-3 sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
+          <div className="flex items-center gap-4 sm:block">
+            <div
+              className="relative w-16 h-16 shrink-0 cursor-pointer"
+              onClick={() => !isEmpty && setExpanded(!expanded)}
             >
-              <circle cx="50" cy="50" r={radius} fill="none" stroke="#E5E7EB" strokeWidth="10" />
-              {!isEmpty && (
-                <circle
-                  cx="50"
-                  cy="50"
-                  r={radius}
-                  fill="none"
-                  stroke={color}
-                  strokeWidth="10"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={dashOffset}
-                  strokeLinecap="round"
-                  className="transition-all duration-700"
-                />
-              )}
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              {scoreLoading ? (
-                <span className="text-xs text-gray-400">...</span>
-              ) : isEmpty ? (
-                <span className="text-xs text-gray-400">--</span>
-              ) : (
-                <span className="text-lg font-extrabold" style={{ color }}>
-                  {score}
-                </span>
-              )}
+              <svg
+                className="w-16 h-16"
+                viewBox="0 0 100 100"
+                style={{ transform: 'rotate(-90deg)' }}
+              >
+                <circle cx="50" cy="50" r={radius} fill="none" stroke="#E5E7EB" strokeWidth="10" />
+                {!isEmpty && (
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r={radius}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth="10"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={dashOffset}
+                    strokeLinecap="round"
+                    className="transition-all duration-700"
+                  />
+                )}
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                {scoreLoading ? (
+                  <span className="text-xs text-gray-400">...</span>
+                ) : isEmpty ? (
+                  <span className="text-xs text-gray-400">--</span>
+                ) : (
+                  <span className="text-lg font-extrabold" style={{ color }}>
+                    {score}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="flex-1 grid grid-cols-3 gap-3">
+          <div className="flex-1 flex flex-col gap-2 sm:hidden">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-gray-500">Receitas</span>
+              <span className="text-lg font-extrabold text-[#166534]">
+                <AnimatedCounter value={totalReceitas} format={formatBRL} />
+              </span>
+            </div>
+            <div className="flex items-center justify-between border-t border-gray-100 pt-2">
+              <span className="text-xs font-medium text-gray-500">Despesas</span>
+              <span className="text-lg font-extrabold text-red-600">
+                <AnimatedCounter value={totalDespesas} format={formatBRL} />
+              </span>
+            </div>
+            <div className="flex items-center justify-between border-t border-gray-100 pt-2">
+              <span className="text-xs font-medium text-gray-500">Saldo</span>
+              <span
+                className={cn(
+                  'text-lg font-extrabold',
+                  saldo >= 0 ? 'text-blue-700' : 'text-red-600',
+                )}
+              >
+                <AnimatedCounter value={saldo} format={formatBRL} />
+              </span>
+            </div>
+          </div>
+
+          <div className="hidden sm:grid sm:grid-cols-3 gap-3 flex-1">
             <div className="text-center">
-              <span className="text-[10px] text-gray-500 uppercase block">Receitas</span>
-              <span className="text-base font-extrabold text-[#166534]">
+              <span className="text-xs font-medium text-gray-500 block">Receitas</span>
+              <span className="text-xl font-extrabold text-[#166534]">
                 <AnimatedCounter value={totalReceitas} format={formatBRL} />
               </span>
             </div>
             <div className="text-center">
-              <span className="text-[10px] text-gray-500 uppercase block">Despesas</span>
-              <span className="text-base font-extrabold text-red-600">
+              <span className="text-xs font-medium text-gray-500 block">Despesas</span>
+              <span className="text-xl font-extrabold text-red-600">
                 <AnimatedCounter value={totalDespesas} format={formatBRL} />
               </span>
             </div>
             <div className="text-center">
-              <span className="text-[10px] text-gray-500 uppercase block">Saldo</span>
+              <span className="text-xs font-medium text-gray-500 block">Saldo</span>
               <span
                 className={cn(
-                  'text-base font-extrabold',
+                  'text-xl font-extrabold',
                   saldo >= 0 ? 'text-blue-700' : 'text-red-600',
                 )}
               >
@@ -153,10 +181,7 @@ export function UnifiedHealthCard({
               <ChevronDown className="h-3 w-3 rotate-180 text-gray-400" />
             </div>
             {factors.map((f) => (
-              <div
-                key={f.name}
-                className="flex justify-between text-[11px] p-1.5 bg-gray-50 rounded"
-              >
+              <div key={f.name} className="flex justify-between text-xs p-1.5 bg-gray-50 rounded">
                 <span className="text-gray-600">{f.name}</span>
                 <span className="font-bold text-gray-900">
                   {f.score}/{f.maxScore}

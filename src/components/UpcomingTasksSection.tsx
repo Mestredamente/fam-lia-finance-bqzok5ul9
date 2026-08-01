@@ -77,9 +77,9 @@ export function UpcomingTasksSection({ familyId }: Props) {
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-sm text-gray-900 truncate">{task.title}</p>
                   <div className="flex items-center gap-2">
-                    {days && <span className={`text-[10px] ${days.color}`}>{days.text}</span>}
+                    {days && <span className={`text-xs ${days.color}`}>{days.text}</span>}
                     {task.estimated_cost != null && task.estimated_cost > 0 && (
-                      <span className="text-[10px] text-gray-500">
+                      <span className="text-xs text-gray-500">
                         {formatBRL(task.estimated_cost)}
                       </span>
                     )}
@@ -87,7 +87,7 @@ export function UpcomingTasksSection({ familyId }: Props) {
                 </div>
                 {assignee && (
                   <Avatar className="h-7 w-7">
-                    <AvatarFallback className="text-[9px] bg-emerald-100 text-[#166534]">
+                    <AvatarFallback className="text-xs bg-emerald-100 text-[#166534]">
                       {assignee.display_name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>

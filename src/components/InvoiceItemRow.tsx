@@ -70,7 +70,7 @@ export function InvoiceItemRow({ item, categories, onConfirm, onConvert }: Props
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-bold text-sm text-gray-900 truncate">{item.description}</p>
             {isConverted && (
-              <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-[9px] gap-0.5">
+              <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-xs gap-0.5">
                 <CheckCircle2 className="h-3 w-3" />
                 Convertido
               </Badge>
@@ -81,7 +81,7 @@ export function InvoiceItemRow({ item, categories, onConfirm, onConvert }: Props
             {activeCat && !item.is_confirmed && (
               <Badge
                 variant="outline"
-                className="text-[9px] gap-0.5"
+                className="text-xs gap-0.5"
                 style={{ borderColor: activeCat.color + '40', color: activeCat.color }}
               >
                 <Icon className="h-2.5 w-2.5" />
@@ -129,7 +129,7 @@ export function InvoiceItemRow({ item, categories, onConfirm, onConvert }: Props
         <div className="flex items-center justify-between mt-3 gap-2">
           {activeCat && (
             <Badge
-              className="text-[9px] gap-0.5"
+              className="text-xs gap-0.5"
               style={{ backgroundColor: activeCat.color + '20', color: activeCat.color }}
             >
               <Icon className="h-2.5 w-2.5" />
@@ -151,7 +151,7 @@ export function InvoiceItemRow({ item, categories, onConfirm, onConvert }: Props
         <div className="flex items-center mt-3">
           {activeCat && (
             <Badge
-              className="text-[9px] gap-0.5"
+              className="text-xs gap-0.5"
               style={{ backgroundColor: activeCat.color + '20', color: activeCat.color }}
             >
               <Icon className="h-2.5 w-2.5" />

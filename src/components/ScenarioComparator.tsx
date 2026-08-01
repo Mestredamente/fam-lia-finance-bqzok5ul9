@@ -31,14 +31,14 @@ function MiniBar({ current, projected }: { current: number; projected: number })
           className="w-full bg-gray-200 rounded-t"
           style={{ height: `${(Math.abs(current) / max) * 100}%` }}
         />
-        <span className="text-[9px] text-gray-500">Atual</span>
+        <span className="text-xs text-gray-500">Atual</span>
       </div>
       <div className="flex-1 flex flex-col items-center gap-1">
         <div
           className="w-full bg-[#22C55E] rounded-t"
           style={{ height: `${(Math.abs(projected) / max) * 100}%` }}
         />
-        <span className="text-[9px] text-gray-500">12 meses</span>
+        <span className="text-xs text-gray-500">12 meses</span>
       </div>
     </div>
   )
@@ -272,7 +272,7 @@ export function ScenarioComparator({ open, onOpenChange, familyId, initialScenar
                 )}
               </div>
             </div>
-            <p className="text-[10px] text-gray-400 text-center italic">
+            <p className="text-xs text-gray-400 text-center italic">
               Simulações baseadas em dados atuais. Resultados reais podem variar.
             </p>
           </div>

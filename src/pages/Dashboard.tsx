@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Sparkles, Palette } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Sparkles } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useMonthlySummary } from '@/hooks/use-monthly-summary'
@@ -15,9 +15,7 @@ import { ExportButton } from '@/components/ExportButton'
 import { MemberRecord } from '@/types/finance'
 import { getActiveMembersByFamilyId } from '@/services/members'
 import { getMonthName } from '@/lib/utils'
-import { Switch } from '@/components/ui/switch'
 import { BudgetProgressSection } from '@/components/BudgetProgressSection'
-import { useColorPersonalization } from '@/hooks/use-color-personalization'
 import { Link } from 'react-router-dom'
 
 export default function Dashboard() {
@@ -42,12 +40,6 @@ export default function Dashboard() {
     error,
     refetch,
   } = useMonthlySummary(family?.id, year, month)
-
-  const {
-    enabled: colorEnabled,
-    toggle: toggleColor,
-    primaryColor,
-  } = useColorPersonalization(family?.id)
 
   const loadMembers = useCallback(async () => {
     if (!family) return
@@ -96,7 +88,7 @@ export default function Dashboard() {
   if (!family) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-gray-500 text-sm">Carregando dados da família...</p>
+        <p className="text-sm text-gray-500">Carregando dados da família...</p>
       </div>
     )
   }
@@ -127,27 +119,9 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-bold text-gray-900">Resumo Financeiro</h2>
-        <div className="flex items-center gap-2">
-          <ExportButton transactions={monthTransactions} month={month} year={year} />
-          <Button variant="outline" size="sm" onClick={() => openScenario()}>
-            <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline ml-1">E se...?</span>
-          </Button>
-          <div className="flex items-center gap-1.5 px-2">
-            <Palette className="h-4 w-4 text-gray-400" />
-            <Switch checked={colorEnabled} onCheckedChange={toggleColor} />
-          </div>
-          <Link to="/orcamentos">
-            <Button variant="outline" size="sm">
-              <span className="hidden sm:inline">Orçamentos</span>
-            </Button>
-          </Link>
-          <Link to="/evolucao">
-            <Button variant="outline" size="sm">
-              <span className="hidden sm:inline">Evolução</span>
-            </Button>
-          </Link>
+        <div className="flex items-center gap-1 sm:gap-2">
           <Button
             variant="ghost"
             size="icon"
@@ -155,7 +129,7 @@ export default function Dashboard() {
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <span className="text-sm font-semibold text-gray-700 min-w-[120px] text-center">
+          <span className="text-sm font-semibold text-gray-700 min-w-[110px] text-center">
             {getMonthName(month)} {year}
           </span>
           <Button
@@ -166,6 +140,22 @@ export default function Dashboard() {
           >
             <ChevronRight className="h-5 w-5" />
           </Button>
+          <div className="hidden sm:flex items-center gap-2 ml-2">
+            <ExportButton transactions={monthTransactions} month={month} year={year} />
+            <Button variant="outline" size="sm" onClick={() => openScenario()}>
+              <Sparkles className="h-4 w-4" /> <span className="ml-1">E se...?</span>
+            </Button>
+            <Link to="/orcamentos">
+              <Button variant="outline" size="sm">
+                Orçamentos
+              </Button>
+            </Link>
+            <Link to="/evolucao">
+              <Button variant="outline" size="sm">
+                Evolução
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -191,12 +181,7 @@ export default function Dashboard() {
         onInvite={() => setShowInviteModal(true)}
       />
 
-      <BudgetProgressSection
-        familyId={family.id}
-        year={year}
-        month={month}
-        primaryColor={primaryColor}
-      />
+      <BudgetProgressSection familyId={family.id} year={year} month={month} />
 
       <DashboardTabs
         familyId={family.id}
@@ -211,7 +196,8 @@ export default function Dashboard() {
         data-tour="add-transaction"
         onClick={openForm}
         aria-label="Adicionar transação"
-        className="fixed bottom-20 right-6 lg:bottom-8 lg:right-8 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 z-20"
+        className="fixed bottom-[5.5rem] right-4 lg:bottom-8 lg:right-8 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 z-20"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <Plus className="h-6 w-6" />
       </button>

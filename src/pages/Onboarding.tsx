@@ -303,7 +303,7 @@ export default function Onboarding() {
                           className={`h-full flex-1 rounded-full ${strength.score >= 3 ? strength.color : 'bg-gray-200'}`}
                         />
                       </div>
-                      <span className="text-[10px] font-medium text-gray-500">
+                      <span className="text-xs font-medium text-gray-500">
                         Força da senha: {strength.label}
                       </span>
                     </div>

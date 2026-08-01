@@ -45,15 +45,15 @@ export function CreditCardVisual({ card, ownerName }: Props) {
       </div>
       <div className="absolute bottom-5 left-5 right-5 flex justify-between items-end text-white">
         <div>
-          <p className="text-[10px] opacity-70 uppercase">Fechamento</p>
+          <p className="text-xs opacity-70 uppercase">Fechamento</p>
           <p className="font-bold text-sm">Dia {card.closing_day}</p>
         </div>
         <div>
-          <p className="text-[10px] opacity-70 uppercase">Vencimento</p>
+          <p className="text-xs opacity-70 uppercase">Vencimento</p>
           <p className="font-bold text-sm">Dia {card.due_day}</p>
         </div>
         <div className="text-right">
-          <p className="text-[10px] opacity-70 uppercase">Limite</p>
+          <p className="text-xs opacity-70 uppercase">Limite</p>
           <p className="font-bold text-sm">
             {card.credit_limit ? formatBRL(card.credit_limit) : '—'}
           </p>
@@ -61,7 +61,7 @@ export function CreditCardVisual({ card, ownerName }: Props) {
       </div>
       {ownerName && (
         <div className="absolute top-5 right-5">
-          <p className="text-white/60 text-[10px] text-right">{ownerName}</p>
+          <p className="text-white/60 text-xs text-right">{ownerName}</p>
         </div>
       )}
     </div>

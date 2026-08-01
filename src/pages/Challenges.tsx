@@ -132,7 +132,7 @@ export default function Challenges() {
                       <p className="font-bold text-sm text-gray-900">{c.title}</p>
                       <p className="text-xs text-gray-500 truncate">{c.description}</p>
                     </div>
-                    <Badge className={cn('text-[10px] shrink-0', statusMeta[c.status]?.color)}>
+                    <Badge className={cn('text-xs shrink-0', statusMeta[c.status]?.color)}>
                       {statusMeta[c.status]?.label}
                     </Badge>
                   </div>
@@ -178,7 +178,7 @@ export default function Challenges() {
                   <p className="text-sm font-medium text-gray-900 truncate">{c.title}</p>
                   {c.points ? <p className="text-xs text-gray-500">+{c.points} pts</p> : null}
                 </div>
-                <Badge className={cn('text-[10px] shrink-0', statusMeta[c.status]?.color)}>
+                <Badge className={cn('text-xs shrink-0', statusMeta[c.status]?.color)}>
                   {statusMeta[c.status]?.label}
                 </Badge>
               </CardContent>

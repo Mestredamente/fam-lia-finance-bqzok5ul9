@@ -243,13 +243,13 @@ export default function Transactions() {
                           {(t.is_shared || t.is_fixed) && (
                             <div className="flex gap-1 mt-1">
                               {t.is_shared && (
-                                <Badge variant="outline" className="text-[9px] py-0 px-1 gap-0.5">
+                                <Badge variant="outline" className="text-xs py-0 px-1 gap-0.5">
                                   <Share2 className="h-2.5 w-2.5" />
                                   Compartilhada
                                 </Badge>
                               )}
                               {t.is_fixed && (
-                                <Badge variant="outline" className="text-[9px] py-0 px-1 gap-0.5">
+                                <Badge variant="outline" className="text-xs py-0 px-1 gap-0.5">
                                   <Calendar className="h-2.5 w-2.5" />
                                   Fixa
                                 </Badge>

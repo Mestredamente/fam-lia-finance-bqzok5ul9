@@ -26,7 +26,7 @@ export function DashboardTabs({
 
   return (
     <Tabs defaultValue="fixed-bills" className="w-full">
-      <TabsList className="grid grid-cols-4 w-full">
+      <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full">
         <TabsTrigger value="fixed-bills" className="text-xs">
           Contas Fixas
         </TabsTrigger>
@@ -40,7 +40,8 @@ export function DashboardTabs({
           Insights
         </TabsTrigger>
       </TabsList>
-      <TabsContent value="fixed-bills" className="mt-4">
+      <div className="border-t border-gray-100 mt-2" />
+      <TabsContent value="fixed-bills" className="mt-6 sm:mt-8">
         <FixedBillsSection
           fixedBills={fixedBills}
           totalPaid={totalPaid}
@@ -48,13 +49,13 @@ export function DashboardTabs({
           onAddFixed={onAddFixed}
         />
       </TabsContent>
-      <TabsContent value="assets" className="mt-4">
+      <TabsContent value="assets" className="mt-6 sm:mt-8">
         <PatrimonyDashboardCard familyId={familyId} />
       </TabsContent>
-      <TabsContent value="subscriptions" className="mt-4">
+      <TabsContent value="subscriptions" className="mt-6 sm:mt-8">
         <SubscriptionAlert familyId={familyId} onSeeDetails={onSeeSubscriptions} />
       </TabsContent>
-      <TabsContent value="insights" className="mt-4">
+      <TabsContent value="insights" className="mt-6 sm:mt-8">
         <InsightsSection familyId={familyId} memberId={memberId} />
       </TabsContent>
     </Tabs>
