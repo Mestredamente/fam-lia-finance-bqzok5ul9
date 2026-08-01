@@ -2,11 +2,11 @@ import {
   Wrench,
   Hammer,
   ShoppingCart,
-  Stethoscope,
+  Calendar,
   Clock,
   RefreshCw,
-  ClipboardList,
-  PlusCircle,
+  Map,
+  File,
   type LucideIcon,
 } from 'lucide-react'
 import type {
@@ -26,11 +26,11 @@ export const taskCategoryMeta: Record<HouseholdTaskCategory, TaskTypeMeta> = {
   maintenance: { label: 'Manutenção', icon: Wrench, color: '#3B82F6' },
   repair: { label: 'Reparo', icon: Hammer, color: '#F97316' },
   purchase: { label: 'Compra', icon: ShoppingCart, color: '#22C55E' },
-  appointment: { label: 'Agendamento', icon: Stethoscope, color: '#EC4899' },
+  appointment: { label: 'Agendamento', icon: Calendar, color: '#EC4899' },
   deadline: { label: 'Prazo', icon: Clock, color: '#EF4444' },
-  subscription_review: { label: 'Assinaturas', icon: RefreshCw, color: '#8B5CF6' },
-  planning: { label: 'Planejamento', icon: ClipboardList, color: '#14B8A6' },
-  other: { label: 'Outro', icon: PlusCircle, color: '#6B7280' },
+  subscription_review: { label: 'Revisão de Assinatura', icon: RefreshCw, color: '#8B5CF6' },
+  planning: { label: 'Planejamento', icon: Map, color: '#14B8A6' },
+  other: { label: 'Outro', icon: File, color: '#6B7280' },
 }
 
 export const taskPriorityMeta: Record<

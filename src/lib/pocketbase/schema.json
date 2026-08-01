@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-01T02:25:42.868Z",
+  "generatedAt": "2026-08-01T03:32:05.459Z",
   "collections": [
     {
       "name": "users",
@@ -634,19 +634,6 @@
           "system": false
         },
         {
-          "name": "status",
-          "type": "select",
-          "required": true,
-          "system": false,
-          "selectValues": ["pending", "reviewed", "paid"]
-        },
-        {
-          "name": "raw_file_url",
-          "type": "file",
-          "required": false,
-          "system": false
-        },
-        {
           "name": "parsed_data",
           "type": "text",
           "required": false,
@@ -671,6 +658,19 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["pending", "reviewed", "paid", "parsed", "error"]
+        },
+        {
+          "name": "raw_file_url",
+          "type": "file",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -1292,8 +1292,8 @@
       "name": "household_tasks",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": "family_id.created_by = @request.auth.id || assigned_to.user_id = @request.auth.id || created_by.user_id = @request.auth.id",
+        "view": "family_id.created_by = @request.auth.id || assigned_to.user_id = @request.auth.id || created_by.user_id = @request.auth.id",
         "create": "@request.auth.id != ''",
         "update": "family_id.created_by = @request.auth.id || assigned_to.user_id = @request.auth.id || created_by.user_id = @request.auth.id",
         "delete": "family_id.created_by = @request.auth.id || created_by.user_id = @request.auth.id"

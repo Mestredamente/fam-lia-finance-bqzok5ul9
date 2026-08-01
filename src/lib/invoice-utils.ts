@@ -4,6 +4,8 @@ export type ParseStatus = 'processing' | 'success' | 'error' | 'none'
 
 export function getParseStatus(invoice: InvoiceRecord): ParseStatus {
   if (!invoice.raw_file_url) return 'none'
+  if (invoice.status === 'error') return 'error'
+  if (invoice.status === 'parsed') return 'success'
   if (!invoice.parsed_at) return 'processing'
   try {
     const data = invoice.parsed_data ? JSON.parse(invoice.parsed_data) : null

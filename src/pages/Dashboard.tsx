@@ -16,6 +16,7 @@ import { MemberRecord } from '@/types/finance'
 import { getActiveMembersByFamilyId } from '@/services/members'
 import { getMonthName } from '@/lib/utils'
 import { BudgetProgressSection } from '@/components/BudgetProgressSection'
+import { UpcomingTasksSection } from '@/components/UpcomingTasksSection'
 import { Link } from 'react-router-dom'
 
 export default function Dashboard() {
@@ -182,6 +183,8 @@ export default function Dashboard() {
       />
 
       <BudgetProgressSection familyId={family.id} year={year} month={month} />
+
+      <UpcomingTasksSection familyId={family.id} />
 
       <DashboardTabs
         familyId={family.id}

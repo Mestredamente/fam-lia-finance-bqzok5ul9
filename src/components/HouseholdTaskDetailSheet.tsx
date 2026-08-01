@@ -24,7 +24,8 @@ import {
   recurrenceLabels,
   getDaysRemaining,
 } from '@/lib/household-icons'
-import { formatBRL, formatDatePtBR } from '@/lib/utils'
+import { formatBRL, formatDatePtBR, cn } from '@/lib/utils'
+import { useIsMobile } from '@/hooks/use-mobile'
 import type { HouseholdTaskRecord, CompleteTaskOptions } from '@/types/household-tasks'
 import type { MemberRecord } from '@/types/finance'
 
@@ -58,6 +59,7 @@ export function HouseholdTaskDetailSheet({
   const [showComplete, setShowComplete] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const isMobile = useIsMobile()
 
   const { items, toggleItem, updateActualPrice, totalEstimated, totalActual } = useShoppingList(
     open ? task?.id : undefined,
@@ -75,7 +77,13 @@ export function HouseholdTaskDetailSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" className="rounded-t-2xl max-h-[90vh] overflow-y-auto">
+        <SheetContent
+          side={isMobile ? 'bottom' : 'right'}
+          className={cn(
+            'max-h-[90vh] overflow-y-auto',
+            isMobile ? 'rounded-t-2xl' : 'sm:max-w-[500px]',
+          )}
+        >
           <SheetHeader>
             <SheetTitle className="text-center">{task.title}</SheetTitle>
           </SheetHeader>

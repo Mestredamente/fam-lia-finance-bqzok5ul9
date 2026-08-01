@@ -33,6 +33,7 @@ const CategorizationRules = lazy(() => import('@/pages/CategorizationRules'))
 const Budgets = lazy(() => import('@/pages/Budgets'))
 const MonthlyEvolution = lazy(() => import('@/pages/MonthlyEvolution'))
 const Challenges = lazy(() => import('@/pages/Challenges'))
+const Casa = lazy(() => import('@/pages/Casa'))
 
 function NavigationGuard() {
   const location = useLocation()
@@ -141,6 +142,10 @@ function AppInner() {
                     <Route
                       path="/cards/:cardId/invoices/:invoiceId/review"
                       element={<ProtectedRoute>{withSuspense(InvoiceReview)}</ProtectedRoute>}
+                    />
+                    <Route
+                      path="/casa"
+                      element={<ProtectedRoute>{withSuspense(Casa)}</ProtectedRoute>}
                     />
                     <Route
                       path="/patrimonio"

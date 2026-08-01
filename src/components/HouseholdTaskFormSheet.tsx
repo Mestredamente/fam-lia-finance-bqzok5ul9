@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { z } from 'zod'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
@@ -78,6 +79,7 @@ export function HouseholdTaskFormSheet({
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([])
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     if (open) {
@@ -124,6 +126,15 @@ export function HouseholdTaskFormSheet({
       setErrors({ recurrence_pattern: 'Selecione a recorrência' })
       return
     }
+    if (dueDate && !editingTask) {
+      const due = new Date(dueDate + 'T00:00:00')
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      if (due < today) {
+        setErrors({ ...errors, due_date: 'Data não pode ser no passado' })
+        return
+      }
+    }
     setSaving(true)
     try {
       const data: Partial<HouseholdTaskRecord> = {
@@ -161,7 +172,13 @@ export function HouseholdTaskFormSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-2xl">
+      <SheetContent
+        side={isMobile ? 'bottom' : 'right'}
+        className={cn(
+          'max-h-[90vh] overflow-y-auto',
+          isMobile ? 'rounded-t-2xl' : 'sm:max-w-[500px]',
+        )}
+      >
         <SheetHeader>
           <SheetTitle>{editingTask ? 'Editar Tarefa' : 'Nova Tarefa'}</SheetTitle>
         </SheetHeader>
@@ -253,7 +270,16 @@ export function HouseholdTaskFormSheet({
             </div>
             <div>
               <Label className="text-xs font-semibold text-gray-700">Prazo</Label>
-              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <Input
+                type="date"
+                value={dueDate}
+                onChange={(e) => {
+                  setDueDate(e.target.value)
+                  if (errors.due_date) setErrors({ ...errors, due_date: '' })
+                }}
+                className={errors.due_date ? 'border-red-500' : ''}
+              />
+              {errors.due_date && <p className="text-xs text-red-500 mt-1">{errors.due_date}</p>}
             </div>
           </div>
           <div>
@@ -299,6 +325,11 @@ export function HouseholdTaskFormSheet({
             <span className="text-sm font-medium text-gray-700">Lista de compras</span>
             <Switch checked={showShoppingList} onCheckedChange={setShowShoppingList} />
           </div>
+          {category === 'purchase' && (!showShoppingList || shoppingItems.length === 0) && (
+            <p className="text-xs text-yellow-600 bg-yellow-50 p-2 rounded-lg">
+              Dica: adicione itens à lista de compras para melhor controle dos gastos
+            </p>
+          )}
           {showShoppingList && (
             <ShoppingListBuilder
               items={shoppingItems}

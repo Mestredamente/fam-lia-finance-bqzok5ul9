@@ -12,6 +12,7 @@ import {
   LineChart,
   Bot,
   Tags,
+  LayoutDashboard,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
@@ -99,9 +100,10 @@ export function Sidebar() {
   const pendingCount = usePendingInvoicesCount(family?.id)
 
   const navItems = [
-    { label: 'Início', path: '/dashboard', icon: Home },
+    { label: 'Início', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Transações', path: '/transacoes', icon: List },
     { label: 'Cartões', path: '/cards', icon: CreditCard },
+    { label: 'Casa', path: '/casa', icon: Home },
     { label: 'Patrimônio', path: '/patrimonio', icon: TrendingUp },
     { label: 'Orçamentos', path: '/orcamentos', icon: Wallet },
     { label: 'Evolução', path: '/evolucao', icon: LineChart },
@@ -163,10 +165,10 @@ export function BottomNav() {
   const pendingCount = usePendingInvoicesCount(family?.id)
 
   const tabs = [
-    { label: 'Início', path: '/dashboard', icon: Home },
+    { label: 'Início', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Transações', path: '/transacoes', icon: List },
     { label: 'Cartões', path: '/cards', icon: CreditCard },
-    { label: 'Desafios', path: '/challenges', icon: Trophy },
+    { label: 'Casa', path: '/casa', icon: Home },
     { label: 'Perfil', path: '/profile', icon: User },
   ]
 
