@@ -20,11 +20,11 @@ export function LoadingScreen({ message = 'Carregando...' }: { message?: string 
           <text
             x="32"
             y="41"
-            font-size="26"
-            font-weight="bold"
+            fontSize="26"
+            fontWeight="bold"
             fill="#10B981"
-            text-anchor="middle"
-            font-family="system-ui, sans-serif"
+            textAnchor="middle"
+            fontFamily="system-ui, sans-serif"
           >
             FF
           </text>
