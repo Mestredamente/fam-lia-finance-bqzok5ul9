@@ -23,7 +23,7 @@ routerAdd(
     var downloadRes = $http.send({
       url: fileUrl,
       method: 'GET',
-      headers: { Authorization: token },
+      headers: { Authorization: 'Bearer ' + token },
       timeout: 30,
     })
     if (downloadRes.statusCode !== 200) {
@@ -34,6 +34,15 @@ routerAdd(
     }
 
     var rawBody = downloadRes.body
+    var fileSize = rawBody.length
+
+    if (fileSize > 10 * 1024 * 1024) {
+      invoice.set('parsed_data', JSON.stringify({ error: 'Arquivo muito grande. Máximo 10MB.' }))
+      invoice.set('parsed_at', new Date().toISOString())
+      $app.save(invoice)
+      return e.json(400, { success: false, error: 'Arquivo muito grande. Máximo 10MB.' })
+    }
+
     var ext = fileName.split('.').pop().toLowerCase()
     var isImage = ext === 'jpg' || ext === 'jpeg' || ext === 'png'
 
@@ -72,69 +81,143 @@ routerAdd(
             })
             .join(' ')
         : ''
+
+      if (text.length < 50) {
+        invoice.set(
+          'parsed_data',
+          JSON.stringify({
+            error:
+              'Não foi possível extrair texto do PDF. Tente enviar uma imagem (JPG/PNG) da fatura.',
+          }),
+        )
+        invoice.set('parsed_at', new Date().toISOString())
+        $app.save(invoice)
+        return e.json(400, {
+          success: false,
+          error:
+            'Não foi possível extrair texto do PDF. Tente enviar uma imagem (JPG/PNG) da fatura.',
+        })
+      }
+
       messages.push({
         role: 'user',
         content: 'Extraia os itens desta fatura:\n' + text.substring(0, 8000),
       })
     }
 
-    try {
-      var aiReply = $ai.chat({ model: 'fast', messages: messages })
-      var aiContent = aiReply.choices[0].message.content
-      var jsonStr = aiContent
-      var cbMatch = aiContent.match(/```(?:json)?\s*([\s\S]*?)```/)
-      if (cbMatch) jsonStr = cbMatch[1]
-      else {
-        var s = aiContent.indexOf('{'),
-          en = aiContent.lastIndexOf('}')
-        if (s !== -1 && en !== -1) jsonStr = aiContent.substring(s, en + 1)
-      }
-      var parsed = JSON.parse(jsonStr)
+    var maxRetries = 3
+    var backoffDelays = [2000, 4000, 8000]
+    var aiResult = null
+    var aiError = null
 
-      var familyId = invoice.getString('family_id')
-      var categories = $app.findRecordsByFilter(
-        'categories',
-        'family_id = "' + familyId + '"',
-        'created',
-        100,
-        0,
-      )
-      var catMap = {}
-      for (var k = 0; k < categories.length; k++)
-        catMap[categories[k].getString('name').toLowerCase()] = categories[k].getId()
+    for (var retry = 0; retry < maxRetries; retry++) {
+      try {
+        aiResult = $ai.chat({ model: 'fast', messages: messages })
+        aiError = null
+        break
+      } catch (err) {
+        aiError = err
+        var errStatus = err.status || 0
 
-      var itemsCol = $app.findCollectionByNameOrId('invoice_items')
-      var itemsCreated = 0
-      if (parsed.items && Array.isArray(parsed.items)) {
-        for (var m = 0; m < parsed.items.length; m++) {
-          var it = parsed.items[m]
-          var ir = new Record(itemsCol)
-          ir.set('invoice_id', invoiceId)
-          ir.set('family_id', familyId)
-          ir.set('description', it.description || 'Item sem descrição')
-          ir.set('amount', it.amount || 0)
-          if (it.date) ir.set('transaction_date', it.date)
-          var cn = (it.category_name || '').toLowerCase()
-          if (catMap[cn]) ir.set('suggested_category_id', catMap[cn])
-          ir.set('is_confirmed', false)
-          $app.save(ir)
-          itemsCreated++
+        if (errStatus === 400 || errStatus === 401) {
+          var errDetail = err.message || 'erro de autenticação ou requisição inválida'
+          invoice.set(
+            'parsed_data',
+            JSON.stringify({ error: 'Erro ao processar com IA: ' + errDetail }),
+          )
+          invoice.set('parsed_at', new Date().toISOString())
+          $app.save(invoice)
+          return e.json(400, { success: false, error: 'Erro ao processar com IA: ' + errDetail })
+        }
+
+        if (retry < maxRetries - 1) {
+          var delay = backoffDelays[retry] || 8000
+          var startWait = Date.now()
+          while (Date.now() - startWait < delay) {}
         }
       }
-      invoice.set('parsed_data', JSON.stringify(parsed))
-      invoice.set('parsed_at', new Date().toISOString())
-      if (parsed.total_amount) invoice.set('total_amount', parsed.total_amount)
-      $app.save(invoice)
-      return e.json(200, { success: true, itemsCount: itemsCreated })
-    } catch (err) {
+    }
+
+    if (aiError) {
       invoice.set(
         'parsed_data',
-        JSON.stringify({ error: err.message || 'Erro ao processar fatura' }),
+        JSON.stringify({ error: 'Falha ao processar com IA após 3 tentativas. Tente novamente.' }),
       )
       invoice.set('parsed_at', new Date().toISOString())
       $app.save(invoice)
-      return e.json(500, { success: false, error: 'Erro ao processar fatura com IA' })
+      return e.json(500, {
+        success: false,
+        error: 'Falha ao processar com IA após 3 tentativas. Tente novamente.',
+      })
     }
+
+    var aiContent = aiResult.choices[0].message.content
+    var jsonStr = aiContent
+    var cbMatch = aiContent.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (cbMatch) jsonStr = cbMatch[1]
+    else {
+      var s = aiContent.indexOf('{'),
+        en = aiContent.lastIndexOf('}')
+      if (s !== -1 && en !== -1) jsonStr = aiContent.substring(s, en + 1)
+    }
+
+    var parsed = null
+    try {
+      parsed = JSON.parse(jsonStr)
+    } catch (parseErr) {
+      invoice.set(
+        'parsed_data',
+        JSON.stringify({ error: 'Resposta da IA em formato inválido', raw_response: aiContent }),
+      )
+      invoice.set('parsed_at', new Date().toISOString())
+      $app.save(invoice)
+      return e.json(500, { success: false, error: 'Resposta da IA em formato inválido' })
+    }
+
+    if (!parsed.items || !Array.isArray(parsed.items)) {
+      invoice.set(
+        'parsed_data',
+        JSON.stringify({ error: 'Resposta da IA não contém itens', raw_response: aiContent }),
+      )
+      invoice.set('parsed_at', new Date().toISOString())
+      $app.save(invoice)
+      return e.json(500, { success: false, error: 'Resposta da IA não contém itens' })
+    }
+
+    var familyId = invoice.getString('family_id')
+    var categories = $app.findRecordsByFilter(
+      'categories',
+      'family_id = "' + familyId + '"',
+      'created',
+      100,
+      0,
+    )
+    var catMap = {}
+    for (var k = 0; k < categories.length; k++)
+      catMap[categories[k].getString('name').toLowerCase()] = categories[k].getId()
+
+    var itemsCol = $app.findCollectionByNameOrId('invoice_items')
+    var itemsCreated = 0
+    for (var m = 0; m < parsed.items.length; m++) {
+      var it = parsed.items[m]
+      var ir = new Record(itemsCol)
+      ir.set('invoice_id', invoiceId)
+      ir.set('family_id', familyId)
+      ir.set('description', it.description || 'Item sem descrição')
+      ir.set('amount', it.amount || 0)
+      if (it.date) ir.set('transaction_date', it.date)
+      var cn = (it.category_name || '').toLowerCase()
+      if (catMap[cn]) ir.set('suggested_category_id', catMap[cn])
+      ir.set('is_confirmed', false)
+      $app.save(ir)
+      itemsCreated++
+    }
+
+    invoice.set('parsed_data', JSON.stringify(parsed))
+    invoice.set('parsed_at', new Date().toISOString())
+    if (parsed.total_amount) invoice.set('total_amount', parsed.total_amount)
+    $app.save(invoice)
+    return e.json(200, { success: true, itemsCount: itemsCreated })
   },
   $apis.requireAuth(),
 )

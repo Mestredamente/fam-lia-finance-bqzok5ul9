@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge'
 import { CreditCardVisual } from '@/components/CreditCardVisual'
 import { InvoiceFormSheet } from '@/components/InvoiceFormSheet'
 import { formatBRL, getMonthName, cn } from '@/lib/utils'
-import { getParseStatus, type ParseStatus } from '@/lib/invoice-utils'
+import { getParseStatus, getParseError, type ParseStatus } from '@/lib/invoice-utils'
 import { toast } from '@/hooks/use-toast'
 import type { CreditCardRecord } from '@/types/finance'
 
@@ -44,14 +44,29 @@ export default function CardDetail() {
   const [cardLoading, setCardLoading] = useState(true)
   const [showInvoiceForm, setShowInvoiceForm] = useState(false)
   const [reparsingId, setReparsingId] = useState<string | null>(null)
+  const [timeoutErrorIds, setTimeoutErrorIds] = useState<Set<string>>(new Set())
 
   const handleReparse = async (invId: string) => {
     setReparsingId(invId)
+    setTimeoutErrorIds((prev) => {
+      const next = new Set(prev)
+      next.delete(invId)
+      return next
+    })
     try {
       await parseInvoice(invId)
       toast({ title: 'Processando fatura com IA...' })
-    } catch {
-      toast({ variant: 'destructive', title: 'Erro ao processar fatura' })
+    } catch (err) {
+      if (err instanceof Error && err.message === 'TIMEOUT') {
+        setTimeoutErrorIds((prev) => new Set(prev).add(invId))
+        toast({
+          variant: 'destructive',
+          title: 'Tempo limite excedido',
+          description: 'Tente novamente.',
+        })
+      } else {
+        toast({ variant: 'destructive', title: 'Erro ao processar fatura' })
+      }
     } finally {
       setReparsingId(null)
     }
@@ -121,6 +136,12 @@ export default function CardDetail() {
             const status = invoiceStatusConfig[inv.status] || invoiceStatusConfig.pending
             const parseStatus = getParseStatus(inv)
             const parseConfig = parseStatusConfig[parseStatus]
+            const hasTimeout = timeoutErrorIds.has(inv.id) && parseStatus === 'processing'
+            const effectiveParseStatus: ParseStatus = hasTimeout ? 'error' : parseStatus
+            const effectiveParseConfig = hasTimeout ? parseStatusConfig.error : parseConfig
+            const errorMessage = hasTimeout
+              ? 'Tempo limite excedido. Tente novamente.'
+              : getParseError(inv)
             return (
               <Card
                 key={inv.id}
@@ -137,18 +158,23 @@ export default function CardDetail() {
                     </p>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <Badge className={cn('text-xs', status.className)}>{status.label}</Badge>
-                      {parseStatus !== 'none' && (
+                      {effectiveParseStatus !== 'none' && (
                         <Badge
-                          className={cn('text-xs flex items-center gap-0.5', parseConfig.className)}
+                          className={cn(
+                            'text-xs flex items-center gap-0.5',
+                            effectiveParseConfig.className,
+                          )}
                         >
-                          {parseStatus === 'processing' && (
+                          {effectiveParseStatus === 'processing' && (
                             <Loader2 className="h-2.5 w-2.5 animate-spin" />
                           )}
-                          {parseStatus === 'error' && <AlertCircle className="h-2.5 w-2.5" />}
-                          {parseConfig.label}
+                          {effectiveParseStatus === 'error' && (
+                            <AlertCircle className="h-2.5 w-2.5" />
+                          )}
+                          {effectiveParseConfig.label}
                         </Badge>
                       )}
-                      {parseStatus === 'error' && (
+                      {effectiveParseStatus === 'error' && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
@@ -166,6 +192,7 @@ export default function CardDetail() {
                         </button>
                       )}
                     </div>
+                    {errorMessage && <p className="text-xs text-red-600 mt-1">{errorMessage}</p>}
                   </div>
                   <span className="font-bold text-sm text-gray-900 whitespace-nowrap">
                     {formatBRL(inv.total_amount)}

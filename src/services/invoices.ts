@@ -35,12 +35,17 @@ export const updateInvoice = (id: string, data: Partial<InvoiceRecord>) =>
 
 export const deleteInvoice = (id: string) => pb.collection('invoices').delete(id)
 
-export const parseInvoice = (invoiceId: string) =>
-  pb.send('/backend/v1/parse-invoice', {
+export const parseInvoice = (invoiceId: string) => {
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error('TIMEOUT')), 60000)
+  })
+  const requestPromise = pb.send('/backend/v1/parse-invoice', {
     method: 'POST',
     body: JSON.stringify({ invoice_id: invoiceId }),
     headers: { 'Content-Type': 'application/json' },
   })
+  return Promise.race([requestPromise, timeoutPromise])
+}
 
 export const convertInvoiceItems = (invoiceId: string, itemIds: string[]) =>
   pb.send('/backend/v1/convert-invoice-items', {
