@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { Check, User, Home, Users, Loader2 } from 'lucide-react'
 import { z } from 'zod'
+import { ClientResponseError } from 'pocketbase'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent } from '@/components/ui/card'
@@ -19,7 +20,7 @@ import {
 import { PasswordInput } from '@/components/PasswordInput'
 import { CurrencyInput } from '@/components/CurrencyInput'
 import { TermsModal } from '@/components/TermsModal'
-import { MemberRole, roleLabels } from '@/types/finance'
+import { MemberRole, roleLabels, type FamilyRecord } from '@/types/finance'
 import { createFamily } from '@/services/families'
 import { createMember } from '@/services/members'
 import {
@@ -64,6 +65,7 @@ export default function Onboarding() {
   const [aiTips, setAiTips] = useState(true)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [showTermsModal, setShowTermsModal] = useState(false)
+  const [familyError, setFamilyError] = useState('')
 
   const getPasswordStrength = () => {
     if (!password) return { label: 'Fraca', score: 0, color: 'bg-red-500' }
@@ -89,8 +91,7 @@ export default function Onboarding() {
       const fieldErrors = extractFieldErrors(err)
       if (fieldErrors.email) {
         setStep1Errors({
-          email:
-            'Este e-mail já possui uma conta. Faça login primeiro e depois use o código de convite na página da família.',
+          email: 'Este e-mail já possui uma conta. Faça login para continuar.',
         })
       } else {
         toast({
@@ -109,6 +110,7 @@ export default function Onboarding() {
   const handleValidateCode = async () => {
     if (!inviteCode) return
     setCodeError('')
+    setFamilyError('')
     const result = await validateInviteCode(inviteCode)
     if (result.valid) {
       setCodeValid(true)
@@ -125,30 +127,40 @@ export default function Onboarding() {
 
   const handleFinish = async () => {
     setLoading(true)
+    setFamilyError('')
     try {
       const userId = pb.authStore.record?.id
       if (!userId) throw new Error('Falha ao obter ID do usuário')
 
       if (familyOption === 'create') {
-        const famName = familyName || `Família ${(name || user?.name || 'Usuário').split(' ')[0]}`
-        const code = generateInviteCode()
-        const family = await createFamily({
-          name: famName,
-          invite_code: code,
-          created_by: userId,
-        })
-        const familyId = family.id
+        let familyId = ''
 
-        await seedDefaultCategories(familyId)
+        try {
+          const existingFamily = await pb
+            .collection('families')
+            .getFirstListItem<FamilyRecord>(`created_by = "${userId}"`)
+          familyId = existingFamily.id
+        } catch {
+          const famName = familyName || `Família ${(name || user?.name || 'Usuário').split(' ')[0]}`
+          const code = generateInviteCode()
+          const family = await createFamily({
+            name: famName,
+            invite_code: code,
+            created_by: userId,
+          })
+          familyId = family.id
 
-        const expiresAt = new Date()
-        expiresAt.setDate(expiresAt.getDate() + 30)
-        await createInvite({
-          family_id: familyId,
-          invite_code: code,
-          created_by: userId,
-          expires_at: expiresAt.toISOString(),
-        })
+          await seedDefaultCategories(familyId)
+
+          const expiresAt = new Date()
+          expiresAt.setDate(expiresAt.getDate() + 30)
+          await createInvite({
+            family_id: familyId,
+            invite_code: code,
+            created_by: userId,
+            expires_at: expiresAt.toISOString(),
+          })
+        }
 
         await createMember({
           family_id: familyId,
@@ -184,14 +196,8 @@ export default function Onboarding() {
           if (joinError.includes('já faz parte')) {
             // User is already a member — proceed to dashboard
           } else {
-            // Clean up orphaned auth user to avoid ghost accounts
-            try {
-              if (userId) await pb.collection('users').delete(userId)
-            } catch {
-              /* intentionally ignored */
-            }
-            pb.authStore.clear()
-            setStep(1)
+            setFamilyError(joinError)
+            setStep(2)
             throw new Error(joinError)
           }
         }
@@ -205,10 +211,21 @@ export default function Onboarding() {
       toast({ title: 'Conta criada!', description: 'Bem-vindo à Família Finance!' })
       navigate('/dashboard')
     } catch (err) {
+      let displayMsg: string
+      if (err instanceof ClientResponseError) {
+        displayMsg = getPortugueseError(err)
+      } else if (err instanceof Error && err.message) {
+        displayMsg = err.message
+      } else {
+        displayMsg = getPortugueseError(err)
+      }
+      if (!displayMsg.includes('já faz parte')) {
+        setFamilyError(displayMsg)
+      }
       toast({
         variant: 'destructive',
         title: 'Erro',
-        description: getPortugueseError(err),
+        description: displayMsg,
       })
     } finally {
       setLoading(false)
@@ -278,7 +295,14 @@ export default function Onboarding() {
                     className={step1Errors.email ? 'border-red-500' : ''}
                   />
                   {step1Errors.email && (
-                    <p className="text-xs text-red-500 mt-1">{step1Errors.email}</p>
+                    <div className="mt-1 space-y-1">
+                      <p className="text-xs text-red-500">{step1Errors.email}</p>
+                      {step1Errors.email.includes('já possui') && (
+                        <Link to="/" className="text-xs text-[#16A34A] underline font-semibold">
+                          Ir para o login
+                        </Link>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -410,6 +434,12 @@ export default function Onboarding() {
                 </p>
               </div>
 
+              {familyError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="text-xs text-red-600 font-medium">{familyError}</p>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
@@ -466,6 +496,7 @@ export default function Onboarding() {
                         setInviteCode(e.target.value)
                         setCodeValid(null)
                         setCodeError('')
+                        setFamilyError('')
                       }}
                     />
                     <Button

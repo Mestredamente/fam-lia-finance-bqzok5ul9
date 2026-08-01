@@ -49,10 +49,22 @@ routerAdd(
       'cousin',
       'other',
       'child',
+      'self',
+      'roommate',
+      'cohabitant',
+      'boyfriend',
+      'girlfriend',
+      'co_parent',
+      'guardian',
+      'dependent_adult',
+      'household_member',
     ]
     if (validRoles.indexOf(role) === -1) {
       console.log('[join-family] invalid role:', role)
-      return e.json(200, { valid: false, error: 'Papel inválido.' })
+      return e.json(200, {
+        valid: false,
+        error: 'Papel inválido: ' + role + '. Selecione um papel válido.',
+      })
     }
 
     var invite = null
