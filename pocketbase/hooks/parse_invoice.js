@@ -2,6 +2,8 @@ routerAdd(
   'POST',
   '/backend/v1/parse-invoice',
   (e) => {
+    var chosenModel = 'gemini-2.5-flash'
+
     function sanitize(s) {
       if (!s) return ''
       var t = String(s)
@@ -64,6 +66,9 @@ routerAdd(
       })
     }
 
+    $app.logger().info('PARSE_INVOICE: chave começa com = ' + GEMINI_API_KEY.substring(0, 10))
+    $app.logger().info('PARSE_INVOICE: modelo ativo = ' + chosenModel)
+
     var body = e.requestInfo().body || {}
     var invoiceId = body.invoice_id || ''
     if (!invoiceId) return e.badRequestError('ID da fatura é obrigatório')
@@ -120,7 +125,7 @@ routerAdd(
       $app
         .logger()
         .error('File download failed', 'status', downloadRes.statusCode, 'invoice_id', invoiceId)
-      saveError(invoice, 'Falha ao baixar arquivo', null, 'gemini-2.0-flash')
+      saveError(invoice, 'Falha ao baixar arquivo', null, chosenModel)
       return e.json(500, {
         success: false,
         error: 'Falha ao baixar arquivo',
@@ -133,7 +138,7 @@ routerAdd(
     $app.logger().info('File downloaded', 'size', fileSize, 'invoice_id', invoiceId)
 
     if (fileSize === 0) {
-      saveError(invoice, 'Arquivo vazio ou corrompido', null, 'gemini-2.0-flash')
+      saveError(invoice, 'Arquivo vazio ou corrompido', null, chosenModel)
       return e.json(400, {
         success: false,
         error: 'Arquivo vazio ou corrompido',
@@ -141,7 +146,7 @@ routerAdd(
     }
 
     if (fileSize > 10 * 1024 * 1024) {
-      saveError(invoice, 'Arquivo muito grande. Máximo 10MB.', null, 'gemini-2.0-flash')
+      saveError(invoice, 'Arquivo muito grande. Máximo 10MB.', null, chosenModel)
       return e.json(400, {
         success: false,
         error: 'Arquivo muito grande. Máximo 10MB.',
@@ -177,9 +182,7 @@ routerAdd(
 
     $app.logger().info('Base64 encoded', 'payload_size', b64.length, 'invoice_id', invoiceId)
 
-    // ===== Step 5: Build Gemini request (hardcoded model) =====
-    var chosenModel = 'gemini-2.0-flash'
-
+    // ===== Step 5: Build Gemini request =====
     var sysPrompt =
       'Você é um assistente financeiro especializado em faturas de cartão de crédito brasileiras. Extraia TODAS as transações individuais da fatura. IGNORE cabeçalhos, rodapés, totais, taxas, juros, multas e impostos. Para cada transação, extraia: description (descrição do item, preservando notação de parcelas como "2/3"), amount (valor numérico sem "R$" ou vírgulas, use ponto decimal), date (data no formato YYYY-MM-DD, ou null se não visível). Se houver valores em moeda estrangeira com taxa de conversão visível, converta para BRL. Se não houver taxa, use o valor original. Retorne APENAS um JSON válido, sem markdown, sem texto adicional: {"items":[{"description":"string","amount":number,"date":"YYYY-MM-DD|null"}],"total_extracted":number,"currency":"BRL","confidence":"high|medium|low"}'
 
@@ -286,7 +289,7 @@ routerAdd(
           })
         }
 
-        // Handle 404 — model unavailable, do not switch models
+        // Handle 404 — model unavailable
         if (gRes.statusCode === 404) {
           $app
             .logger()
@@ -294,17 +297,12 @@ routerAdd(
               'Gemini model not found',
               'status',
               404,
-              'detail',
-              sanitize(lastErrorDetail),
+              'model',
+              chosenModel,
               'invoice_id',
               invoiceId,
             )
-          saveError(
-            invoice,
-            'Modelo Gemini não disponível: ' + sanitize(lastErrorDetail).substring(0, 200),
-            errBodyText.substring(0, 2000),
-            chosenModel,
-          )
+          saveError(invoice, 'Modelo de IA não disponível. Contate o suporte.', null, chosenModel)
           return e.json(404, {
             success: false,
             error: 'Modelo de IA não disponível. Contate o suporte.',
@@ -331,11 +329,10 @@ routerAdd(
             sleep(backoffDelays[retry] || 8000)
           }
         } else {
-          // Other errors — retry once then fail
           $app
             .logger()
-            .warn(
-              'Gemini unexpected status',
+            .error(
+              'Gemini non-transient error — failing immediately',
               'status',
               gRes.statusCode,
               'detail',
@@ -343,19 +340,29 @@ routerAdd(
               'invoice_id',
               invoiceId,
             )
-          geminiError = new Error('HTTP ' + gRes.statusCode)
-          if (retry < maxRetries - 1) {
-            sleep(backoffDelays[retry] || 8000)
-          }
+          saveError(
+            invoice,
+            'Erro da API Gemini (HTTP ' +
+              gRes.statusCode +
+              '): ' +
+              sanitize(lastErrorDetail).substring(0, 200),
+            errBodyText.substring(0, 2000),
+            chosenModel,
+          )
+          var nonTransientStatus =
+            gRes.statusCode >= 400 && gRes.statusCode < 600 ? gRes.statusCode : 500
+          return e.json(nonTransientStatus, {
+            success: false,
+            error: 'Erro da API Gemini (HTTP ' + gRes.statusCode + ').',
+          })
         }
       } catch (httpErr) {
-        geminiError = httpErr
         lastErrorDetail = String(httpErr.message || httpErr)
         lastErrorStatus = 0
         $app
           .logger()
-          .warn(
-            'Gemini HTTP exception',
+          .error(
+            'Gemini HTTP exception — failing immediately',
             'attempt',
             retry + 1,
             'error',
@@ -363,9 +370,16 @@ routerAdd(
             'invoice_id',
             invoiceId,
           )
-        if (retry < maxRetries - 1) {
-          sleep(backoffDelays[retry] || 8000)
-        }
+        saveError(
+          invoice,
+          'Erro de conexão com a API Gemini: ' + sanitize(lastErrorDetail).substring(0, 200),
+          null,
+          chosenModel,
+        )
+        return e.json(503, {
+          success: false,
+          error: 'Erro de conexão com a API Gemini.',
+        })
       }
     }
 
