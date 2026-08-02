@@ -47,7 +47,7 @@ export const deleteInvoiceCascade = (invoiceId: string) =>
 
 export const parseInvoice = (invoiceId: string) => {
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('TIMEOUT')), 60000)
+    setTimeout(() => reject(new Error('TIMEOUT')), 120000)
   })
   const requestPromise = pb.send('/backend/v1/parse-invoice', {
     method: 'POST',
@@ -57,8 +57,14 @@ export const parseInvoice = (invoiceId: string) => {
   return Promise.race([requestPromise, timeoutPromise])
 }
 
+interface ConvertResult {
+  success: boolean
+  count: number
+  errors?: Array<{ item_id: string; error: string }>
+}
+
 export const convertInvoiceItems = (invoiceId: string, itemIds: string[]) =>
-  pb.send('/backend/v1/convert-invoice-items', {
+  pb.send<ConvertResult>('/backend/v1/convert-invoice-items', {
     method: 'POST',
     body: JSON.stringify({ invoice_id: invoiceId, invoice_item_ids: itemIds }),
     headers: { 'Content-Type': 'application/json' },

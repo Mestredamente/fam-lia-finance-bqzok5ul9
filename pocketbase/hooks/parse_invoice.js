@@ -3,7 +3,17 @@ routerAdd(
   '/backend/v1/parse-invoice',
   (e) => {
     var chosenModel = 'gemini-flash-latest'
-    var diagInfo = { url: '', model: chosenModel, logs: [] }
+    var diagInfo = {
+      url: '',
+      model: chosenModel,
+      logs: [],
+      finishReason: '',
+      repairAttempted: false,
+      repairSucceeded: false,
+      rawAiExcerpt: '',
+      cleanedJsonBeforeParse: '',
+      parseError: '',
+    }
     var rawGeminiResponse = ''
 
     function jsonRes(status, payload) {
@@ -161,7 +171,7 @@ routerAdd(
     $app.logger().info('Base64 encoded', 'payload_size', b64.length, 'invoice_id', invoiceId)
 
     var sysPrompt =
-      'Você é um assistente financeiro especializado em faturas de cartão de crédito brasileiras. Extraia TODAS as transações individuais da fatura. IGNORE cabeçalhos, rodapés, totais, taxas, juros, multas e impostos. Para cada transação, extraia: description (descrição do item, preservando notação de parcelas como "2/3"), amount (valor numérico sem "R$" ou vírgulas, use ponto decimal), date (data no formato YYYY-MM-DD, ou null se não visível). Se houver valores em moeda estrangeira com taxa de conversão visível, converta para BRL. Se não houver taxa, use o valor original.\n\nEstrutura esperada da resposta: { items: [ { description: string, amount: number, date: string } ] }\n\nIMPORTANTE: Não inclua markdown formatting. Não use ```json ou ```. Retorne apenas o JSON puro.\n\nResponda APENAS com JSON válido, sem markdown, sem texto explicativo, sem blocos de código. Comece com { e termine com }. Não use crases.'
+      'Você é um assistente financeiro especializado em faturas de cartão de crédito brasileiras. Extraia TODAS as transações individuais da fatura. IGNORE cabeçalhos, rodapés, totais, taxas, juros, multas e impostos. Para cada transação, extraia: description (nome CONCISO do estabelecimento com data, ex: "MERCADO X 12/05", preservando parcelas como "2/3"), amount (valor numérico sem "R$" ou vírgulas, use ponto decimal), date (data no formato YYYY-MM-DD, ou null se não visível). Se houver valores em moeda estrangeira com taxa de conversão visível, converta para BRL. Se não houver taxa, use o valor original. MANTENHA as descrições curtas (apenas nome do estabelecimento e data) para reduzir o tamanho da resposta e evitar truncamento.\n\nEstrutura esperada da resposta: { items: [ { description: string, amount: number, date: string } ] }\n\nIMPORTANTE: Não inclua markdown formatting. Não use ```json ou ```. Retorne apenas o JSON puro.\n\nResponda APENAS com JSON válido, sem markdown, sem texto explicativo, sem blocos de código. Comece com { e termine com }. Não use crases.'
 
     var geminiBody = JSON.stringify({
       contents: [
@@ -176,7 +186,7 @@ routerAdd(
           ],
         },
       ],
-      generationConfig: { temperature: 0.1, topK: 1, topP: 0.8, maxOutputTokens: 8192 },
+      generationConfig: { temperature: 0.1, topK: 1, topP: 0.8, maxOutputTokens: 16384 },
     })
 
     var GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta'
@@ -430,6 +440,31 @@ routerAdd(
         tokensInput = parsedJson.usageMetadata.promptTokenCount || 0
         tokensOutput = parsedJson.usageMetadata.candidatesTokenCount || 0
       }
+      var finishReason = ''
+      if (parsedJson.candidates && parsedJson.candidates.length > 0) {
+        finishReason = parsedJson.candidates[0].finishReason || ''
+      }
+      diagInfo.finishReason = finishReason
+      diagInfo.logs.push('PARSE_INVOICE: finishReason = ' + finishReason)
+      $app
+        .logger()
+        .info('PARSE_INVOICE: finishReason', 'reason', finishReason, 'invoice_id', invoiceId)
+      if (finishReason === 'MAX_TOKENS' || finishReason === 'RECITATION') {
+        diagInfo.logs.push(
+          'PARSE_INVOICE: Response truncated due to ' +
+            finishReason +
+            '. Attempting recovery with partial response.',
+        )
+        $app
+          .logger()
+          .warn(
+            'PARSE_INVOICE: AI response truncated',
+            'reason',
+            finishReason,
+            'invoice_id',
+            invoiceId,
+          )
+      }
     } catch (extractErr) {
       saveError(
         invoice,
@@ -458,6 +493,7 @@ routerAdd(
       })
     }
 
+    diagInfo.rawAiExcerpt = aiContent.substring(0, 500)
     diagInfo.logs.push('Gemini tokens - input: ' + tokensInput + ', output: ' + tokensOutput)
     $app
       .logger()
@@ -523,6 +559,8 @@ routerAdd(
     }
     jsonStr = jsonStr.trim()
 
+    diagInfo.cleanedJsonBeforeParse = jsonStr.substring(0, 500)
+
     $app
       .logger()
       .info(
@@ -553,26 +591,87 @@ routerAdd(
     } catch (parseErr) {
       $app
         .logger()
-        .error(
-          'PARSE_INVOICE: JSON.parse() error',
+        .warn(
+          'PARSE_INVOICE: JSON.parse() error, attempting repair',
           'error',
           String(parseErr.message || parseErr),
           'invoice_id',
           invoiceId,
         )
-      saveError(
-        invoice,
-        'JSON malformado na resposta da IA: ' +
-          String(parseErr.message || parseErr).substring(0, 200),
-        aiContent,
-        chosenModel,
+      diagInfo.logs.push(
+        'PARSE_INVOICE: JSON.parse failed: ' + String(parseErr.message || parseErr),
       )
-      return e.json(500, {
-        success: false,
-        error: 'JSON malformado na resposta da IA',
-        raw_gemini_response: aiContent,
-        diagnostics: diagInfo,
-      })
+      diagInfo.parseError = String(parseErr.message || parseErr)
+      diagInfo.repairAttempted = true
+
+      var repairedJson = jsonStr
+      var openBraces = (repairedJson.match(/\{/g) || []).length
+      var closeBraces = (repairedJson.match(/\}/g) || []).length
+      var openBrackets = (repairedJson.match(/\[/g) || []).length
+      var closeBrackets = (repairedJson.match(/\]/g) || []).length
+      var missingBraces = openBraces - closeBraces
+      var missingBrackets = openBrackets - closeBrackets
+      $app
+        .logger()
+        .info(
+          'PARSE_INVOICE: JSON repair stats',
+          'missing_braces',
+          missingBraces,
+          'missing_brackets',
+          missingBrackets,
+          'invoice_id',
+          invoiceId,
+        )
+      diagInfo.logs.push(
+        'PARSE_INVOICE: repair - missing braces: ' +
+          missingBraces +
+          ', missing brackets: ' +
+          missingBrackets,
+      )
+
+      if (repairedJson.trim().endsWith(',')) {
+        repairedJson = repairedJson.trim().slice(0, -1)
+      }
+      for (var rb = 0; rb < missingBrackets; rb++) repairedJson += ']'
+      for (var rc = 0; rc < missingBraces; rc++) repairedJson += '}'
+
+      diagInfo.logs.push(
+        'PARSE_INVOICE: repaired JSON (first 300 chars): ' + repairedJson.substring(0, 300),
+      )
+
+      try {
+        parsed = JSON.parse(repairedJson)
+        diagInfo.repairSucceeded = true
+        diagInfo.logs.push('PARSE_INVOICE: JSON repair succeeded!')
+        $app.logger().info('PARSE_INVOICE: JSON repair succeeded', 'invoice_id', invoiceId)
+      } catch (repairErr) {
+        diagInfo.repairSucceeded = false
+        diagInfo.logs.push(
+          'PARSE_INVOICE: JSON repair failed: ' + String(repairErr.message || repairErr),
+        )
+        $app
+          .logger()
+          .error(
+            'PARSE_INVOICE: JSON repair also failed',
+            'error',
+            String(repairErr.message || repairErr),
+            'invoice_id',
+            invoiceId,
+          )
+        saveError(
+          invoice,
+          'JSON malformado na resposta da IA: ' +
+            String(parseErr.message || parseErr).substring(0, 200),
+          aiContent,
+          chosenModel,
+        )
+        return e.json(500, {
+          success: false,
+          error: 'JSON malformado na resposta da IA',
+          raw_gemini_response: aiContent,
+          diagnostics: diagInfo,
+        })
+      }
     }
 
     $app

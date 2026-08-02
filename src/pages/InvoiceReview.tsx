@@ -9,6 +9,7 @@ import {
   FileCheck,
   AlertCircle,
   Trash2,
+  Layers,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -17,11 +18,22 @@ import { useInvoiceItems } from '@/hooks/use-invoice-items'
 import { useCategories } from '@/hooks/use-categories'
 import { getInvoice, updateInvoice, parseInvoice, convertInvoiceItems } from '@/services/invoices'
 import { updateInvoiceItem } from '@/services/invoice-items'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { InvoiceItemRow } from '@/components/InvoiceItemRow'
 import { DeleteInvoiceDialog } from '@/components/DeleteInvoiceDialog'
 import { EmptyState } from '@/components/EmptyState'
@@ -48,7 +60,9 @@ export default function InvoiceReview() {
   const [convertingAll, setConvertingAll] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [confirmingAll, setConfirmingAll] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [categoryOverrides, setCategoryOverrides] = useState<Record<string, string>>({})
+  const [lastSelectedCategory, setLastSelectedCategory] = useState('')
 
   const { items, loading: itemsLoading, error: itemsError, refetch } = useInvoiceItems(invoiceId)
   const { categories } = useCategories(family?.id)
@@ -84,65 +98,121 @@ export default function InvoiceReview() {
 
   const parseStatus = invoice ? getParseStatus(invoice) : 'none'
 
-  const unconfirmedItems = useMemo(() => items.filter((i) => !i.is_confirmed), [items])
-  const confirmedItems = useMemo(() => items.filter((i) => i.is_confirmed), [items])
-  const confirmedAmount = useMemo(
-    () => confirmedItems.reduce((sum, i) => sum + i.amount, 0),
-    [confirmedItems],
-  )
-  const remainingAmount = (invoice?.total_amount || 0) - confirmedAmount
-  const progressRatio = invoice?.total_amount ? (confirmedAmount / invoice.total_amount) * 100 : 0
+  const itemCategories = useMemo(() => {
+    const cats: Record<string, string> = {}
+    items.forEach((item) => {
+      cats[item.id] =
+        categoryOverrides[item.id] !== undefined
+          ? categoryOverrides[item.id]
+          : item.confirmed_category_id || item.suggested_category_id || ''
+    })
+    return cats
+  }, [items, categoryOverrides])
 
-  const handleConfirm = async (itemId: string, categoryId: string) => {
-    try {
-      await updateInvoiceItem(itemId, { is_confirmed: true, confirmed_category_id: categoryId })
-      toast({ title: 'Item confirmado' })
-    } catch {
-      toast({ variant: 'destructive', title: 'Erro ao confirmar item' })
-    }
+  const categorizedCount = useMemo(
+    () => Object.values(itemCategories).filter(Boolean).length,
+    [itemCategories],
+  )
+  const totalCount = items.length
+  const uncategorizedCount = totalCount - categorizedCount
+
+  const unconvertedItems = useMemo(() => items.filter((i) => !i.converted_transaction_id), [items])
+  const convertedItems = useMemo(() => items.filter((i) => i.converted_transaction_id), [items])
+
+  const handleCategoryChange = (itemId: string, categoryId: string) => {
+    setCategoryOverrides((prev) => ({ ...prev, [itemId]: categoryId }))
+    if (categoryId) setLastSelectedCategory(categoryId)
+    updateInvoiceItem(itemId, { confirmed_category_id: categoryId || '' }).catch(() => {})
   }
 
-  const handleConfirmAll = async () => {
-    const confirmable = unconfirmedItems.filter((i) => i.suggested_category_id)
-    if (confirmable.length === 0) return
-    setConfirmingAll(true)
-    try {
-      await Promise.all(
-        confirmable.map((item) =>
-          updateInvoiceItem(item.id, {
-            is_confirmed: true,
-            confirmed_category_id: item.suggested_category_id,
-          }),
-        ),
-      )
-      toast({ title: `${confirmable.length} itens confirmados` })
-    } catch {
-      toast({ variant: 'destructive', title: 'Erro ao confirmar itens' })
-    } finally {
-      setConfirmingAll(false)
+  const handleApplyCategoryToAll = () => {
+    if (!lastSelectedCategory) {
+      toast({ variant: 'destructive', title: 'Selecione uma categoria primeiro' })
+      return
     }
+    const updates: Record<string, string> = {}
+    items.forEach((item) => {
+      if (!itemCategories[item.id]) {
+        updates[item.id] = lastSelectedCategory
+      }
+    })
+    if (Object.keys(updates).length === 0) {
+      toast({ title: 'Todos os itens já têm categoria' })
+      return
+    }
+    setCategoryOverrides((prev) => ({ ...prev, ...updates }))
+    Object.entries(updates).forEach(([itemId, catId]) => {
+      updateInvoiceItem(itemId, { confirmed_category_id: catId }).catch(() => {})
+    })
+    toast({ title: `${Object.keys(updates).length} itens categorizados` })
   }
 
   const handleConvert = async (itemId: string) => {
     if (!invoiceId) return
+    const catId = itemCategories[itemId] || ''
     try {
+      await updateInvoiceItem(itemId, {
+        confirmed_category_id: catId || '',
+        is_confirmed: true,
+      })
       await convertInvoiceItems(invoiceId, [itemId])
       toast({ title: 'Item convertido em transação' })
-    } catch {
-      toast({ variant: 'destructive', title: 'Erro ao converter item' })
+    } catch (err) {
+      const errMsg = getErrorMessage(err)
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao converter item',
+        description: errMsg,
+      })
+      console.error('Convert error for item', itemId, err)
     }
   }
 
-  const handleConvertAll = async () => {
+  const handleConfirmAll = () => {
+    if (uncategorizedCount > 0) {
+      setShowConfirmDialog(true)
+      return
+    }
+    doConvertAll()
+  }
+
+  const doConvertAll = async () => {
+    setShowConfirmDialog(false)
     if (!invoiceId) return
-    const convertible = confirmedItems.filter((i) => !i.converted_transaction_id).map((i) => i.id)
-    if (convertible.length === 0) return
+    const convertible = unconvertedItems.map((i) => i.id)
+    if (convertible.length === 0) {
+      toast({ title: 'Todos os itens já foram convertidos' })
+      return
+    }
     setConvertingAll(true)
     try {
-      await convertInvoiceItems(invoiceId, convertible)
-      toast({ title: `${convertible.length} itens convertidos em transações` })
-    } catch {
-      toast({ variant: 'destructive', title: 'Erro ao converter itens' })
+      await Promise.all(
+        items.map((item) =>
+          updateInvoiceItem(item.id, {
+            confirmed_category_id: itemCategories[item.id] || '',
+            is_confirmed: true,
+          }).catch((err) => {
+            console.error('Failed to update item category', item.id, err)
+          }),
+        ),
+      )
+      const result = await convertInvoiceItems(invoiceId, convertible)
+      if (result.errors && result.errors.length > 0) {
+        toast({
+          variant: 'destructive',
+          title: `${result.count} convertidos, ${result.errors.length} com erro`,
+          description: result.errors.map((e: { error: string }) => e.error).join(', '),
+        })
+      } else {
+        toast({ title: `${result.count} itens convertidos em transações` })
+      }
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao converter itens',
+        description: getErrorMessage(err),
+      })
+      console.error('Convert all error', err)
     } finally {
       setConvertingAll(false)
     }
@@ -246,17 +316,24 @@ export default function InvoiceReview() {
               <p className="font-bold text-gray-900">{formatBRL(invoice.total_amount)}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 font-medium">Confirmado</p>
-              <p className="font-bold text-[#22C55E]">{formatBRL(confirmedAmount)}</p>
+              <p className="text-xs text-gray-500 font-medium">Categorizados</p>
+              <p className="font-bold text-[#22C55E]">
+                {categorizedCount} de {totalCount}
+              </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 font-medium">Restante</p>
-              <p className="font-bold text-gray-900">{formatBRL(Math.max(0, remainingAmount))}</p>
+              <p className="text-xs text-gray-500 font-medium">Convertidos</p>
+              <p className="font-bold text-gray-900">{convertedItems.length}</p>
             </div>
           </div>
           <div>
-            <Progress value={progressRatio} className="h-2" />
-            <p className="text-xs text-gray-500 mt-1">{Math.round(progressRatio)}% confirmado</p>
+            <Progress
+              value={totalCount ? (categorizedCount / totalCount) * 100 : 0}
+              className="h-2"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {categorizedCount} de {totalCount} itens categorizados
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -345,67 +422,79 @@ export default function InvoiceReview() {
               actionDisabled={reparsing}
             />
           ) : (
-            <div className="space-y-6">
-              {unconfirmedItems.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    {categorizedCount} de {totalCount} itens categorizados
+                  </h2>
+                  {uncategorizedCount > 0 && (
+                    <Badge className="bg-yellow-100 text-yellow-700 text-[10px]">
+                      {uncategorizedCount} sem categoria
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {uncategorizedCount > 0 && lastSelectedCategory && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleApplyCategoryToAll}
+                      className="h-7 text-xs"
+                    >
+                      <Layers className="h-3 w-3 mr-1 shrink-0" />
+                      <span className="hidden sm:inline">Aplicar categoria a todos</span>
+                      <span className="sm:hidden">Aplicar a todos</span>
+                    </Button>
+                  )}
+                  {unconvertedItems.length > 0 && (
+                    <Button
+                      size="sm"
+                      onClick={handleConfirmAll}
+                      disabled={convertingAll}
+                      className="h-7 text-xs bg-[#166534] hover:bg-[#15803D]"
+                    >
+                      {convertingAll ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      ) : (
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                      )}
+                      Confirmar todos
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {unconvertedItems.length > 0 && (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      Itens não confirmados ({unconfirmedItems.length})
-                    </h2>
-                    {unconfirmedItems.some((i) => i.suggested_category_id) && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleConfirmAll}
-                        disabled={confirmingAll}
-                        className="h-7 text-xs"
-                      >
-                        {confirmingAll ? (
-                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                        ) : (
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                        )}
-                        Confirmar todos
-                      </Button>
-                    )}
-                  </div>{' '}
-                  {unconfirmedItems.map((item) => (
+                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Itens ({unconvertedItems.length})
+                  </h3>
+                  {unconvertedItems.map((item) => (
                     <InvoiceItemRow
                       key={item.id}
                       item={item}
                       categories={categories}
-                      onConfirm={handleConfirm}
+                      selectedCategoryId={itemCategories[item.id] || ''}
+                      onCategoryChange={handleCategoryChange}
                       onConvert={handleConvert}
                     />
                   ))}
                 </div>
               )}
 
-              {confirmedItems.length > 0 && (
+              {convertedItems.length > 0 && (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      Itens confirmados ({confirmedItems.length})
-                    </h2>
-                    {confirmedItems.some((i) => !i.converted_transaction_id) && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleConvertAll}
-                        disabled={convertingAll}
-                        className="h-7 text-xs"
-                      >
-                        {convertingAll ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                        Converter todos
-                      </Button>
-                    )}
-                  </div>
-                  {confirmedItems.map((item) => (
+                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Convertidos ({convertedItems.length})
+                  </h3>
+                  {convertedItems.map((item) => (
                     <InvoiceItemRow
                       key={item.id}
                       item={item}
                       categories={categories}
-                      onConfirm={handleConfirm}
+                      selectedCategoryId={itemCategories[item.id] || ''}
+                      onCategoryChange={handleCategoryChange}
                       onConvert={handleConvert}
                     />
                   ))}
@@ -416,7 +505,7 @@ export default function InvoiceReview() {
                 {invoice.status === 'pending' && (
                   <Button
                     onClick={() => handleStatusUpdate('reviewed')}
-                    disabled={updatingStatus || unconfirmedItems.length > 0}
+                    disabled={updatingStatus || unconvertedItems.length > 0}
                     className="flex-1 bg-blue-600 hover:bg-blue-700"
                   >
                     {updatingStatus ? (
@@ -446,6 +535,29 @@ export default function InvoiceReview() {
           )}
         </>
       )}
+
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Itens sem categoria</AlertDialogTitle>
+            <AlertDialogDescription>
+              {uncategorizedCount} {uncategorizedCount === 1 ? 'item não tem' : 'itens não têm'}{' '}
+              categoria selecionada. Deseja criar as transações mesmo assim, sem categoria?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowConfirmDialog(false)
+                toast({ title: 'Selecione uma categoria para todos os itens antes de confirmar.' })
+              }}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={doConvertAll}>Confirmar sem categoria</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <DeleteInvoiceDialog
         open={showDeleteDialog}
