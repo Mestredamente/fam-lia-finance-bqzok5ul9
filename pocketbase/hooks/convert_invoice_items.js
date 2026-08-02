@@ -123,17 +123,80 @@ routerAdd(
             continue
           }
 
-          var txDate = item.getString('transaction_date') || ''
-          if (!txDate) {
-            txDate = invoice.getString('month_ref')
+          var itemDateRaw = item.getString('transaction_date') || ''
+          var invoiceMonthRef = invoice.getString('month_ref') || ''
+          if (itemDateRaw.length > 10) itemDateRaw = itemDateRaw.substring(0, 10)
+          if (invoiceMonthRef.length > 10) invoiceMonthRef = invoiceMonthRef.substring(0, 10)
+
+          var nowDate = new Date()
+          var todayStr =
+            nowDate.getFullYear() +
+            '-' +
+            String(nowDate.getMonth() + 1).padStart(2, '0') +
+            '-' +
+            String(nowDate.getDate()).padStart(2, '0')
+
+          var txDate = ''
+
+          if (itemDateRaw && itemDateRaw.trim() !== '') {
+            if (itemDateRaw > todayStr) {
+              $app
+                .logger()
+                .info(
+                  'CONVERT: item ' +
+                    itemId +
+                    ' date is in the future (' +
+                    itemDateRaw +
+                    '), using invoice month_ref',
+                )
+              txDate = invoiceMonthRef
+            } else {
+              txDate = itemDateRaw
+
+              var closingDay = card.get('closing_day') || 1
+              var dueDay = card.get('due_day') || 10
+              var refYear = parseInt(invoiceMonthRef.substring(0, 4), 10)
+              var refMonth = parseInt(invoiceMonthRef.substring(5, 7), 10)
+              var periodStart =
+                refYear +
+                '-' +
+                String(refMonth).padStart(2, '0') +
+                '-' +
+                String(closingDay).padStart(2, '0')
+              var periodEnd =
+                refYear +
+                '-' +
+                String(refMonth).padStart(2, '0') +
+                '-' +
+                String(dueDay).padStart(2, '0')
+
+              if (itemDateRaw < periodStart || itemDateRaw > periodEnd) {
+                $app
+                  .logger()
+                  .warn(
+                    'CONVERT: WARNING - data do item fora do período da fatura: ' + itemDateRaw,
+                    'item_id',
+                    itemId,
+                  )
+              }
+            }
+          } else {
+            txDate = invoiceMonthRef
           }
-          if (!txDate) {
+
+          if (!txDate || txDate.trim() === '') {
             $app
               .logger()
-              .error('CONVERT_INVOICE_ITEMS: missing transaction_date', 'item_id', itemId)
+              .error(
+                'CONVERT_INVOICE_ITEMS: missing transaction_date after fallback',
+                'item_id',
+                itemId,
+              )
             errors.push({ item_id: itemId, error: 'Data da transação ausente', index: j })
             continue
           }
+
+          $app.logger().info('CONVERT: item ' + itemId + ' data = ' + txDate)
 
           $app
             .logger()
@@ -173,6 +236,7 @@ routerAdd(
           tx.set('is_fixed', false)
           tx.set('source', 'invoice_import')
           tx.set('invoice_item_id', itemId)
+          tx.set('status', 'pending')
 
           try {
             $app.save(tx)

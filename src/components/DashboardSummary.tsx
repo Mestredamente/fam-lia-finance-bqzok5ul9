@@ -1,9 +1,11 @@
-import { ArrowUpRight, ArrowDownRight, Wallet, AlertCircle } from 'lucide-react'
+import { ArrowUpRight, ArrowDownRight, Wallet, AlertCircle, Eye } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AnimatedCounter } from '@/components/AnimatedCounter'
+import { PeriodSelector } from '@/components/PeriodSelector'
 import { formatBRL, getProgressBarColor } from '@/lib/utils'
+import { type PeriodType } from '@/lib/period-utils'
 
 interface DashboardSummaryProps {
   totalReceitas: number
@@ -13,6 +15,12 @@ interface DashboardSummaryProps {
   loading: boolean
   error: string | null
   onRetry: () => void
+  period?: PeriodType
+  onPeriodChange?: (period: PeriodType) => void
+  otherMonthsCount?: number
+  onPrevMonth?: () => void
+  onNextMonth?: () => void
+  monthLabel?: string
 }
 
 export function DashboardSummary({
@@ -23,6 +31,12 @@ export function DashboardSummary({
   loading,
   error,
   onRetry,
+  period = 'mes',
+  onPeriodChange,
+  otherMonthsCount = 0,
+  onPrevMonth,
+  onNextMonth,
+  monthLabel,
 }: DashboardSummaryProps) {
   if (loading) {
     return (
@@ -53,6 +67,7 @@ export function DashboardSummary({
 
   const hasIncome = totalReceitas > 0
   const isEmpty = totalReceitas === 0 && totalDespesas === 0
+  const isAllView = period === 'tudo'
   const barColor = hasIncome ? getProgressBarColor(porcentagemGasta) : 'bg-gray-300'
   const barText = hasIncome
     ? `${Math.round(porcentagemGasta)}% das receitas`
@@ -60,11 +75,43 @@ export function DashboardSummary({
   const subText = isEmpty
     ? 'Adicione transações para ver seu resumo'
     : hasIncome
-      ? `Você já gastou ${Math.round(porcentagemGasta)}% da sua renda deste mês`
+      ? `Você já gastou ${Math.round(porcentagemGasta)}% da sua renda${isAllView ? ' (total)' : ' deste mês'}`
       : 'Sem receita registrada'
 
   return (
     <div className="space-y-4">
+      {onPeriodChange && (
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <PeriodSelector
+            period={period}
+            onPeriodChange={onPeriodChange}
+            onPrevMonth={onPrevMonth}
+            onNextMonth={onNextMonth}
+            monthLabel={monthLabel}
+          />
+          {!isAllView && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={() => onPeriodChange('tudo')}
+            >
+              <Eye className="h-3 w-3 mr-1" />
+              Ver todas
+            </Button>
+          )}
+        </div>
+      )}
+
+      {otherMonthsCount > 0 && !isAllView && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+          <p className="text-xs text-amber-700">
+            Você tem {otherMonthsCount} {otherMonthsCount === 1 ? 'transação' : 'transações'} em
+            outros meses. Use as setas para navegar.
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="border-none shadow-subtle bg-[#F0FDF4] rounded-2xl">
           <CardContent className="p-5 flex items-center justify-between">
@@ -100,7 +147,7 @@ export function DashboardSummary({
           <CardContent className="p-5 flex items-center justify-between">
             <div>
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block">
-                Saldo do mês
+                {isAllView ? 'Saldo geral' : 'Saldo do mês'}
               </span>
               <span className="text-2xl font-extrabold text-blue-700 transition-all duration-300">
                 <AnimatedCounter value={saldo} format={formatBRL} />

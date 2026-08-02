@@ -187,6 +187,7 @@ export interface TransactionRecord {
   is_fixed: boolean
   source: TransactionSource
   invoice_item_id?: string | null
+  status?: 'pending' | 'paid'
   created: string
   updated: string
   expand?: {

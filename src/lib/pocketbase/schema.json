@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-02T15:14:18.402Z",
+  "generatedAt": "2026-08-02T19:41:07.481Z",
   "collections": [
     {
       "name": "users",
@@ -513,6 +513,13 @@
           "required": false,
           "system": false,
           "collectionRef": "invoice_items"
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["pending", "paid"]
         }
       ],
       "indexes": [

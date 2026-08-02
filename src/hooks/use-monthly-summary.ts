@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRealtime } from '@/hooks/use-realtime'
-import { getTransactionsByFamilyAndMonth } from '@/services/transactions'
+import {
+  getTransactionsByFamilyAndPeriod,
+  getTransactionsCountOutsideRange,
+} from '@/services/transactions'
+import { getPeriodRange, type PeriodType } from '@/lib/period-utils'
 import type { TransactionRecord } from '@/types/finance'
 
 export interface MemberSummary {
@@ -19,28 +23,47 @@ export interface MonthlySummary {
   memberSummaries: Record<string, MemberSummary>
 }
 
-export function useMonthlySummary(familyId: string | undefined, year: number, month: number) {
+export function useMonthlySummary(
+  familyId: string | undefined,
+  year: number,
+  month: number,
+  period: PeriodType = 'mes',
+) {
   const [transactions, setTransactions] = useState<TransactionRecord[]>([])
+  const [otherMonthsCount, setOtherMonthsCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
     if (!familyId) {
       setTransactions([])
+      setOtherMonthsCount(0)
       setLoading(false)
       return
     }
     setLoading(true)
     setError(null)
     try {
-      const data = await getTransactionsByFamilyAndMonth(familyId, year, month)
+      const range = getPeriodRange(period, year, month)
+      const data = await getTransactionsByFamilyAndPeriod(familyId, range.startDate, range.endDate)
       setTransactions(data)
+
+      if (period === 'tudo' || !range.startDate || !range.endDate) {
+        setOtherMonthsCount(0)
+      } else {
+        const count = await getTransactionsCountOutsideRange(
+          familyId,
+          range.startDate,
+          range.endDate,
+        )
+        setOtherMonthsCount(count)
+      }
     } catch {
       setError('Erro ao carregar resumo. Tente novamente.')
     } finally {
       setLoading(false)
     }
-  }, [familyId, year, month])
+  }, [familyId, year, month, period])
 
   useEffect(() => {
     loadData()
@@ -87,5 +110,5 @@ export function useMonthlySummary(familyId: string | undefined, year: number, mo
     return { totalReceitas, totalDespesas, saldo, porcentagemGasta, memberSummaries }
   }, [transactions])
 
-  return { summary, transactions, loading, error, refetch: loadData }
+  return { summary, transactions, loading, error, refetch: loadData, otherMonthsCount }
 }
