@@ -2,143 +2,285 @@ routerAdd(
   'POST',
   '/backend/v1/convert-invoice-items',
   (e) => {
-    var body = e.requestInfo().body || {}
-    var invoiceId = body.invoice_id || ''
-    var itemIds = body.invoice_item_ids || []
-    if (!invoiceId) return e.badRequestError('ID da fatura é obrigatório')
-    if (!Array.isArray(itemIds) || itemIds.length === 0)
-      return e.badRequestError('Nenhum item fornecido')
+    var failedItemId = ''
+    var totalItems = 0
 
-    var invoice = null
     try {
-      invoice = $app.findRecordById('invoices', invoiceId)
-    } catch (_) {
-      return e.badRequestError('Fatura não encontrada')
-    }
+      var body = e.requestInfo().body || {}
+      var invoiceId = body.invoice_id || ''
+      var itemIds = body.invoice_item_ids || []
+      if (!invoiceId) return e.badRequestError('ID da fatura é obrigatório')
+      if (!Array.isArray(itemIds) || itemIds.length === 0)
+        return e.badRequestError('Nenhum item fornecido')
 
-    var cardId = invoice.getString('card_id')
-    var familyId = invoice.getString('family_id')
-    var card = null
-    try {
-      card = $app.findRecordById('credit_cards', cardId)
-    } catch (_) {
-      return e.badRequestError('Cartão não encontrado')
-    }
-    var ownerId = card.getString('owner_id')
-    if (!ownerId) return e.badRequestError('Cartão não tem proprietário')
+      totalItems = itemIds.length
 
-    var txCol = $app.findCollectionByNameOrId('transactions')
-    var count = 0
-    var errors = []
-
-    for (var i = 0; i < itemIds.length; i++) {
-      var item = null
+      var invoice = null
       try {
-        item = $app.findRecordById('invoice_items', itemIds[i])
-      } catch (findErr) {
+        invoice = $app.findRecordById('invoices', invoiceId)
+      } catch (_) {
+        return e.badRequestError('Fatura não encontrada')
+      }
+
+      var cardId = invoice.getString('card_id')
+      var familyId = invoice.getString('family_id')
+
+      var card = null
+      try {
+        card = $app.findRecordById('credit_cards', cardId)
+      } catch (_) {
+        return e.badRequestError('Cartão não encontrado')
+      }
+      var ownerId = card.getString('owner_id')
+      if (!ownerId) return e.badRequestError('Cartão não tem proprietário')
+
+      if (!familyId) throw new Error('family_id is missing from invoice record')
+
+      var txCol = $app.findCollectionByNameOrId('transactions')
+      var count = 0
+      var errors = []
+      var batchSize = 10
+
+      for (var batchStart = 0; batchStart < itemIds.length; batchStart += batchSize) {
+        var batchEnd = Math.min(batchStart + batchSize, itemIds.length)
+        var batchNum = Math.floor(batchStart / batchSize) + 1
+        var totalBatches = Math.ceil(itemIds.length / batchSize)
+
         $app
           .logger()
-          .error(
-            'convert-invoice-items: item not found',
-            'item_id',
-            itemIds[i],
-            'error',
-            String(findErr),
+          .info(
+            'CONVERT_INVOICE_ITEMS: processing batch ' +
+              batchNum +
+              ' of ' +
+              totalBatches +
+              ', items ' +
+              (batchStart + 1) +
+              '-' +
+              batchEnd +
+              ' of ' +
+              totalItems,
           )
-        errors.push({ item_id: itemIds[i], error: 'Item não encontrado' })
-        continue
-      }
 
-      if (item.getString('converted_transaction_id')) {
-        $app
-          .logger()
-          .info('convert-invoice-items: skipping already converted item', 'item_id', itemIds[i])
-        continue
-      }
+        for (var j = batchStart; j < batchEnd; j++) {
+          var itemId = itemIds[j]
+          failedItemId = itemId
 
-      var catId =
-        item.getString('confirmed_category_id') || item.getString('suggested_category_id') || ''
+          var item = null
+          try {
+            item = $app.findRecordById('invoice_items', itemId)
+          } catch (findErr) {
+            $app
+              .logger()
+              .error(
+                'CONVERT_INVOICE_ITEMS: item not found',
+                'item_id',
+                itemId,
+                'error',
+                String(findErr),
+              )
+            errors.push({ item_id: itemId, error: 'Item não encontrado', index: j })
+            continue
+          }
 
-      var tx = new Record(txCol)
-      tx.set('family_id', familyId)
-      tx.set('owner_id', ownerId)
-      if (catId) {
-        tx.set('category_id', catId)
-      }
-      tx.set('type', 'expense')
-      tx.set('amount', item.get('amount'))
-      tx.set('description', item.getString('description'))
-      var txDate = item.getString('transaction_date')
-      if (!txDate) txDate = invoice.getString('month_ref')
-      tx.set('transaction_date', txDate)
-      tx.set('is_shared', false)
-      tx.set('is_fixed', false)
-      tx.set('source', 'invoice_import')
-      tx.set('invoice_item_id', item.getId())
+          if (item.getString('converted_transaction_id')) {
+            $app
+              .logger()
+              .info('CONVERT_INVOICE_ITEMS: skipping already converted item', 'item_id', itemId)
+            continue
+          }
 
-      try {
-        if (catId) {
-          $app.save(tx)
-        } else {
-          $app.saveNoValidate(tx)
+          var catId =
+            item.getString('confirmed_category_id') || item.getString('suggested_category_id') || ''
+
+          var amount = item.get('amount')
+          if (typeof amount === 'string') {
+            amount = parseFloat(amount)
+          }
+          if (typeof amount !== 'number' || isNaN(amount)) {
+            $app
+              .logger()
+              .error(
+                'CONVERT_INVOICE_ITEMS: invalid amount type',
+                'item_id',
+                itemId,
+                'amount_raw',
+                String(item.get('amount')),
+                'amount_type',
+                typeof item.get('amount'),
+              )
+            errors.push({
+              item_id: itemId,
+              error: 'Valor inválido (esperado número): ' + String(item.get('amount')),
+              index: j,
+            })
+            continue
+          }
+
+          var description = item.getString('description') || ''
+          if (!description) {
+            $app.logger().error('CONVERT_INVOICE_ITEMS: missing description', 'item_id', itemId)
+            errors.push({ item_id: itemId, error: 'Descrição ausente', index: j })
+            continue
+          }
+
+          var txDate = item.getString('transaction_date') || ''
+          if (!txDate) {
+            txDate = invoice.getString('month_ref')
+          }
+          if (!txDate) {
+            $app
+              .logger()
+              .error('CONVERT_INVOICE_ITEMS: missing transaction_date', 'item_id', itemId)
+            errors.push({ item_id: itemId, error: 'Data da transação ausente', index: j })
+            continue
+          }
+
+          $app
+            .logger()
+            .info(
+              'CONVERT_INVOICE_ITEMS: creating transaction for item ' + itemId,
+              'payload_description',
+              description,
+              'payload_amount',
+              String(amount),
+              'payload_transaction_date',
+              txDate,
+              'payload_category_id',
+              catId || '(none)',
+              'payload_family_id',
+              familyId,
+              'payload_type',
+              'expense',
+              'payload_owner_id',
+              ownerId,
+              'payload_invoice_item_id',
+              itemId,
+              'payload_source',
+              'invoice_import',
+            )
+
+          var tx = new Record(txCol)
+          tx.set('family_id', familyId)
+          tx.set('owner_id', ownerId)
+          if (catId) {
+            tx.set('category_id', catId)
+          }
+          tx.set('type', 'expense')
+          tx.set('amount', amount)
+          tx.set('description', description)
+          tx.set('transaction_date', txDate)
+          tx.set('is_shared', false)
+          tx.set('is_fixed', false)
+          tx.set('source', 'invoice_import')
+          tx.set('invoice_item_id', itemId)
+
+          try {
+            $app.save(tx)
+          } catch (saveErr) {
+            $app
+              .logger()
+              .error(
+                'CONVERT_INVOICE_ITEMS: failed to create transaction',
+                'item_id',
+                itemId,
+                'error',
+                String(saveErr),
+                'description',
+                description,
+                'amount',
+                String(amount),
+                'category_id',
+                catId || '(none)',
+                'family_id',
+                familyId,
+                'owner_id',
+                ownerId,
+                'invoice_id',
+                invoiceId,
+                'transaction_date',
+                txDate,
+              )
+            errors.push({
+              item_id: itemId,
+              error: String(saveErr.message || saveErr),
+              index: j,
+            })
+            continue
+          }
+
+          item.set('converted_transaction_id', tx.getId())
+          item.set('is_confirmed', true)
+          if (catId) {
+            item.set('confirmed_category_id', catId)
+          }
+          try {
+            $app.save(item)
+          } catch (itemSaveErr) {
+            $app
+              .logger()
+              .error(
+                'CONVERT_INVOICE_ITEMS: failed to update item',
+                'item_id',
+                itemId,
+                'error',
+                String(itemSaveErr),
+              )
+          }
+          count++
         }
-      } catch (saveErr) {
-        $app
-          .logger()
-          .error(
-            'convert-invoice-items: failed to create transaction',
-            'item_id',
-            itemIds[i],
-            'error',
-            String(saveErr),
-            'description',
-            item.getString('description'),
-            'amount',
-            item.get('amount'),
-            'category_id',
-            catId,
-            'family_id',
-            familyId,
-            'owner_id',
-            ownerId,
-            'invoice_id',
-            invoiceId,
-          )
-        errors.push({ item_id: itemIds[i], error: String(saveErr.message || saveErr) })
-        continue
       }
 
-      item.set('converted_transaction_id', tx.getId())
-      item.set('is_confirmed', true)
-      if (catId) {
-        item.set('confirmed_category_id', catId)
-      }
+      failedItemId = ''
+
+      invoice.set('status', 'reviewed')
       try {
-        $app.save(item)
-      } catch (itemSaveErr) {
+        $app.save(invoice)
+      } catch (invErr) {
         $app
           .logger()
-          .error(
-            'convert-invoice-items: failed to update item',
-            'item_id',
-            itemIds[i],
-            'error',
-            String(itemSaveErr),
-          )
+          .error('CONVERT_INVOICE_ITEMS: failed to update invoice status', 'error', String(invErr))
       }
-      count++
-    }
 
-    invoice.set('status', 'reviewed')
-    try {
-      $app.save(invoice)
-    } catch (invErr) {
       $app
         .logger()
-        .error('convert-invoice-items: failed to update invoice status', 'error', String(invErr))
-    }
+        .info(
+          'CONVERT_INVOICE_ITEMS: completed successfully',
+          'total_items',
+          String(totalItems),
+          'converted',
+          String(count),
+          'errors_count',
+          String(errors.length),
+        )
 
-    return e.json(200, { success: true, count: count, errors: errors })
+      return e.json(200, {
+        success: true,
+        count: count,
+        errors: errors,
+        total: totalItems,
+      })
+    } catch (err) {
+      $app.logger().error('CONVERT_INVOICE_ITEMS: erro = ' + err.toString())
+      $app
+        .logger()
+        .error(
+          'CONVERT_INVOICE_ITEMS: failure context',
+          'total_items',
+          String(totalItems),
+          'failed_item',
+          failedItemId,
+          'error',
+          String(err),
+          'stack',
+          String(err.stack || ''),
+        )
+      return e.json(400, {
+        message: String(err.message || err),
+        error: String(err.message || err),
+        stack: String(err.stack || ''),
+        failed_item: failedItemId,
+      })
+    }
   },
   $apis.requireAuth(),
 )

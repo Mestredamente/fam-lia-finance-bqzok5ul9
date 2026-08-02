@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CheckCircle2, Loader2, Sparkles, X } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader2, Sparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -21,6 +21,7 @@ interface Props {
   selectedCategoryId: string
   onCategoryChange: (itemId: string, categoryId: string) => void
   onConvert: (itemId: string) => Promise<void>
+  isFailed?: boolean
 }
 
 export function InvoiceItemRow({
@@ -29,6 +30,7 @@ export function InvoiceItemRow({
   selectedCategoryId,
   onCategoryChange,
   onConvert,
+  isFailed,
 }: Props) {
   const [converting, setConverting] = useState(false)
 
@@ -58,11 +60,13 @@ export function InvoiceItemRow({
     <div
       className={cn(
         'p-4 rounded-xl border transition-all',
-        isConverted
-          ? 'bg-emerald-50/50 border-emerald-200'
-          : !hasCategory
-            ? 'bg-white border-yellow-400 border-2'
-            : 'bg-white border-gray-200',
+        isFailed
+          ? 'bg-red-50 border-red-400 border-2'
+          : isConverted
+            ? 'bg-emerald-50/50 border-emerald-200'
+            : !hasCategory
+              ? 'bg-white border-yellow-400 border-2'
+              : 'bg-white border-gray-200',
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -73,6 +77,12 @@ export function InvoiceItemRow({
               <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-xs gap-0.5">
                 <CheckCircle2 className="h-3 w-3" />
                 Convertido
+              </Badge>
+            )}
+            {isFailed && (
+              <Badge className="bg-red-100 text-red-700 hover:bg-red-100 text-xs gap-0.5 border border-red-300">
+                <AlertCircle className="h-3 w-3" />
+                Erro na conversão
               </Badge>
             )}
           </div>

@@ -11,6 +11,7 @@ import {
   Trash2,
   Layers,
 } from 'lucide-react'
+import { ClientResponseError } from 'pocketbase'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAnnouncer } from '@/hooks/use-announcer'
@@ -63,6 +64,7 @@ export default function InvoiceReview() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [categoryOverrides, setCategoryOverrides] = useState<Record<string, string>>({})
   const [lastSelectedCategory, setLastSelectedCategory] = useState('')
+  const [failedItemIds, setFailedItemIds] = useState<string[]>([])
 
   const { items, loading: itemsLoading, error: itemsError, refetch } = useInvoiceItems(invoiceId)
   const { categories } = useCategories(family?.id)
@@ -122,6 +124,7 @@ export default function InvoiceReview() {
   const handleCategoryChange = (itemId: string, categoryId: string) => {
     setCategoryOverrides((prev) => ({ ...prev, [itemId]: categoryId }))
     if (categoryId) setLastSelectedCategory(categoryId)
+    setFailedItemIds((prev) => prev.filter((id) => id !== itemId))
     updateInvoiceItem(itemId, { confirmed_category_id: categoryId || '' }).catch(() => {})
   }
 
@@ -150,6 +153,7 @@ export default function InvoiceReview() {
   const handleConvert = async (itemId: string) => {
     if (!invoiceId) return
     const catId = itemCategories[itemId] || ''
+    setFailedItemIds((prev) => prev.filter((id) => id !== itemId))
     try {
       await updateInvoiceItem(itemId, {
         confirmed_category_id: catId || '',
@@ -158,13 +162,24 @@ export default function InvoiceReview() {
       await convertInvoiceItems(invoiceId, [itemId])
       toast({ title: 'Item convertido em transação' })
     } catch (err) {
-      const errMsg = getErrorMessage(err)
+      let errorMsg = getErrorMessage(err)
+      if (err instanceof ClientResponseError) {
+        const resp = err.response as Record<string, unknown>
+        errorMsg = (resp?.error as string) || (resp?.message as string) || err.message
+        console.error('Convert error for item', itemId, {
+          status: err.status,
+          body: resp,
+          failed_item: resp?.failed_item,
+        })
+      } else {
+        console.error('Convert error for item', itemId, err)
+      }
+      setFailedItemIds((prev) => [...new Set([...prev, itemId])])
       toast({
         variant: 'destructive',
         title: 'Erro ao converter item',
-        description: errMsg,
+        description: errorMsg,
       })
-      console.error('Convert error for item', itemId, err)
     }
   }
 
@@ -198,21 +213,46 @@ export default function InvoiceReview() {
       )
       const result = await convertInvoiceItems(invoiceId, convertible)
       if (result.errors && result.errors.length > 0) {
+        const failedIds = result.errors
+          .map((e: { item_id?: string }) => e.item_id)
+          .filter((id): id is string => !!id)
+        setFailedItemIds(failedIds)
         toast({
           variant: 'destructive',
           title: `${result.count} convertidos, ${result.errors.length} com erro`,
           description: result.errors.map((e: { error: string }) => e.error).join(', '),
         })
+        console.error('Convert partial failure', {
+          status: 200,
+          body: result,
+          failed_items: failedIds,
+        })
       } else {
+        setFailedItemIds([])
         toast({ title: `${result.count} itens convertidos em transações` })
       }
     } catch (err) {
+      let errorMsg = getErrorMessage(err)
+      let failedItems: string[] = []
+      if (err instanceof ClientResponseError) {
+        const resp = err.response as Record<string, unknown>
+        errorMsg = (resp?.error as string) || (resp?.message as string) || err.message
+        const failedItem = resp?.failed_item as string
+        if (failedItem) failedItems = [failedItem]
+        console.error('Convert all error', {
+          status: err.status,
+          body: resp,
+          failed_item: failedItem,
+        })
+      } else {
+        console.error('Convert all error', err)
+      }
+      setFailedItemIds(failedItems)
       toast({
         variant: 'destructive',
         title: 'Erro ao converter itens',
-        description: getErrorMessage(err),
+        description: errorMsg,
       })
-      console.error('Convert all error', err)
     } finally {
       setConvertingAll(false)
     }
@@ -478,6 +518,7 @@ export default function InvoiceReview() {
                       selectedCategoryId={itemCategories[item.id] || ''}
                       onCategoryChange={handleCategoryChange}
                       onConvert={handleConvert}
+                      isFailed={failedItemIds.includes(item.id)}
                     />
                   ))}
                 </div>
@@ -496,6 +537,7 @@ export default function InvoiceReview() {
                       selectedCategoryId={itemCategories[item.id] || ''}
                       onCategoryChange={handleCategoryChange}
                       onConvert={handleConvert}
+                      isFailed={failedItemIds.includes(item.id)}
                     />
                   ))}
                 </div>
