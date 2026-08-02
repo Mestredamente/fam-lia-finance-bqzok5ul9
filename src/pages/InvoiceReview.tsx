@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   FileCheck,
   AlertCircle,
+  Trash2,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -21,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { InvoiceItemRow } from '@/components/InvoiceItemRow'
+import { DeleteInvoiceDialog } from '@/components/DeleteInvoiceDialog'
 import { formatBRL, getMonthName, cn } from '@/lib/utils'
 import { getParseStatus } from '@/lib/invoice-utils'
 import { toast } from '@/hooks/use-toast'
@@ -43,6 +45,7 @@ export default function InvoiceReview() {
   const [reparsing, setReparsing] = useState(false)
   const [convertingAll, setConvertingAll] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const { items, loading: itemsLoading, error: itemsError, refetch } = useInvoiceItems(invoiceId)
   const { categories } = useCategories(family?.id)
@@ -187,6 +190,14 @@ export default function InvoiceReview() {
             <Badge className={cn('text-[10px]', statusInfo.className)}>{statusInfo.label}</Badge>
           </div>
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setShowDeleteDialog(true)}
+          className="text-red-500 hover:text-red-600 hover:bg-red-50"
+        >
+          <Trash2 className="h-5 w-5" />
+        </Button>
       </div>
 
       <Card className="rounded-2xl border-gray-100 shadow-subtle">
@@ -390,6 +401,14 @@ export default function InvoiceReview() {
           )}
         </>
       )}
+
+      <DeleteInvoiceDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        invoiceId={invoiceId ?? ''}
+        monthLabel={`${getMonthName(monthDate.getMonth())} ${monthDate.getFullYear()}`}
+        onSuccess={() => navigate(`/cards/${cardId}`)}
+      />
     </div>
   )
 }

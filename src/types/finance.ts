@@ -184,6 +184,7 @@ export interface TransactionRecord {
   is_shared: boolean
   is_fixed: boolean
   source: TransactionSource
+  invoice_item_id?: string | null
   created: string
   updated: string
   expand?: {
@@ -236,7 +237,7 @@ export interface InvoiceRecord {
   owner_id: string
   month_ref: string
   total_amount: number
-  status: 'pending' | 'reviewed' | 'paid'
+  status: 'pending' | 'reviewed' | 'paid' | 'parsed' | 'error'
   raw_file_url: string
   parsed_data: string
   parsed_at: string

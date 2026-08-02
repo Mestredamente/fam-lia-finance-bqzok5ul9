@@ -7,6 +7,7 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
+  Trash2,
 } from 'lucide-react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useInvoices } from '@/hooks/use-invoices'
@@ -18,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { CreditCardVisual } from '@/components/CreditCardVisual'
 import { InvoiceFormSheet } from '@/components/InvoiceFormSheet'
+import { DeleteInvoiceDialog } from '@/components/DeleteInvoiceDialog'
 import { formatBRL, getMonthName, cn } from '@/lib/utils'
 import { getParseStatus, getParseError, type ParseStatus } from '@/lib/invoice-utils'
 import { toast } from '@/hooks/use-toast'
@@ -47,6 +49,7 @@ export default function CardDetail() {
   const [showInvoiceForm, setShowInvoiceForm] = useState(false)
   const [reparsingId, setReparsingId] = useState<string | null>(null)
   const [timeoutErrorIds, setTimeoutErrorIds] = useState<Set<string>>(new Set())
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
 
   const handleReparse = async (invId: string) => {
     setReparsingId(invId)
@@ -199,6 +202,19 @@ export default function CardDetail() {
                   <span className="font-bold text-sm text-gray-900 whitespace-nowrap">
                     {formatBRL(inv.total_amount)}
                   </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDeleteTarget({
+                        id: inv.id,
+                        label: `${getMonthName(monthDate.getMonth())} ${monthDate.getFullYear()}`,
+                      })
+                    }}
+                    className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                    aria-label="Excluir fatura"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </CardContent>
               </Card>
             )
@@ -222,6 +238,15 @@ export default function CardDetail() {
           onSaved={refetch}
         />
       )}
+
+      <DeleteInvoiceDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+        invoiceId={deleteTarget?.id ?? ''}
+        monthLabel={deleteTarget?.label ?? ''}
+      />
     </div>
   )
 }

@@ -54,6 +54,7 @@ routerAdd(
       tx.set('is_shared', false)
       tx.set('is_fixed', false)
       tx.set('source', 'invoice_import')
+      tx.set('invoice_item_id', item.getId())
       $app.save(tx)
 
       item.set('converted_transaction_id', tx.getId())
