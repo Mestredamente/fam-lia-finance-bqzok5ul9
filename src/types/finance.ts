@@ -165,10 +165,12 @@ export interface CategoryRecord {
   color: string
   is_fixed: boolean
   is_custom: boolean
+  created_by?: string
   created: string
   updated: string
   expand?: {
     family_id?: FamilyRecord
+    created_by?: AuthUser
   }
 }
 

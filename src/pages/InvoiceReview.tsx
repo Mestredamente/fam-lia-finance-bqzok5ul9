@@ -48,6 +48,7 @@ export default function InvoiceReview() {
   const [convertingAll, setConvertingAll] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [confirmingAll, setConfirmingAll] = useState(false)
 
   const { items, loading: itemsLoading, error: itemsError, refetch } = useInvoiceItems(invoiceId)
   const { categories } = useCategories(family?.id)
@@ -98,6 +99,27 @@ export default function InvoiceReview() {
       toast({ title: 'Item confirmado' })
     } catch {
       toast({ variant: 'destructive', title: 'Erro ao confirmar item' })
+    }
+  }
+
+  const handleConfirmAll = async () => {
+    const confirmable = unconfirmedItems.filter((i) => i.suggested_category_id)
+    if (confirmable.length === 0) return
+    setConfirmingAll(true)
+    try {
+      await Promise.all(
+        confirmable.map((item) =>
+          updateInvoiceItem(item.id, {
+            is_confirmed: true,
+            confirmed_category_id: item.suggested_category_id,
+          }),
+        ),
+      )
+      toast({ title: `${confirmable.length} itens confirmados` })
+    } catch {
+      toast({ variant: 'destructive', title: 'Erro ao confirmar itens' })
+    } finally {
+      setConfirmingAll(false)
     }
   }
 
@@ -326,9 +348,27 @@ export default function InvoiceReview() {
             <div className="space-y-6">
               {unconfirmedItems.length > 0 && (
                 <div className="space-y-2">
-                  <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    Itens não confirmados ({unconfirmedItems.length})
-                  </h2>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      Itens não confirmados ({unconfirmedItems.length})
+                    </h2>
+                    {unconfirmedItems.some((i) => i.suggested_category_id) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleConfirmAll}
+                        disabled={confirmingAll}
+                        className="h-7 text-xs"
+                      >
+                        {confirmingAll ? (
+                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                        ) : (
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                        )}
+                        Confirmar todos
+                      </Button>
+                    )}
+                  </div>{' '}
                   {unconfirmedItems.map((item) => (
                     <InvoiceItemRow
                       key={item.id}

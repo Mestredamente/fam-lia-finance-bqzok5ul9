@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { getCategoryIcon, PREDEFINED_ICONS, PREDEFINED_COLORS } from '@/lib/category-icons'
 import { createCategory } from '@/services/categories'
+import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import type { CategoryRecord, CategoryType } from '@/types/finance'
@@ -28,6 +29,7 @@ export function CategoryPicker({
   const [color, setColor] = useState(PREDEFINED_COLORS[0])
   const [icon, setIcon] = useState(PREDEFINED_ICONS[0])
   const [loading, setLoading] = useState(false)
+  const { user } = useAuth()
 
   const filtered = categories.filter((c) => c.type === type)
 
@@ -43,6 +45,7 @@ export function CategoryPicker({
         color,
         is_fixed: false,
         is_custom: true,
+        created_by: user?.id,
       })
       onSelect(created.id)
       setShowForm(false)

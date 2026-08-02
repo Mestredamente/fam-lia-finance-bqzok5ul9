@@ -30,6 +30,7 @@ const Patrimony = lazy(() => import('@/pages/Patrimony'))
 const Consultora = lazy(() => import('@/pages/Consultora'))
 const FamilyManagement = lazy(() => import('@/pages/FamilyManagement'))
 const CategorizationRules = lazy(() => import('@/pages/CategorizationRules'))
+const Categories = lazy(() => import('@/pages/Categories'))
 const Budgets = lazy(() => import('@/pages/Budgets'))
 const MonthlyEvolution = lazy(() => import('@/pages/MonthlyEvolution'))
 const Challenges = lazy(() => import('@/pages/Challenges'))
@@ -181,6 +182,10 @@ function AppInner() {
                         element={
                           <ProtectedRoute>{withSuspense(CategorizationRules)}</ProtectedRoute>
                         }
+                      />
+                      <Route
+                        path="/categorias"
+                        element={<ProtectedRoute>{withSuspense(Categories)}</ProtectedRoute>}
                       />
                       <Route
                         path="/orcamentos"

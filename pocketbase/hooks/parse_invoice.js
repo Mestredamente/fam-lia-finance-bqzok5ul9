@@ -161,7 +161,7 @@ routerAdd(
     $app.logger().info('Base64 encoded', 'payload_size', b64.length, 'invoice_id', invoiceId)
 
     var sysPrompt =
-      'Você é um assistente financeiro especializado em faturas de cartão de crédito brasileiras. Extraia TODAS as transações individuais da fatura. IGNORE cabeçalhos, rodapés, totais, taxas, juros, multas e impostos. Para cada transação, extraia: description (descrição do item, preservando notação de parcelas como "2/3"), amount (valor numérico sem "R$" ou vírgulas, use ponto decimal), date (data no formato YYYY-MM-DD, ou null se não visível). Se houver valores em moeda estrangeira com taxa de conversão visível, converta para BRL. Se não houver taxa, use o valor original. Retorne APENAS um JSON válido, sem markdown, sem texto adicional: {"items":[{"description":"string","amount":number,"date":"YYYY-MM-DD|null"}],"total_extracted":number,"currency":"BRL","confidence":"high|medium|low"}'
+      'Você é um assistente financeiro especializado em faturas de cartão de crédito brasileiras. Extraia TODAS as transações individuais da fatura. IGNORE cabeçalhos, rodapés, totais, taxas, juros, multas e impostos. Para cada transação, extraia: description (descrição do item, preservando notação de parcelas como "2/3"), amount (valor numérico sem "R$" ou vírgulas, use ponto decimal), date (data no formato YYYY-MM-DD, ou null se não visível). Se houver valores em moeda estrangeira com taxa de conversão visível, converta para BRL. Se não houver taxa, use o valor original.\n\nEstrutura esperada da resposta: { items: [ { description: string, amount: number, date: string } ] }\n\nIMPORTANTE: Não inclua markdown formatting. Não use ```json ou ```. Retorne apenas o JSON puro.\n\nResponda APENAS com JSON válido, sem markdown, sem texto explicativo, sem blocos de código. Comece com { e termine com }. Não use crases.'
 
     var geminiBody = JSON.stringify({
       contents: [
@@ -473,15 +473,65 @@ routerAdd(
         invoiceId,
       )
 
+    $app
+      .logger()
+      .info(
+        'PARSE_INVOICE: raw Gemini response (first 500 chars)',
+        'response',
+        aiContent.substring(0, 500),
+        'invoice_id',
+        invoiceId,
+      )
+    $app
+      .logger()
+      .info(
+        'PARSE_INVOICE: raw Gemini response (first 1000 chars)',
+        'response',
+        aiContent.substring(0, 1000),
+        'invoice_id',
+        invoiceId,
+      )
+
     var jsonStr = aiContent
     var cbMatch = aiContent.match(/```(?:json)?\s*([\s\S]*?)```/)
     if (cbMatch) {
-      jsonStr = cbMatch[1]
+      jsonStr = cbMatch[1].trim()
     } else {
-      var s = aiContent.indexOf('{'),
-        en = aiContent.lastIndexOf('}')
-      if (s !== -1 && en !== -1) jsonStr = aiContent.substring(s, en + 1)
+      var firstBrace = aiContent.indexOf('{')
+      var firstBracket = aiContent.indexOf('[')
+      var lastBrace = aiContent.lastIndexOf('}')
+      var lastBracket = aiContent.lastIndexOf(']')
+      var startIdx = -1
+      if (firstBrace !== -1 && firstBracket !== -1) {
+        startIdx = Math.min(firstBrace, firstBracket)
+      } else if (firstBrace !== -1) {
+        startIdx = firstBrace
+      } else {
+        startIdx = firstBracket
+      }
+      var endIdx = -1
+      if (lastBrace !== -1 && lastBracket !== -1) {
+        endIdx = Math.max(lastBrace, lastBracket)
+      } else if (lastBrace !== -1) {
+        endIdx = lastBrace
+      } else {
+        endIdx = lastBracket
+      }
+      if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+        jsonStr = aiContent.substring(startIdx, endIdx + 1)
+      }
     }
+    jsonStr = jsonStr.trim()
+
+    $app
+      .logger()
+      .info(
+        'PARSE_INVOICE: cleaned JSON before parse',
+        'json',
+        jsonStr.substring(0, 500),
+        'invoice_id',
+        invoiceId,
+      )
 
     if (!jsonStr || jsonStr.trim() === '') {
       saveError(
@@ -501,18 +551,39 @@ routerAdd(
     try {
       parsed = JSON.parse(jsonStr)
     } catch (parseErr) {
+      $app
+        .logger()
+        .error(
+          'PARSE_INVOICE: JSON.parse() error',
+          'error',
+          String(parseErr.message || parseErr),
+          'invoice_id',
+          invoiceId,
+        )
       saveError(
         invoice,
-        'JSON malformado na resposta da IA',
-        aiContent.substring(0, 2000),
+        'JSON malformado na resposta da IA: ' +
+          String(parseErr.message || parseErr).substring(0, 200),
+        aiContent,
         chosenModel,
       )
-      return jsonRes(500, {
+      return e.json(500, {
         success: false,
         error: 'JSON malformado na resposta da IA',
-        raw_error: jsonStr.substring(0, 500),
+        raw_gemini_response: aiContent,
+        diagnostics: diagInfo,
       })
     }
+
+    $app
+      .logger()
+      .info(
+        'PARSE_INVOICE: items extracted',
+        'count',
+        Array.isArray(parsed.items) ? parsed.items.length : 0,
+        'invoice_id',
+        invoiceId,
+      )
 
     if (!parsed.items || !Array.isArray(parsed.items)) {
       saveError(
@@ -571,6 +642,26 @@ routerAdd(
     for (var k = 0; k < categories.length; k++)
       catMap[categories[k].getString('name').toLowerCase()] = categories[k].getId()
 
+    var catRules = []
+    try {
+      catRules = $app.findRecordsByFilter(
+        'categorization_rules',
+        'family_id = "' + familyId + '"',
+        'created',
+        200,
+        0,
+      )
+    } catch (_) {}
+    $app
+      .logger()
+      .info(
+        'PARSE_INVOICE: categorization rules found',
+        'count',
+        catRules.length,
+        'invoice_id',
+        invoiceId,
+      )
+
     var itemsCol = $app.findCollectionByNameOrId('invoice_items')
     var itemsCreated = 0
     for (var vi = 0; vi < validItems.length; vi++) {
@@ -583,12 +674,35 @@ routerAdd(
         ir.set('amount', vItem.amount)
         if (vItem.date) ir.set('transaction_date', vItem.date)
         var lowerDesc = vItem.description.toLowerCase()
-        for (var catKey in catMap) {
-          if (lowerDesc.indexOf(catKey) !== -1) {
-            ir.set('suggested_category_id', catMap[catKey])
-            break
+        var suggestedCat = null
+
+        for (var ri2 = 0; ri2 < catRules.length; ri2++) {
+          var ruleKeyword = catRules[ri2].getString('keyword').toLowerCase()
+          var ruleType = catRules[ri2].getString('match_type')
+          var ruleCatId = catRules[ri2].getString('category_id')
+          if (ruleType === 'starts_with') {
+            if (lowerDesc.indexOf(ruleKeyword) === 0) {
+              suggestedCat = ruleCatId
+              break
+            }
+          } else {
+            if (lowerDesc.indexOf(ruleKeyword) !== -1) {
+              suggestedCat = ruleCatId
+              break
+            }
           }
         }
+
+        if (!suggestedCat) {
+          for (var catKey in catMap) {
+            if (lowerDesc.indexOf(catKey) !== -1) {
+              suggestedCat = catMap[catKey]
+              break
+            }
+          }
+        }
+
+        if (suggestedCat) ir.set('suggested_category_id', suggestedCat)
         ir.set('is_confirmed', false)
         $app.save(ir)
         itemsCreated++

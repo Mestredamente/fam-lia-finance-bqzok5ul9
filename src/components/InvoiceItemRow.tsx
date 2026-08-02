@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, CheckCircle2, Loader2 } from 'lucide-react'
+import { Check, CheckCircle2, Loader2, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -78,6 +78,12 @@ export function InvoiceItemRow({ item, categories, onConfirm, onConvert }: Props
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-xs text-gray-500">{dateStr}</span>
+            {item.suggested_category_id && !item.is_confirmed && (
+              <Badge className="bg-blue-50 text-blue-600 hover:bg-blue-50 text-[10px] gap-0.5 border border-blue-200">
+                <Sparkles className="h-2.5 w-2.5" />
+                Auto
+              </Badge>
+            )}
             {activeCat && !item.is_confirmed && (
               <Badge
                 variant="outline"

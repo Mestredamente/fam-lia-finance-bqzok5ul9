@@ -43,7 +43,7 @@ const ADMIN_ROLES = ['husband', 'wife', 'partner']
 
 export default function CategorizationRules() {
   const navigate = useNavigate()
-  const { family, member } = useAuth()
+  const { family, member, user } = useAuth()
   const { rules, loading, refetch } = useCategorizationRules(family?.id)
   const { categories } = useCategories(family?.id)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -82,6 +82,7 @@ export default function CategorizationRules() {
         keyword: keyword.trim(),
         category_id: categoryId,
         match_type: matchType,
+        created_by: user?.id,
       }
       if (editingId) {
         await updateRule(editingId, data)
@@ -123,11 +124,16 @@ export default function CategorizationRules() {
           <h1 className="text-2xl font-bold text-gray-900">Regras de Categorização</h1>
           <p className="text-xs text-gray-500">Categorização automática de transações</p>
         </div>
-        {isAdmin && (
-          <Button size="sm" onClick={openCreate} className="bg-[#166534] hover:bg-[#15803D]">
-            <Plus className="h-4 w-4 mr-1.5" /> Nova regra
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => navigate('/categorias')}>
+            <Tag className="h-4 w-4 mr-1.5" /> Categorias
           </Button>
-        )}
+          {isAdmin && (
+            <Button size="sm" onClick={openCreate} className="bg-[#166534] hover:bg-[#15803D]">
+              <Plus className="h-4 w-4 mr-1.5" /> Nova regra
+            </Button>
+          )}
+        </div>
       </div>
 
       {loading ? (
