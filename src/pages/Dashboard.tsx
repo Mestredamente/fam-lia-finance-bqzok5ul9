@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Sparkles } from 'lucide-react'
+import { Plus, Sparkles, Eye } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useMonthlySummary } from '@/hooks/use-monthly-summary'
+import { PeriodSelector } from '@/components/PeriodSelector'
+import { type PeriodType } from '@/lib/period-utils'
 import { Button } from '@/components/ui/button'
 import { MemberDetailSheet } from '@/components/MemberDetailSheet'
 import { InviteCodeDialog } from '@/components/InviteCodeDialog'
@@ -31,6 +33,7 @@ export default function Dashboard() {
   const [defaultIsFixed, setDefaultIsFixed] = useState(false)
   const [showScenarioModal, setShowScenarioModal] = useState(false)
   const [scenarioTab, setScenarioTab] = useState<string | undefined>(undefined)
+  const [period, setPeriod] = useState<PeriodType>('mes')
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -41,7 +44,8 @@ export default function Dashboard() {
     loading,
     error,
     refetch,
-  } = useMonthlySummary(family?.id, year, month)
+    otherMonthsCount,
+  } = useMonthlySummary(family?.id, year, month, period)
 
   const loadMembers = useCallback(async () => {
     if (!family) return
@@ -124,25 +128,26 @@ export default function Dashboard() {
       <DashboardInstallBanner />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold text-gray-900">Resumo Financeiro</h1>
-        <div className="flex items-center gap-1 sm:gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <span className="text-sm font-semibold text-gray-700 min-w-[110px] text-center">
-            {getMonthName(month)} {year}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => canGoForward() && setCurrentDate(new Date(year, month + 1, 1))}
-            disabled={!canGoForward()}
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
+        <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+          <PeriodSelector
+            period={period}
+            onPeriodChange={setPeriod}
+            onPrevMonth={() => setCurrentDate(new Date(year, month - 1, 1))}
+            onNextMonth={() => canGoForward() && setCurrentDate(new Date(year, month + 1, 1))}
+            nextDisabled={!canGoForward()}
+            monthLabel={`${getMonthName(month)} ${year}`}
+          />
+          {period !== 'tudo' && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={() => setPeriod('tudo')}
+            >
+              <Eye className="h-3 w-3 mr-1" />
+              Ver todas
+            </Button>
+          )}
           <div className="hidden sm:flex items-center gap-2 ml-2">
             <ExportButton transactions={monthTransactions} month={month} year={year} />
             <Button variant="outline" size="sm" onClick={() => openScenario()}>
@@ -172,6 +177,15 @@ export default function Dashboard() {
         error={error}
         onRetry={refetch}
       />
+
+      {otherMonthsCount > 0 && period !== 'tudo' && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+          <p className="text-xs text-amber-700">
+            Você tem {otherMonthsCount} {otherMonthsCount === 1 ? 'transação' : 'transações'} em
+            outros meses. Use as setas para navegar.
+          </p>
+        </div>
+      )}
 
       <OverviewGrid
         familyId={family.id}

@@ -60,7 +60,8 @@ export const parseInvoice = (invoiceId: string) => {
 interface ConvertResult {
   success: boolean
   count: number
-  errors?: Array<{ item_id: string; error: string }>
+  failed?: number
+  errors?: Array<{ item_id: string; description?: string; error: string }>
 }
 
 export const convertInvoiceItems = (invoiceId: string, itemIds: string[]) =>

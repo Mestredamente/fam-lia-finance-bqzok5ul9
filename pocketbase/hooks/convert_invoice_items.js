@@ -78,7 +78,12 @@ routerAdd(
                 'error',
                 String(findErr),
               )
-            errors.push({ item_id: itemId, error: 'Item não encontrado', index: j })
+            errors.push({
+              item_id: itemId,
+              description: '',
+              error: 'Item não encontrado',
+              index: j,
+            })
             continue
           }
 
@@ -110,6 +115,7 @@ routerAdd(
               )
             errors.push({
               item_id: itemId,
+              description: item.getString('description') || '',
               error: 'Valor inválido (esperado número): ' + String(item.get('amount')),
               index: j,
             })
@@ -119,7 +125,7 @@ routerAdd(
           var description = item.getString('description') || ''
           if (!description) {
             $app.logger().error('CONVERT_INVOICE_ITEMS: missing description', 'item_id', itemId)
-            errors.push({ item_id: itemId, error: 'Descrição ausente', index: j })
+            errors.push({ item_id: itemId, description: '', error: 'Descrição ausente', index: j })
             continue
           }
 
@@ -192,7 +198,12 @@ routerAdd(
                 'item_id',
                 itemId,
               )
-            errors.push({ item_id: itemId, error: 'Data da transação ausente', index: j })
+            errors.push({
+              item_id: itemId,
+              description: description,
+              error: 'Data da transação ausente',
+              index: j,
+            })
             continue
           }
 
@@ -266,6 +277,7 @@ routerAdd(
               )
             errors.push({
               item_id: itemId,
+              description: description,
               error: String(saveErr.message || saveErr),
               index: j,
             })
@@ -318,8 +330,9 @@ routerAdd(
         )
 
       return e.json(200, {
-        success: true,
+        success: errors.length === 0,
         count: count,
+        failed: errors.length,
         errors: errors,
         total: totalItems,
       })

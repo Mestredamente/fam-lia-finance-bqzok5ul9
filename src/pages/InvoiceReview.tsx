@@ -67,6 +67,9 @@ export default function InvoiceReview() {
   const [categoryOverrides, setCategoryOverrides] = useState<Record<string, string>>({})
   const [lastSelectedCategory, setLastSelectedCategory] = useState('')
   const [failedItemIds, setFailedItemIds] = useState<string[]>([])
+  const [failedItemsDetail, setFailedItemsDetail] = useState<
+    Array<{ item_id: string; description: string; error: string }>
+  >([])
   const [deletedItemIds, setDeletedItemIds] = useState<string[]>([])
   const [parsingSeconds, setParsingSeconds] = useState(0)
   const [parseError, setParseError] = useState<string | null>(null)
@@ -164,6 +167,7 @@ export default function InvoiceReview() {
     setCategoryOverrides((prev) => ({ ...prev, [itemId]: categoryId }))
     if (categoryId) setLastSelectedCategory(categoryId)
     setFailedItemIds((prev) => prev.filter((id) => id !== itemId))
+    setFailedItemsDetail((prev) => prev.filter((d) => d.item_id !== itemId))
   }, [])
 
   const handleDelete = useCallback((itemId: string) => {
@@ -195,13 +199,28 @@ export default function InvoiceReview() {
       if (!invoiceId) return
       const catId = itemCategoriesRef.current[itemId] || ''
       setFailedItemIds((prev) => prev.filter((id) => id !== itemId))
+      setFailedItemsDetail((prev) => prev.filter((d) => d.item_id !== itemId))
       try {
         await updateInvoiceItem(itemId, {
           confirmed_category_id: catId || '',
           is_confirmed: true,
         })
-        await convertInvoiceItems(invoiceId, [itemId])
-        toast({ title: 'Item convertido em transação' })
+        const result = await convertInvoiceItems(invoiceId, [itemId])
+        if (result.errors && result.errors.length > 0) {
+          const err = result.errors[0]
+          setFailedItemIds((prev) => [...new Set([...prev, itemId])])
+          setFailedItemsDetail((prev) => [
+            ...prev.filter((d) => d.item_id !== itemId),
+            { item_id: itemId, description: err.description || '', error: err.error },
+          ])
+          toast({
+            variant: 'destructive',
+            title: 'Erro ao converter item',
+            description: err.error,
+          })
+        } else {
+          toast({ title: 'Item convertido em transação' })
+        }
       } catch (err) {
         let errorMsg = getErrorMessage(err)
         if (err instanceof ClientResponseError) {
@@ -217,6 +236,10 @@ export default function InvoiceReview() {
           console.error('Convert error for item', itemId, err)
         }
         setFailedItemIds((prev) => [...new Set([...prev, itemId])])
+        setFailedItemsDetail((prev) => [
+          ...prev.filter((d) => d.item_id !== itemId),
+          { item_id: itemId, description: '', error: errorMsg },
+        ])
         toast({
           variant: 'destructive',
           title: 'Erro ao converter item',
@@ -261,9 +284,16 @@ export default function InvoiceReview() {
           .map((e: { item_id?: string }) => e.item_id)
           .filter((id): id is string => !!id)
         setFailedItemIds(failedIds)
+        setFailedItemsDetail(
+          result.errors.map((e: { item_id: string; description?: string; error: string }) => ({
+            item_id: e.item_id,
+            description: e.description || '',
+            error: e.error,
+          })),
+        )
         toast({
           variant: 'destructive',
-          title: `${result.count} convertidos, ${result.errors.length} com erro`,
+          title: `${result.count} transações criadas, ${result.errors.length} falharam`,
           description: result.errors.map((e: { error: string }) => e.error).join(', '),
         })
         console.error('Convert partial failure', {
@@ -273,6 +303,7 @@ export default function InvoiceReview() {
         })
       } else {
         setFailedItemIds([])
+        setFailedItemsDetail([])
         toast({ title: `${result.count} itens convertidos em transações` })
       }
     } catch (err) {
@@ -299,6 +330,13 @@ export default function InvoiceReview() {
         console.error('Convert all error', err)
       }
       setFailedItemIds(failedItems)
+      setFailedItemsDetail(
+        failedItems.map((id) => ({
+          item_id: id,
+          description: activeItems.find((i) => i.id === id)?.description || '',
+          error: errorMsg,
+        })),
+      )
       toast({
         variant: 'destructive',
         title: 'Erro ao converter itens',
@@ -639,6 +677,44 @@ export default function InvoiceReview() {
                     />
                   ))}
                 </div>
+              )}
+
+              {failedItemsDetail.length > 0 && (
+                <Card className="rounded-2xl border-red-200 bg-red-50">
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-red-600" />
+                        <h3 className="text-sm font-bold text-red-900">
+                          {failedItemsDetail.length}{' '}
+                          {failedItemsDetail.length === 1 ? 'item falhou' : 'itens falharam'} na
+                          conversão
+                        </h3>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs text-red-600 hover:text-red-700"
+                        onClick={() => setFailedItemsDetail([])}
+                      >
+                        Fechar
+                      </Button>
+                    </div>
+                    <div className="space-y-1 max-h-40 overflow-y-auto">
+                      {failedItemsDetail.map((detail) => (
+                        <div
+                          key={detail.item_id}
+                          className="text-xs text-red-700 flex gap-1 flex-wrap"
+                        >
+                          <span className="font-medium shrink-0">
+                            {detail.description || detail.item_id}:
+                          </span>
+                          <span>{detail.error}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
               )}
 
               <div className="flex flex-col sm:flex-row gap-3 pt-2">

@@ -15,6 +15,7 @@ interface PeriodSelectorProps {
   onPrevMonth?: () => void
   onNextMonth?: () => void
   monthLabel?: string
+  nextDisabled?: boolean
 }
 
 export function PeriodSelector({
@@ -23,6 +24,7 @@ export function PeriodSelector({
   onPrevMonth,
   onNextMonth,
   monthLabel,
+  nextDisabled,
 }: PeriodSelectorProps) {
   const showArrows = (period === 'mes' || period === 'mes_passado') && onPrevMonth && onNextMonth
 
@@ -46,7 +48,13 @@ export function PeriodSelector({
         </SelectContent>
       </Select>
       {showArrows && (
-        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onNextMonth}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          onClick={onNextMonth}
+          disabled={nextDisabled}
+        >
           <ChevronRight className="h-4 w-4" />
         </Button>
       )}
