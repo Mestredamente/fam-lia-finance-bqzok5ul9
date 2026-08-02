@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { AlertCircle, CheckCircle2, Loader2, Sparkles, X } from 'lucide-react'
+import { memo, useState } from 'react'
+import { AlertCircle, CheckCircle2, Loader2, Sparkles, X, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -21,15 +21,35 @@ interface Props {
   selectedCategoryId: string
   onCategoryChange: (itemId: string, categoryId: string) => void
   onConvert: (itemId: string) => Promise<void>
+  onDelete: (itemId: string) => void
   isFailed?: boolean
 }
 
-export function InvoiceItemRow({
+function arePropsEqual(prev: Props, next: Props): boolean {
+  if (prev.selectedCategoryId !== next.selectedCategoryId) return false
+  if (prev.isFailed !== next.isFailed) return false
+  if (prev.categories !== next.categories) return false
+  if (prev.onCategoryChange !== next.onCategoryChange) return false
+  if (prev.onConvert !== next.onConvert) return false
+  if (prev.onDelete !== next.onDelete) return false
+  if (prev.item.id !== next.item.id) return false
+  if (prev.item.description !== next.item.description) return false
+  if (prev.item.amount !== next.item.amount) return false
+  if (prev.item.transaction_date !== next.item.transaction_date) return false
+  if (prev.item.converted_transaction_id !== next.item.converted_transaction_id) return false
+  if (prev.item.is_confirmed !== next.item.is_confirmed) return false
+  if (prev.item.suggested_category_id !== next.item.suggested_category_id) return false
+  if (prev.item.confirmed_category_id !== next.item.confirmed_category_id) return false
+  return true
+}
+
+function InvoiceItemRowComponent({
   item,
   categories,
   selectedCategoryId,
   onCategoryChange,
   onConvert,
+  onDelete,
   isFailed,
 }: Props) {
   const [converting, setConverting] = useState(false)
@@ -96,9 +116,20 @@ export function InvoiceItemRow({
             )}
           </div>
         </div>
-        <span className="font-bold text-sm text-gray-900 whitespace-nowrap">
-          {formatBRL(item.amount)}
-        </span>
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onDelete(item.id)}
+            className="h-7 w-7 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50 shrink-0"
+            aria-label="Excluir item"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+          <span className="font-bold text-sm text-gray-900 whitespace-nowrap">
+            {formatBRL(item.amount)}
+          </span>
+        </div>
       </div>
 
       {!isConverted ? (
@@ -165,3 +196,5 @@ export function InvoiceItemRow({
     </div>
   )
 }
+
+export const InvoiceItemRow = memo(InvoiceItemRowComponent, arePropsEqual)

@@ -47,7 +47,7 @@ export const deleteInvoiceCascade = (invoiceId: string) =>
 
 export const parseInvoice = (invoiceId: string) => {
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('TIMEOUT')), 120000)
+    setTimeout(() => reject(new Error('TIMEOUT')), 200000)
   })
   const requestPromise = pb.send('/backend/v1/parse-invoice', {
     method: 'POST',

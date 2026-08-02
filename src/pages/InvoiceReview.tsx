@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft,
@@ -18,7 +18,7 @@ import { useAnnouncer } from '@/hooks/use-announcer'
 import { useInvoiceItems } from '@/hooks/use-invoice-items'
 import { useCategories } from '@/hooks/use-categories'
 import { getInvoice, updateInvoice, parseInvoice, convertInvoiceItems } from '@/services/invoices'
-import { updateInvoiceItem } from '@/services/invoice-items'
+import { updateInvoiceItem, deleteInvoiceItem } from '@/services/invoice-items'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -49,6 +49,8 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   paid: { label: 'Paga', className: 'bg-green-100 text-green-700' },
 }
 
+const TIMEOUT_MESSAGE = 'Tempo limite excedido. A fatura pode ser muito grande. Tente novamente.'
+
 export default function InvoiceReview() {
   const { cardId, invoiceId } = useParams<{ cardId: string; invoiceId: string }>()
   const navigate = useNavigate()
@@ -65,6 +67,9 @@ export default function InvoiceReview() {
   const [categoryOverrides, setCategoryOverrides] = useState<Record<string, string>>({})
   const [lastSelectedCategory, setLastSelectedCategory] = useState('')
   const [failedItemIds, setFailedItemIds] = useState<string[]>([])
+  const [deletedItemIds, setDeletedItemIds] = useState<string[]>([])
+  const [parsingSeconds, setParsingSeconds] = useState(0)
+  const [parseError, setParseError] = useState<string | null>(null)
 
   const { items, loading: itemsLoading, error: itemsError, refetch } = useInvoiceItems(invoiceId)
   const { categories } = useCategories(family?.id)
@@ -86,9 +91,11 @@ export default function InvoiceReview() {
         const newStatus = e.record['status'] as string | undefined
         if (newStatus === 'parsed' && invoice?.status !== 'parsed') {
           announce('Fatura processada')
+          setParseError(null)
         }
         if (newStatus === 'error' && invoice?.status !== 'error') {
           announce('Erro ao processar fatura', 'assertive')
+          setParseError(null)
         }
         getInvoice(invoiceId)
           .then(setInvoice)
@@ -99,34 +106,70 @@ export default function InvoiceReview() {
   )
 
   const parseStatus = invoice ? getParseStatus(invoice) : 'none'
+  const isProcessing = !parseError && (parseStatus === 'processing' || reparsing)
+
+  useEffect(() => {
+    if (!isProcessing) {
+      setParsingSeconds(0)
+      return
+    }
+    const interval = setInterval(() => {
+      setParsingSeconds((s) => {
+        if (s + 1 >= 200) {
+          setParseError(TIMEOUT_MESSAGE)
+          return s + 1
+        }
+        return s + 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [isProcessing])
+
+  const activeItems = useMemo(
+    () => items.filter((i) => !deletedItemIds.includes(i.id)),
+    [items, deletedItemIds],
+  )
 
   const itemCategories = useMemo(() => {
     const cats: Record<string, string> = {}
-    items.forEach((item) => {
+    activeItems.forEach((item) => {
       cats[item.id] =
         categoryOverrides[item.id] !== undefined
           ? categoryOverrides[item.id]
           : item.confirmed_category_id || item.suggested_category_id || ''
     })
     return cats
-  }, [items, categoryOverrides])
+  }, [activeItems, categoryOverrides])
+
+  const itemCategoriesRef = useRef(itemCategories)
+  itemCategoriesRef.current = itemCategories
 
   const categorizedCount = useMemo(
     () => Object.values(itemCategories).filter(Boolean).length,
     [itemCategories],
   )
-  const totalCount = items.length
+  const totalCount = activeItems.length
   const uncategorizedCount = totalCount - categorizedCount
 
-  const unconvertedItems = useMemo(() => items.filter((i) => !i.converted_transaction_id), [items])
-  const convertedItems = useMemo(() => items.filter((i) => i.converted_transaction_id), [items])
+  const unconvertedItems = useMemo(
+    () => activeItems.filter((i) => !i.converted_transaction_id),
+    [activeItems],
+  )
+  const convertedItems = useMemo(
+    () => activeItems.filter((i) => i.converted_transaction_id),
+    [activeItems],
+  )
 
-  const handleCategoryChange = (itemId: string, categoryId: string) => {
+  const handleCategoryChange = useCallback((itemId: string, categoryId: string) => {
     setCategoryOverrides((prev) => ({ ...prev, [itemId]: categoryId }))
     if (categoryId) setLastSelectedCategory(categoryId)
     setFailedItemIds((prev) => prev.filter((id) => id !== itemId))
-    updateInvoiceItem(itemId, { confirmed_category_id: categoryId || '' }).catch(() => {})
-  }
+  }, [])
+
+  const handleDelete = useCallback((itemId: string) => {
+    setDeletedItemIds((prev) => [...prev, itemId])
+    deleteInvoiceItem(itemId).catch(() => {})
+  }, [])
 
   const handleApplyCategoryToAll = () => {
     if (!lastSelectedCategory) {
@@ -134,7 +177,7 @@ export default function InvoiceReview() {
       return
     }
     const updates: Record<string, string> = {}
-    items.forEach((item) => {
+    activeItems.forEach((item) => {
       if (!itemCategories[item.id]) {
         updates[item.id] = lastSelectedCategory
       }
@@ -144,45 +187,45 @@ export default function InvoiceReview() {
       return
     }
     setCategoryOverrides((prev) => ({ ...prev, ...updates }))
-    Object.entries(updates).forEach(([itemId, catId]) => {
-      updateInvoiceItem(itemId, { confirmed_category_id: catId }).catch(() => {})
-    })
     toast({ title: `${Object.keys(updates).length} itens categorizados` })
   }
 
-  const handleConvert = async (itemId: string) => {
-    if (!invoiceId) return
-    const catId = itemCategories[itemId] || ''
-    setFailedItemIds((prev) => prev.filter((id) => id !== itemId))
-    try {
-      await updateInvoiceItem(itemId, {
-        confirmed_category_id: catId || '',
-        is_confirmed: true,
-      })
-      await convertInvoiceItems(invoiceId, [itemId])
-      toast({ title: 'Item convertido em transação' })
-    } catch (err) {
-      let errorMsg = getErrorMessage(err)
-      if (err instanceof ClientResponseError) {
-        const resp = err.response as Record<string, unknown>
-        errorMsg = (resp?.error as string) || (resp?.message as string) || err.message
-        console.error('Convert error for item', itemId, {
-          status: err.status,
-          body: resp,
-          failed_item: resp?.failed_item,
-          failed_items: resp?.failed_items,
+  const handleConvert = useCallback(
+    async (itemId: string) => {
+      if (!invoiceId) return
+      const catId = itemCategoriesRef.current[itemId] || ''
+      setFailedItemIds((prev) => prev.filter((id) => id !== itemId))
+      try {
+        await updateInvoiceItem(itemId, {
+          confirmed_category_id: catId || '',
+          is_confirmed: true,
         })
-      } else {
-        console.error('Convert error for item', itemId, err)
+        await convertInvoiceItems(invoiceId, [itemId])
+        toast({ title: 'Item convertido em transação' })
+      } catch (err) {
+        let errorMsg = getErrorMessage(err)
+        if (err instanceof ClientResponseError) {
+          const resp = err.response as Record<string, unknown>
+          errorMsg = (resp?.error as string) || (resp?.message as string) || err.message
+          console.error('Convert error for item', itemId, {
+            status: err.status,
+            body: resp,
+            failed_item: resp?.failed_item,
+            failed_items: resp?.failed_items,
+          })
+        } else {
+          console.error('Convert error for item', itemId, err)
+        }
+        setFailedItemIds((prev) => [...new Set([...prev, itemId])])
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao converter item',
+          description: errorMsg,
+        })
       }
-      setFailedItemIds((prev) => [...new Set([...prev, itemId])])
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao converter item',
-        description: errorMsg,
-      })
-    }
-  }
+    },
+    [invoiceId],
+  )
 
   const handleConfirmAll = () => {
     if (uncategorizedCount > 0) {
@@ -203,7 +246,7 @@ export default function InvoiceReview() {
     setConvertingAll(true)
     try {
       await Promise.all(
-        items.map((item) =>
+        unconvertedItems.map((item) =>
           updateInvoiceItem(item.id, {
             confirmed_category_id: itemCategories[item.id] || '',
             is_confirmed: true,
@@ -285,11 +328,26 @@ export default function InvoiceReview() {
   const handleReparse = async () => {
     if (!invoiceId) return
     setReparsing(true)
+    setParseError(null)
+    setParsingSeconds(0)
     try {
       await parseInvoice(invoiceId)
       toast({ title: 'Processando fatura com IA...' })
-    } catch {
-      toast({ variant: 'destructive', title: 'Erro ao processar fatura' })
+    } catch (err) {
+      const isTimeout = err instanceof Error && err.message === 'TIMEOUT'
+      const errorMsg = isTimeout
+        ? TIMEOUT_MESSAGE
+        : err instanceof ClientResponseError
+          ? ((err.response as Record<string, unknown>)?.error as string) || err.message
+          : err instanceof Error
+            ? err.message
+            : 'Erro ao processar fatura'
+      setParseError(errorMsg)
+      toast({
+        variant: 'destructive',
+        title: isTimeout ? 'Tempo limite excedido' : 'Erro ao processar fatura',
+        description: errorMsg,
+      })
     } finally {
       setReparsing(false)
     }
@@ -390,7 +448,30 @@ export default function InvoiceReview() {
         </CardContent>
       </Card>
 
-      {parseStatus === 'processing' ? (
+      {parseError ? (
+        <Card className="rounded-2xl border-red-200 bg-red-50">
+          <CardContent className="p-8 flex flex-col items-center text-center space-y-3">
+            <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
+              <AlertCircle className="h-7 w-7 text-red-600" />
+            </div>
+            <p className="text-sm font-medium text-red-900">Erro na importação</p>
+            <p className="text-xs text-red-600">{parseError}</p>
+            <Button
+              size="sm"
+              onClick={handleReparse}
+              disabled={reparsing}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {reparsing ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-1" />
+              )}
+              Tentar novamente
+            </Button>
+          </CardContent>
+        </Card>
+      ) : parseStatus === 'processing' ? (
         <Card className="rounded-2xl border-blue-200 bg-blue-50" aria-busy="true">
           <CardContent className="p-8 flex flex-col items-center text-center space-y-3">
             <div
@@ -399,10 +480,13 @@ export default function InvoiceReview() {
             >
               <Loader2 className="h-7 w-7 text-blue-600 animate-spin" />
             </div>
-            <p className="text-sm font-medium text-blue-900">Processando fatura com IA...</p>
+            <p className="text-sm font-medium text-blue-900">Processando... {parsingSeconds}s</p>
             <p className="text-xs text-blue-600">
               Os itens extraídos aparecerão aqui automaticamente.
             </p>
+            {parsingSeconds > 30 && (
+              <p className="text-xs text-blue-500">Faturas grandes podem levar alguns minutos...</p>
+            )}
           </CardContent>
         </Card>
       ) : parseStatus === 'error' && !itemsLoading && items.length === 0 ? (
@@ -465,7 +549,7 @@ export default function InvoiceReview() {
                 </Button>
               </CardContent>
             </Card>
-          ) : items.length === 0 ? (
+          ) : activeItems.length === 0 ? (
             <EmptyState
               icon={<FileX />}
               title="Nenhum item extraído"
@@ -530,6 +614,7 @@ export default function InvoiceReview() {
                       selectedCategoryId={itemCategories[item.id] || ''}
                       onCategoryChange={handleCategoryChange}
                       onConvert={handleConvert}
+                      onDelete={handleDelete}
                       isFailed={failedItemIds.includes(item.id)}
                     />
                   ))}
@@ -549,6 +634,7 @@ export default function InvoiceReview() {
                       selectedCategoryId={itemCategories[item.id] || ''}
                       onCategoryChange={handleCategoryChange}
                       onConvert={handleConvert}
+                      onDelete={handleDelete}
                       isFailed={failedItemIds.includes(item.id)}
                     />
                   ))}

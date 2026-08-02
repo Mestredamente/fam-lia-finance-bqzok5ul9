@@ -171,7 +171,7 @@ routerAdd(
     $app.logger().info('Base64 encoded', 'payload_size', b64.length, 'invoice_id', invoiceId)
 
     var sysPrompt =
-      'Você é um assistente financeiro especializado em faturas de cartão de crédito brasileiras. Extraia TODAS as transações individuais da fatura. IGNORE cabeçalhos, rodapés, totais, taxas, juros, multas e impostos. Para cada transação, extraia: description (nome CONCISO do estabelecimento com data, ex: "MERCADO X 12/05", preservando parcelas como "2/3"), amount (valor numérico sem "R$" ou vírgulas, use ponto decimal), date (data no formato YYYY-MM-DD, ou null se não visível). Se houver valores em moeda estrangeira com taxa de conversão visível, converta para BRL. Se não houver taxa, use o valor original. MANTENHA as descrições curtas (apenas nome do estabelecimento e data) para reduzir o tamanho da resposta e evitar truncamento.\n\nEstrutura esperada da resposta: { items: [ { description: string, amount: number, date: string } ] }\n\nIMPORTANTE: Não inclua markdown formatting. Não use ```json ou ```. Retorne apenas o JSON puro.\n\nResponda APENAS com JSON válido, sem markdown, sem texto explicativo, sem blocos de código. Comece com { e termine com }. Não use crases.'
+      'Você é um assistente financeiro especializado em faturas de cartão de crédito brasileiras. Extraia TODAS as transações individuais da fatura que sejam COMPRAS. IGNORE cabeçalhos, rodapés, totais, taxas, juros, multas, impostos, pagamentos, pagamentos anteriores, créditos, estornos e qualquer entrada que não seja uma compra. Para cada transação, extraia: description (nome CONCISO do estabelecimento com data, ex: "MERCADO X 12/05", preservando parcelas como "2/3"), amount (valor numérico sem "R$" ou vírgulas, use ponto decimal, deve ser POSITIVO), date (data no formato YYYY-MM-DD, ou null se não visível). Se houver valores em moeda estrangeira com taxa de conversão visível, converta para BRL. Se não houver taxa, use o valor original. MANTENHA as descrições curtas (apenas nome do estabelecimento e data) para reduzir o tamanho da resposta e evitar truncamento.\n\nNÃO inclua: pagamentos, pagamentos anteriores, créditos, estornos, taxas, juros, anuidade, encargos.\n\nEstrutura esperada da resposta: { items: [ { description: string, amount: number, date: string } ] }\n\nIMPORTANTE: Não inclua markdown formatting. Não use ```json ou ```. Retorne apenas o JSON puro.\n\nResponda APENAS com JSON válido, sem markdown, sem texto explicativo, sem blocos de código. Comece com { e termine com }. Não use crases.'
 
     var geminiBody = JSON.stringify({
       contents: [
@@ -215,7 +215,7 @@ routerAdd(
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-goog-api-key': GEMINI_API_KEY },
           body: geminiBody,
-          timeout: 120,
+          timeout: 180,
         })
 
         diagInfo.logs.push('Gemini attempt ' + (retry + 1) + ': HTTP ' + gRes.statusCode)
@@ -719,6 +719,26 @@ routerAdd(
       } else {
         var desc = it.description.trim().substring(0, 255)
         var amt = Number(it.amount)
+
+        if (amt <= 0) {
+          invalidItems.push({ index: m, reason: 'Valor negativo ou zero: ' + amt })
+          continue
+        }
+
+        var filterDesc = desc.toLowerCase()
+        if (
+          filterDesc.indexOf('pagamento') !== -1 ||
+          filterDesc.indexOf('crédito') !== -1 ||
+          filterDesc.indexOf('credito') !== -1 ||
+          filterDesc.indexOf('estorno') !== -1
+        ) {
+          invalidItems.push({
+            index: m,
+            reason: 'Entrada não é compra (pagamento/crédito/estorno): ' + desc.substring(0, 50),
+          })
+          continue
+        }
+
         var itemDate = it.date || null
         if (itemDate && !/^\d{4}-\d{2}-\d{2}$/.test(itemDate)) itemDate = null
         validItems.push({ description: desc, amount: amt, date: itemDate })

@@ -140,6 +140,22 @@ routerAdd(
       }
     }
 
+    var filteredRows = []
+    for (var fri = 0; fri < parsedRows.length; fri++) {
+      var frow = parsedRows[fri]
+      if (frow.amount <= 0) continue
+      var fLowerDesc = (frow.description || '').toLowerCase()
+      if (
+        fLowerDesc.indexOf('pagamento') !== -1 ||
+        fLowerDesc.indexOf('crédito') !== -1 ||
+        fLowerDesc.indexOf('credito') !== -1 ||
+        fLowerDesc.indexOf('estorno') !== -1
+      )
+        continue
+      filteredRows.push(frow)
+    }
+    parsedRows = filteredRows
+
     var rules = []
     var categories = []
     try {

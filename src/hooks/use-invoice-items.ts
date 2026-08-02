@@ -8,30 +8,34 @@ export function useInvoiceItems(invoiceId: string | undefined) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const loadData = useCallback(async () => {
-    if (!invoiceId) {
-      setItems([])
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await getInvoiceItemsByInvoiceId(invoiceId)
-      setItems(data)
-    } catch {
-      setError('Erro ao carregar itens')
-    } finally {
-      setLoading(false)
-    }
-  }, [invoiceId])
+  const loadData = useCallback(
+    async (showLoading: boolean = true) => {
+      if (!invoiceId) {
+        setItems([])
+        setLoading(false)
+        return
+      }
+      if (showLoading) setLoading(true)
+      setError(null)
+      try {
+        const data = await getInvoiceItemsByInvoiceId(invoiceId)
+        setItems(data)
+      } catch {
+        setError('Erro ao carregar itens')
+      } finally {
+        setLoading(false)
+      }
+    },
+    [invoiceId],
+  )
 
   useEffect(() => {
-    loadData()
+    loadData(true)
   }, [loadData])
+
   useRealtime('invoice_items', () => {
-    loadData()
+    loadData(false)
   })
 
-  return { items, loading, error, refetch: loadData }
+  return { items, loading, error, refetch: () => loadData(true) }
 }
