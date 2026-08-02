@@ -15,7 +15,7 @@ export function LoadingScreen({ message = 'Carregando...' }: { message?: string 
       className="min-h-screen flex flex-col items-center justify-center bg-[#10B981]"
     >
       <div className="animate-fade-in">
-        <svg width="64" height="64" viewBox="0 0 64 64">
+        <svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
           <circle cx="32" cy="32" r="30" fill="white" />
           <text
             x="32"

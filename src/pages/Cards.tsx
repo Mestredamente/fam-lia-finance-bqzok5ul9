@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { CreditCardVisual } from '@/components/CreditCardVisual'
 import { CreditCardFormSheet } from '@/components/CreditCardFormSheet'
 import { TransactionFormSheet } from '@/components/TransactionFormSheet'
+import { EmptyState } from '@/components/EmptyState'
 
 export default function Cards() {
   const { family, member } = useAuth()
@@ -31,7 +32,12 @@ export default function Cards() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+          role="status"
+          aria-label="Carregando"
+          aria-busy="true"
+        >
           {[...Array(3)].map((_, i) => (
             <Skeleton key={i} className="aspect-[1.6/1] rounded-2xl" />
           ))}
@@ -46,21 +52,12 @@ export default function Cards() {
           </CardContent>
         </Card>
       ) : cards.length === 0 ? (
-        <Card className="border-dashed border-gray-200 rounded-2xl">
-          <CardContent className="p-8 flex flex-col items-center text-center space-y-3">
-            <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
-              <CreditCardIcon className="h-7 w-7" />
-            </div>
-            <p className="text-sm font-medium text-gray-500">Nenhum cartão cadastrado</p>
-            <Button
-              size="sm"
-              onClick={() => setShowForm(true)}
-              className="bg-[#166534] hover:bg-[#15803D]"
-            >
-              Adicionar primeiro cartão
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={<CreditCardIcon />}
+          title="Nenhum cartão cadastrado"
+          actionLabel="Adicionar cartão"
+          onAction={() => setShowForm(true)}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {cards.map((card) => (
@@ -91,9 +88,10 @@ export default function Cards() {
 
       <button
         onClick={() => setShowTransactionForm(true)}
+        aria-label="Adicionar transação"
         className="fixed bottom-20 right-6 lg:bottom-8 lg:right-8 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 z-20"
       >
-        <Plus className="h-6 w-6" />
+        <Plus className="h-6 w-6" aria-hidden="true" />
       </button>
 
       <TransactionFormSheet

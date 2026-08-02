@@ -17,8 +17,8 @@ export function NotificationCenter() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5 text-gray-600" />
+        <Button variant="ghost" size="icon" className="relative" aria-label="Notificações">
+          <Bell className="h-5 w-5 text-gray-600" aria-hidden="true" />
           {unreadCount > 0 && (
             <span className="absolute top-1 right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
               {unreadCount > 9 ? '9+' : unreadCount}

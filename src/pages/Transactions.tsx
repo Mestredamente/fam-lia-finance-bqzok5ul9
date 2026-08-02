@@ -174,7 +174,7 @@ export default function Transactions() {
       </div>
 
       {loading ? (
-        <div className="space-y-3">
+        <div className="space-y-3" role="status" aria-label="Carregando" aria-busy="true">
           {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-20 w-full rounded-2xl" />
           ))}
@@ -201,14 +201,14 @@ export default function Transactions() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6" role="list">
           {grouped.map(([date, items]) => {
             const d = new Date(date + 'T00:00:00')
             return (
               <div key={date} className="space-y-2">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                   {d.getDate()} de {MONTHS[d.getMonth()]}
-                </h3>
+                </h2>
                 {items.map((t) => {
                   const cat = t.expand?.category_id
                   const Icon = getCategoryIcon(cat?.icon || 'plus-circle')
@@ -222,6 +222,7 @@ export default function Transactions() {
                   return (
                     <Card
                       key={t.id}
+                      role="listitem"
                       onClick={() => {
                         setDetailTx(t)
                         setShowDetail(true)
@@ -276,7 +277,7 @@ export default function Transactions() {
         aria-label="Adicionar transação"
         className="fixed bottom-20 right-6 lg:bottom-8 lg:right-8 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 z-20"
       >
-        <Plus className="h-6 w-6" />
+        <Plus className="h-6 w-6" aria-hidden="true" />
       </button>
 
       <TransactionFormSheet

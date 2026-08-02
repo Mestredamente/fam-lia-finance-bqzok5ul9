@@ -9,6 +9,7 @@ import { CurrencyInput } from '@/components/CurrencyInput'
 import { CategoryPicker } from '@/components/CategoryPicker'
 import { useCategories } from '@/hooks/use-categories'
 import { useCategorizationRules } from '@/hooks/use-categorization-rules'
+import { useAnnouncer } from '@/hooks/use-announcer'
 import { findMatchingCategory } from '@/lib/auto-categorize'
 import { createTransaction, updateTransaction } from '@/services/transactions'
 import { toast } from '@/hooks/use-toast'
@@ -65,6 +66,7 @@ export function TransactionFormSheet({
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const { rules } = useCategorizationRules(familyId)
+  const { announce } = useAnnouncer()
   const userTouchedCategory = useRef(false)
 
   useEffect(() => {
@@ -131,14 +133,17 @@ export function TransactionFormSheet({
       if (editingTransaction) {
         await updateTransaction(editingTransaction.id, data)
         toast({ title: 'Transação atualizada' })
+        announce('Transação atualizada')
       } else {
         await createTransaction(data)
         toast({ title: 'Transação adicionada' })
+        announce('Transação criada')
       }
       onOpenChange(false)
       onSaved?.()
     } catch (err) {
       toast({ variant: 'destructive', title: 'Erro', description: getPortugueseError(err) })
+      announce('Erro: ' + getPortugueseError(err), 'assertive')
     } finally {
       setSaving(false)
     }
@@ -195,26 +200,49 @@ export function TransactionFormSheet({
             ))}
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-700">Valor</label>
-            <CurrencyInput value={amount} onChange={setAmount} error={errors.amount} />
+            <label htmlFor="tx-amount" className="text-xs font-semibold text-gray-700">
+              Valor
+            </label>
+            <CurrencyInput
+              id="tx-amount"
+              value={amount}
+              onChange={setAmount}
+              error={errors.amount}
+              aria-required="true"
+            />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-700">Descrição</label>
+            <label htmlFor="tx-description" className="text-xs font-semibold text-gray-700">
+              Descrição
+            </label>
             <Input
+              id="tx-description"
               placeholder="Exemplo: Supermercado"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               maxLength={100}
+              aria-required="true"
+              aria-describedby={errors.description ? 'tx-description-error' : undefined}
               className={errors.description ? 'border-red-500' : ''}
             />
             {errors.description && (
-              <p className="text-xs text-red-500 mt-1">{errors.description}</p>
+              <p
+                id="tx-description-error"
+                role="alert"
+                aria-live="assertive"
+                className="text-xs text-red-500 mt-1"
+              >
+                {errors.description}
+              </p>
             )}
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-700">Categoria</label>
+            <label htmlFor="tx-category" className="text-xs font-semibold text-gray-700">
+              Categoria
+            </label>
             <div className="mt-1">
               <CategoryPicker
+                id="tx-category"
                 categories={categories}
                 selectedId={categoryId}
                 onSelect={(id) => {
@@ -223,22 +251,31 @@ export function TransactionFormSheet({
                 }}
                 familyId={familyId}
                 type={type}
+                aria-required="true"
               />
             </div>
             {errors.category_id && (
-              <p className="text-xs text-red-500 mt-1">{errors.category_id}</p>
+              <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
+                {errors.category_id}
+              </p>
             )}
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-700">Data</label>
+            <label htmlFor="tx-date" className="text-xs font-semibold text-gray-700">
+              Data
+            </label>
             <Input
+              id="tx-date"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
+              aria-required="true"
               className={errors.transaction_date ? 'border-red-500' : ''}
             />
             {errors.transaction_date && (
-              <p className="text-xs text-red-500 mt-1">{errors.transaction_date}</p>
+              <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
+                {errors.transaction_date}
+              </p>
             )}
           </div>
           <div className="flex items-center justify-between">

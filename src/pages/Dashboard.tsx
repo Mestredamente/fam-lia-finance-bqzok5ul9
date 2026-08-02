@@ -12,6 +12,7 @@ import { DashboardTabs } from '@/components/DashboardTabs'
 import { TransactionFormSheet } from '@/components/TransactionFormSheet'
 import { ScenarioComparator } from '@/components/ScenarioComparator'
 import { ExportButton } from '@/components/ExportButton'
+import { DashboardInstallBanner } from '@/components/DashboardInstallBanner'
 import { MemberRecord } from '@/types/finance'
 import { getActiveMembersByFamilyId } from '@/services/members'
 import { getMonthName } from '@/lib/utils'
@@ -120,8 +121,9 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in">
+      <DashboardInstallBanner />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-xl font-bold text-gray-900">Resumo Financeiro</h2>
+        <h1 className="text-xl font-bold text-gray-900">Resumo Financeiro</h1>
         <div className="flex items-center gap-1 sm:gap-2">
           <Button
             variant="ghost"
@@ -202,7 +204,7 @@ export default function Dashboard() {
         className="fixed bottom-[5.5rem] right-4 lg:bottom-8 lg:right-8 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 z-20"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        <Plus className="h-6 w-6" />
+        <Plus className="h-6 w-6" aria-hidden="true" />
       </button>
 
       <MemberDetailSheet

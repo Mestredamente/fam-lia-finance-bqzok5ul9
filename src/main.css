@@ -109,10 +109,10 @@
     color: hsl(var(--muted-foreground));
   }
   [data-theme='dark'] .text-gray-500 {
-    color: hsl(215 16% 55%);
+    color: hsl(215 16% 62%);
   }
   [data-theme='dark'] .text-gray-400 {
-    color: hsl(215 16% 45%);
+    color: hsl(215 16% 60%);
   }
   [data-theme='dark'] .border-gray-200 {
     border-color: hsl(var(--border));
@@ -158,6 +158,66 @@
       transform: translateX(0);
       opacity: 1;
     }
+  }
+  .page-transition {
+    animation: pageEnter 200ms ease-out;
+  }
+  @keyframes pageEnter {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .bottom-sheet-enter {
+    animation: slideUp 250ms ease-out;
+  }
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  .toast-enter {
+    animation: toastSlideIn 250ms ease-out;
+  }
+  @keyframes toastSlideIn {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  .card-interactive {
+    transition: transform 150ms ease-out;
+  }
+  .card-interactive:active {
+    transform: scale(0.98);
+  }
+  .clickable:active {
+    transform: scale(0.97);
+    transition: transform 100ms ease-out;
+  }
+}
+button:active,
+[role='button']:active {
+  transform: scale(0.97);
+  transition: transform 100ms ease-out;
+}
+button[role='switch'] {
+  transition: all 200ms ease-in-out;
+}
+@media (hover: hover) {
+  .card-interactive:hover {
+    transform: translateY(-2px);
   }
 }
 

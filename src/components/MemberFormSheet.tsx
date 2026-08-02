@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select'
 import { createMember, updateMember } from '@/services/members'
 import { createInvite, generateInviteCode } from '@/services/invites'
+import { useAnnouncer } from '@/hooks/use-announcer'
 import { roleGroups, getMemberAvatarUrl } from '@/lib/member-utils'
 import pb from '@/lib/pocketbase/client'
 import { toast } from '@/hooks/use-toast'
@@ -81,6 +82,7 @@ export function MemberFormSheet({
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [originalRole, setOriginalRole] = useState<MemberRole>('husband')
+  const { announce } = useAnnouncer()
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | undefined>(undefined)
   const [removeAvatar, setRemoveAvatar] = useState(false)
@@ -176,8 +178,10 @@ export function MemberFormSheet({
         memberId = editingMember.id
         if (role !== originalRole) {
           toast({ title: 'Papel familiar atualizado com sucesso' })
+          announce('Membro atualizado')
         } else {
           toast({ title: 'Membro atualizado' })
+          announce('Membro atualizado')
         }
       } else {
         const created = await createMember(memberData)
@@ -194,6 +198,7 @@ export function MemberFormSheet({
           })
         }
         toast({ title: 'Membro adicionado com sucesso' })
+        announce('Membro adicionado')
       }
 
       if (avatarFile) {
@@ -213,6 +218,7 @@ export function MemberFormSheet({
       onSaved?.(inviteCode)
     } catch (err) {
       toast({ variant: 'destructive', title: 'Erro', description: getPortugueseError(err) })
+      announce('Erro: ' + getPortugueseError(err), 'assertive')
     } finally {
       setSaving(false)
     }
@@ -264,7 +270,9 @@ export function MemberFormSheet({
               className={errors.display_name ? 'border-red-500' : ''}
             />
             {errors.display_name && (
-              <p className="text-xs text-red-500 mt-1">{errors.display_name}</p>
+              <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
+                {errors.display_name}
+              </p>
             )}
           </div>
           <div>
@@ -310,7 +318,11 @@ export function MemberFormSheet({
               onChange={(e) => setEmail(e.target.value)}
               className={errors.email ? 'border-red-500' : ''}
             />
-            {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+            {errors.email && (
+              <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
+                {errors.email}
+              </p>
+            )}
           </div>
           <div>
             <Label className="text-xs font-semibold text-gray-700">Ocupação</Label>

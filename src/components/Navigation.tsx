@@ -40,7 +40,10 @@ export function Header() {
             className="flex items-center gap-2 cursor-pointer"
             onClick={() => navigate('/dashboard')}
           >
-            <div className="w-9 h-9 rounded-xl bg-[#166534] flex items-center justify-center text-white">
+            <div
+              className="w-9 h-9 rounded-xl bg-[#166534] flex items-center justify-center text-white"
+              aria-hidden="true"
+            >
               <HouseIcon className="h-5 w-5" />
             </div>
             <span className="font-bold text-lg text-gray-900 hidden sm:inline">
@@ -59,7 +62,7 @@ export function Header() {
             className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
             aria-label="Mais opções"
           >
-            <MoreHorizontal className="h-5 w-5 text-gray-600" />
+            <MoreHorizontal className="h-5 w-5 text-gray-600" aria-hidden="true" />
           </button>
           <ThemeToggle />
           <NotificationCenter />
@@ -116,7 +119,10 @@ export function Sidebar() {
   return (
     <aside className="w-64 bg-white border-r border-gray-200 hidden lg:flex flex-col min-h-screen">
       <div className="p-6 flex items-center gap-3 border-b border-gray-100">
-        <div className="w-10 h-10 rounded-xl bg-[#166534] flex items-center justify-center text-white">
+        <div
+          className="w-10 h-10 rounded-xl bg-[#166534] flex items-center justify-center text-white"
+          aria-hidden="true"
+        >
           <HouseIcon className="h-6 w-6" />
         </div>
         <div>
@@ -126,7 +132,7 @@ export function Sidebar() {
           </span>
         </div>
       </div>
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-4 space-y-1" aria-label="Navegação lateral">
         {navItems.map((item) => {
           const isCurrent =
             location.pathname === item.path || location.pathname.startsWith(item.path + '/')
@@ -143,6 +149,7 @@ export function Sidebar() {
             >
               <item.icon
                 className={cn('h-5 w-5', isCurrent ? 'text-[#166534]' : 'text-gray-400')}
+                aria-hidden="true"
               />
               <span>{item.label}</span>
               {item.path === '/cards' && pendingCount > 0 && (
@@ -198,6 +205,7 @@ export function BottomNav() {
             )}
             <tab.icon
               className={cn('h-5 w-5 mt-1', isCurrent ? 'text-[#166534]' : 'text-gray-400')}
+              aria-hidden="true"
             />
             <span
               className={cn(

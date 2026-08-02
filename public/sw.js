@@ -1,6 +1,6 @@
-const CACHE_NAME = 'familia-finance-v5'
-const API_CACHE = 'ff-api-v5'
-const PRECACHE_URLS = ['/', '/index.html', '/manifest.json', '/icon.svg']
+const CACHE_NAME = 'familia-finance-v6'
+const API_CACHE = 'ff-api-v6'
+const PRECACHE_URLS = ['/', '/index.html', '/manifest.json', '/icon.svg', '/offline.html']
 
 self.addEventListener('install', (event) => {
   self.skipWaiting()
@@ -55,7 +55,15 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
           return response
         })
-        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/'))),
+        .catch(() =>
+          caches
+            .match(event.request)
+            .then(
+              (cached) =>
+                cached ||
+                caches.match('/offline.html').then((offline) => offline || caches.match('/')),
+            ),
+        ),
     )
     return
   }

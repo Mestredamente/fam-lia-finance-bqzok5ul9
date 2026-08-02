@@ -17,6 +17,7 @@ import { CurrencyInput } from '@/components/CurrencyInput'
 import { createInvoice, parseInvoice } from '@/services/invoices'
 import { getCreditCard } from '@/services/credit-cards'
 import { toast } from '@/hooks/use-toast'
+import { useAnnouncer } from '@/hooks/use-announcer'
 import { getPortugueseError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
 
@@ -60,6 +61,7 @@ export function InvoiceFormSheet({ open, onOpenChange, cardId, familyId, onSaved
   const [dragOver, setDragOver] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const fileRef = useRef<HTMLInputElement>(null)
+  const { announce } = useAnnouncer()
 
   const validateFile = (f: File): boolean => {
     if (f.size > 10 * 1024 * 1024) {
@@ -106,9 +108,11 @@ export function InvoiceFormSheet({ open, onOpenChange, cardId, familyId, onSaved
       })
       if (file && useAI) {
         toast({ title: 'Fatura criada! Processando com IA...' })
+        announce('Fatura criada')
         parseInvoice(created.id).catch(() => {})
       } else {
         toast({ title: 'Fatura criada' })
+        announce('Fatura criada')
       }
       onOpenChange(false)
       setFile(null)
@@ -116,6 +120,7 @@ export function InvoiceFormSheet({ open, onOpenChange, cardId, familyId, onSaved
       onSaved?.()
     } catch (err) {
       toast({ variant: 'destructive', title: 'Erro', description: getPortugueseError(err) })
+      announce('Erro: ' + getPortugueseError(err), 'assertive')
     } finally {
       setSaving(false)
     }

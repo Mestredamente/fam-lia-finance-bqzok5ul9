@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Você está offline — Família Finance</title>
+    <meta name="theme-color" content="#0B0F19" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background-color: #0b0f19;
+        color: #ffffff;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 2rem;
+        text-align: center;
+      }
+      .icon-wrapper {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: #10b981;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 2rem;
+        font-size: 32px;
+        font-weight: bold;
+        color: #ffffff;
+      }
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+        color: #ffffff;
+      }
+      p {
+        font-size: 0.9375rem;
+        color: #9ca3af;
+        line-height: 1.5;
+        max-width: 320px;
+        margin-bottom: 2rem;
+      }
+      button {
+        background: #10b981;
+        color: #ffffff;
+        border: none;
+        border-radius: 0.5rem;
+        padding: 0.75rem 2rem;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 200ms ease;
+        font-family: inherit;
+      }
+      button:hover {
+        background: #059669;
+      }
+      button:active {
+        transform: scale(0.97);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="icon-wrapper">FF</div>
+    <h1>Você está offline</h1>
+    <p>Verifique sua conexão com a internet e tente novamente</p>
+    <button onclick="window.location.reload()">Tentar novamente</button>
+  </body>
+</html>

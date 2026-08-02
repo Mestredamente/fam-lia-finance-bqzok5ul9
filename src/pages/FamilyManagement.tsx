@@ -26,6 +26,7 @@ import { getRoleLabel, type MemberRecord } from '@/types/finance'
 import { formatBRL } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
+import { EmptyState } from '@/components/EmptyState'
 
 export default function FamilyManagement() {
   const navigate = useNavigate()
@@ -124,22 +125,19 @@ export default function FamilyManagement() {
       </div>
 
       {loading ? (
-        <div className="space-y-3">
+        <div className="space-y-3" role="status" aria-label="Carregando" aria-busy="true">
           {[...Array(3)].map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-2xl" />
           ))}
         </div>
       ) : members.length === 0 ? (
-        <Card className="border border-gray-100 shadow-subtle rounded-2xl">
-          <CardContent className="p-8 flex flex-col items-center text-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
-              <Users className="h-6 w-6 text-[#166534]" />
-            </div>
-            <p className="text-sm text-gray-500">
-              Nenhum membro cadastrado. Adicione membros para gerenciar seu domicílio.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={<Users />}
+          title="Nenhum membro cadastrado"
+          description="Adicione membros para gerenciar seu domicílio."
+          actionLabel={isCreator ? 'Adicionar membro' : undefined}
+          onAction={isCreator ? handleAdd : undefined}
+        />
       ) : (
         <div className="space-y-3">
           {members.map((m) => {

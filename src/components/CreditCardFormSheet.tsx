@@ -154,7 +154,11 @@ export function CreditCardFormSheet({
               maxLength={50}
               className={cn(errors.name && 'border-red-500')}
             />
-            {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
+            {errors.name && (
+              <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
+                {errors.name}
+              </p>
+            )}
           </div>
           <div>
             <Label className="text-xs font-semibold text-gray-700">Bandeira</Label>
@@ -185,7 +189,11 @@ export function CreditCardFormSheet({
                 ))}
               </SelectContent>
             </Select>
-            {errors.owner_id && <p className="text-xs text-red-500 mt-1">{errors.owner_id}</p>}
+            {errors.owner_id && (
+              <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
+                {errors.owner_id}
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

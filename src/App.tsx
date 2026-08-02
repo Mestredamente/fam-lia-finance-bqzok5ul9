@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -58,6 +58,15 @@ function NavigationGuard() {
   return null
 }
 
+function PageTransitionWrapper() {
+  const location = useLocation()
+  return (
+    <div key={location.pathname} className="page-transition">
+      <Outlet />
+    </div>
+  )
+}
+
 function HomeRedirect() {
   const { isAuthenticated, loading } = useAuth()
   if (loading) return <LoadingScreen />
@@ -101,6 +110,12 @@ const withSuspense = (Component: React.LazyExoticComponent<React.ComponentType<a
 
 function AppInner() {
   useSwUpdate()
+
+  useEffect(() => {
+    const count = parseInt(localStorage.getItem('ff_visit_count') || '0', 10) + 1
+    localStorage.setItem('ff_visit_count', String(count))
+  }, [])
+
   return (
     <ThemeProvider>
       <AnnouncerProvider>
@@ -117,64 +132,68 @@ function AppInner() {
                 <NavigationGuard />
                 <Routes>
                   <Route element={<Layout />}>
-                    <Route path="/" element={<HomeRedirect />} />
-                    <Route path="/onboarding" element={withSuspense(Onboarding)} />
-                    <Route
-                      path="/dashboard"
-                      element={<ProtectedRoute>{withSuspense(Dashboard)}</ProtectedRoute>}
-                    />
-                    <Route
-                      path="/profile"
-                      element={<ProtectedRoute>{withSuspense(Profile)}</ProtectedRoute>}
-                    />
-                    <Route
-                      path="/transacoes"
-                      element={<ProtectedRoute>{withSuspense(Transactions)}</ProtectedRoute>}
-                    />
-                    <Route
-                      path="/cards"
-                      element={<ProtectedRoute>{withSuspense(Cards)}</ProtectedRoute>}
-                    />
-                    <Route
-                      path="/cards/:cardId"
-                      element={<ProtectedRoute>{withSuspense(CardDetail)}</ProtectedRoute>}
-                    />
-                    <Route
-                      path="/cards/:cardId/invoices/:invoiceId/review"
-                      element={<ProtectedRoute>{withSuspense(InvoiceReview)}</ProtectedRoute>}
-                    />
-                    <Route
-                      path="/casa"
-                      element={<ProtectedRoute>{withSuspense(Casa)}</ProtectedRoute>}
-                    />
-                    <Route
-                      path="/patrimonio"
-                      element={<ProtectedRoute>{withSuspense(Patrimony)}</ProtectedRoute>}
-                    />
-                    <Route
-                      path="/consultora"
-                      element={<ProtectedRoute>{withSuspense(Consultora)}</ProtectedRoute>}
-                    />
-                    <Route
-                      path="/familia"
-                      element={<ProtectedRoute>{withSuspense(FamilyManagement)}</ProtectedRoute>}
-                    />
-                    <Route
-                      path="/regras-categorizacao"
-                      element={<ProtectedRoute>{withSuspense(CategorizationRules)}</ProtectedRoute>}
-                    />
-                    <Route
-                      path="/orcamentos"
-                      element={<ProtectedRoute>{withSuspense(Budgets)}</ProtectedRoute>}
-                    />
-                    <Route
-                      path="/evolucao"
-                      element={<ProtectedRoute>{withSuspense(MonthlyEvolution)}</ProtectedRoute>}
-                    />
-                    <Route
-                      path="/challenges"
-                      element={<ProtectedRoute>{withSuspense(Challenges)}</ProtectedRoute>}
-                    />
+                    <Route element={<PageTransitionWrapper />}>
+                      <Route path="/" element={<HomeRedirect />} />
+                      <Route path="/onboarding" element={withSuspense(Onboarding)} />
+                      <Route
+                        path="/dashboard"
+                        element={<ProtectedRoute>{withSuspense(Dashboard)}</ProtectedRoute>}
+                      />
+                      <Route
+                        path="/profile"
+                        element={<ProtectedRoute>{withSuspense(Profile)}</ProtectedRoute>}
+                      />
+                      <Route
+                        path="/transacoes"
+                        element={<ProtectedRoute>{withSuspense(Transactions)}</ProtectedRoute>}
+                      />
+                      <Route
+                        path="/cards"
+                        element={<ProtectedRoute>{withSuspense(Cards)}</ProtectedRoute>}
+                      />
+                      <Route
+                        path="/cards/:cardId"
+                        element={<ProtectedRoute>{withSuspense(CardDetail)}</ProtectedRoute>}
+                      />
+                      <Route
+                        path="/cards/:cardId/invoices/:invoiceId/review"
+                        element={<ProtectedRoute>{withSuspense(InvoiceReview)}</ProtectedRoute>}
+                      />
+                      <Route
+                        path="/casa"
+                        element={<ProtectedRoute>{withSuspense(Casa)}</ProtectedRoute>}
+                      />
+                      <Route
+                        path="/patrimonio"
+                        element={<ProtectedRoute>{withSuspense(Patrimony)}</ProtectedRoute>}
+                      />
+                      <Route
+                        path="/consultora"
+                        element={<ProtectedRoute>{withSuspense(Consultora)}</ProtectedRoute>}
+                      />
+                      <Route
+                        path="/familia"
+                        element={<ProtectedRoute>{withSuspense(FamilyManagement)}</ProtectedRoute>}
+                      />
+                      <Route
+                        path="/regras-categorizacao"
+                        element={
+                          <ProtectedRoute>{withSuspense(CategorizationRules)}</ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/orcamentos"
+                        element={<ProtectedRoute>{withSuspense(Budgets)}</ProtectedRoute>}
+                      />
+                      <Route
+                        path="/evolucao"
+                        element={<ProtectedRoute>{withSuspense(MonthlyEvolution)}</ProtectedRoute>}
+                      />
+                      <Route
+                        path="/challenges"
+                        element={<ProtectedRoute>{withSuspense(Challenges)}</ProtectedRoute>}
+                      />
+                    </Route>
                   </Route>
                   <Route path="*" element={<SmartCatchAll />} />
                 </Routes>

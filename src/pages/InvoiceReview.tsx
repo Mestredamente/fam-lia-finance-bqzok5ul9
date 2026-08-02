@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
+import { useAnnouncer } from '@/hooks/use-announcer'
 import { useInvoiceItems } from '@/hooks/use-invoice-items'
 import { useCategories } from '@/hooks/use-categories'
 import { getInvoice, updateInvoice, parseInvoice, convertInvoiceItems } from '@/services/invoices'
@@ -23,6 +24,7 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { InvoiceItemRow } from '@/components/InvoiceItemRow'
 import { DeleteInvoiceDialog } from '@/components/DeleteInvoiceDialog'
+import { EmptyState } from '@/components/EmptyState'
 import { formatBRL, getMonthName, cn } from '@/lib/utils'
 import { getParseStatus } from '@/lib/invoice-utils'
 import { toast } from '@/hooks/use-toast'
@@ -49,6 +51,7 @@ export default function InvoiceReview() {
 
   const { items, loading: itemsLoading, error: itemsError, refetch } = useInvoiceItems(invoiceId)
   const { categories } = useCategories(family?.id)
+  const { announce } = useAnnouncer()
 
   useEffect(() => {
     if (!invoiceId) return
@@ -63,6 +66,13 @@ export default function InvoiceReview() {
     'invoices',
     (e) => {
       if (e.record.id === invoiceId) {
+        const newStatus = e.record['status'] as string | undefined
+        if (newStatus === 'parsed' && invoice?.status !== 'parsed') {
+          announce('Fatura processada')
+        }
+        if (newStatus === 'error' && invoice?.status !== 'error') {
+          announce('Erro ao processar fatura', 'assertive')
+        }
         getInvoice(invoiceId)
           .then(setInvoice)
           .catch(() => {})
@@ -147,7 +157,12 @@ export default function InvoiceReview() {
 
   if (loading) {
     return (
-      <div className="space-y-4 animate-fade-in">
+      <div
+        className="space-y-4 animate-fade-in"
+        role="status"
+        aria-label="Carregando"
+        aria-busy="true"
+      >
         <Skeleton className="h-10 w-full rounded-xl" />
         <Skeleton className="h-32 w-full rounded-xl" />
         <Skeleton className="h-20 w-full rounded-xl" />
@@ -194,9 +209,10 @@ export default function InvoiceReview() {
           variant="ghost"
           size="icon"
           onClick={() => setShowDeleteDialog(true)}
+          aria-label="Excluir fatura"
           className="text-red-500 hover:text-red-600 hover:bg-red-50"
         >
-          <Trash2 className="h-5 w-5" />
+          <Trash2 className="h-5 w-5" aria-hidden="true" />
         </Button>
       </div>
 
@@ -224,9 +240,12 @@ export default function InvoiceReview() {
       </Card>
 
       {parseStatus === 'processing' ? (
-        <Card className="rounded-2xl border-blue-200 bg-blue-50">
+        <Card className="rounded-2xl border-blue-200 bg-blue-50" aria-busy="true">
           <CardContent className="p-8 flex flex-col items-center text-center space-y-3">
-            <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center">
+            <div
+              className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center"
+              aria-hidden="true"
+            >
               <Loader2 className="h-7 w-7 text-blue-600 animate-spin" />
             </div>
             <p className="text-sm font-medium text-blue-900">Processando fatura com IA...</p>
@@ -281,7 +300,7 @@ export default function InvoiceReview() {
             </div>
           )}
           {itemsLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-3" role="status" aria-label="Carregando" aria-busy="true">
               {[...Array(3)].map((_, i) => (
                 <Skeleton key={i} className="h-24 w-full rounded-xl" />
               ))}
@@ -296,34 +315,20 @@ export default function InvoiceReview() {
               </CardContent>
             </Card>
           ) : items.length === 0 ? (
-            <Card className="border-dashed border-gray-200 rounded-2xl">
-              <CardContent className="p-8 flex flex-col items-center text-center space-y-3">
-                <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
-                  <FileX className="h-7 w-7" />
-                </div>
-                <p className="text-sm font-medium text-gray-500">Nenhum item extraído</p>
-                <Button
-                  size="sm"
-                  onClick={handleReparse}
-                  disabled={reparsing}
-                  className="bg-[#166534] hover:bg-[#15803D]"
-                >
-                  {reparsing ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4 mr-1" />
-                  )}
-                  Processar novamente
-                </Button>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={<FileX />}
+              title="Nenhum item extraído"
+              actionLabel="Reprocessar"
+              onAction={handleReparse}
+              actionDisabled={reparsing}
+            />
           ) : (
             <div className="space-y-6">
               {unconfirmedItems.length > 0 && (
                 <div className="space-y-2">
-                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                     Itens não confirmados ({unconfirmedItems.length})
-                  </h3>
+                  </h2>
                   {unconfirmedItems.map((item) => (
                     <InvoiceItemRow
                       key={item.id}
@@ -339,9 +344,9 @@ export default function InvoiceReview() {
               {confirmedItems.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                       Itens confirmados ({confirmedItems.length})
-                    </h3>
+                    </h2>
                     {confirmedItems.some((i) => !i.converted_transaction_id) && (
                       <Button
                         size="sm"

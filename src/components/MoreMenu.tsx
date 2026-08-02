@@ -37,7 +37,7 @@ export function MoreMenu({
               onClick={() => handleNavigate(item.path)}
               className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all"
             >
-              <item.icon className="h-6 w-6 text-[#166534]" />
+              <item.icon className="h-6 w-6 text-[#166534]" aria-hidden="true" />
               <span className="text-xs font-medium text-gray-700 text-center">{item.label}</span>
             </button>
           ))}
