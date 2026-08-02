@@ -163,13 +163,12 @@ routerAdd(
 
     var catMap = {}
     for (var c = 0; c < categories.length; c++) {
-      catMap[categories[c].getId()] = {
-        id: categories[c].getId(),
+      catMap[categories[c].id] = {
+        id: categories[c].id,
         name: categories[c].getString('name'),
         type: categories[c].getString('type'),
       }
     }
-
     var transactions = parsedRows.map(function (row) {
       var suggestedCategoryId = null
       var suggestedCategoryName = null

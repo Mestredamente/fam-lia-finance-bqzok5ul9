@@ -739,7 +739,7 @@ routerAdd(
     } catch (_) {}
     var catMap = {}
     for (var k = 0; k < categories.length; k++)
-      catMap[categories[k].getString('name').toLowerCase()] = categories[k].getId()
+      catMap[categories[k].getString('name').toLowerCase()] = categories[k].id
 
     var catRules = []
     try {

@@ -170,6 +170,7 @@ export default function InvoiceReview() {
           status: err.status,
           body: resp,
           failed_item: resp?.failed_item,
+          failed_items: resp?.failed_items,
         })
       } else {
         console.error('Convert error for item', itemId, err)
@@ -238,11 +239,18 @@ export default function InvoiceReview() {
         const resp = err.response as Record<string, unknown>
         errorMsg = (resp?.error as string) || (resp?.message as string) || err.message
         const failedItem = resp?.failed_item as string
-        if (failedItem) failedItems = [failedItem]
+        const failedItemsArr = (resp?.failed_items as string[]) || []
+        failedItems = [
+          ...new Set([
+            ...(failedItem ? [failedItem] : []),
+            ...failedItemsArr.filter((id): id is string => !!id),
+          ]),
+        ]
         console.error('Convert all error', {
           status: err.status,
           body: resp,
           failed_item: failedItem,
+          failed_items: failedItemsArr,
         })
       } else {
         console.error('Convert all error', err)
@@ -307,9 +315,13 @@ export default function InvoiceReview() {
     return (
       <Card className="border-red-200 rounded-2xl">
         <CardContent className="p-6 text-center space-y-3">
-          <p className="text-sm text-red-600">{error || 'Fatura não encontrada'}</p>
+          <FileX className="h-10 w-10 text-red-400 mx-auto" />
+          <p className="text-sm font-medium text-red-600">{error || 'Fatura não encontrada'}</p>
+          <p className="text-xs text-gray-500">
+            A fatura pode ter sido excluída. Volte e faça o upload da fatura novamente.
+          </p>
           <Button size="sm" variant="outline" onClick={() => navigate(`/cards/${cardId}`)}>
-            Voltar
+            Voltar para o cartão
           </Button>
         </CardContent>
       </Card>

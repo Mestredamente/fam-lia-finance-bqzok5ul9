@@ -208,7 +208,7 @@ routerAdd(
             continue
           }
 
-          item.set('converted_transaction_id', tx.getId())
+          item.set('converted_transaction_id', tx.id)
           item.set('is_confirmed', true)
           if (catId) {
             item.set('confirmed_category_id', catId)
@@ -279,6 +279,7 @@ routerAdd(
         error: String(err.message || err),
         stack: String(err.stack || ''),
         failed_item: failedItemId,
+        failed_items: failedItemId ? [failedItemId] : [],
       })
     }
   },
