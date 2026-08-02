@@ -34,6 +34,7 @@ const Budgets = lazy(() => import('@/pages/Budgets'))
 const MonthlyEvolution = lazy(() => import('@/pages/MonthlyEvolution'))
 const Challenges = lazy(() => import('@/pages/Challenges'))
 const Casa = lazy(() => import('@/pages/Casa'))
+const DiagnosticInvoice = lazy(() => import('@/pages/DiagnosticInvoice'))
 
 function NavigationGuard() {
   const location = useLocation()
@@ -192,6 +193,10 @@ function AppInner() {
                       <Route
                         path="/challenges"
                         element={<ProtectedRoute>{withSuspense(Challenges)}</ProtectedRoute>}
+                      />
+                      <Route
+                        path="/diagnostic-invoice"
+                        element={<ProtectedRoute>{withSuspense(DiagnosticInvoice)}</ProtectedRoute>}
                       />
                     </Route>
                   </Route>

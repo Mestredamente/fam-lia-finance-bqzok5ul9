@@ -2,7 +2,15 @@ routerAdd(
   'POST',
   '/backend/v1/parse-invoice',
   (e) => {
-    var chosenModel = 'gemini-2.5-flash'
+    var chosenModel = 'gemini-flash-latest'
+    var diagInfo = { url: '', model: chosenModel, logs: [] }
+    var rawGeminiResponse = ''
+
+    function jsonRes(status, payload) {
+      payload.diagnostics = diagInfo
+      if (rawGeminiResponse) payload.raw_gemini_response = rawGeminiResponse.substring(0, 2000)
+      return e.json(status, payload)
+    }
 
     function sanitize(s) {
       if (!s) return ''
@@ -20,16 +28,12 @@ routerAdd(
       if (rawBody instanceof ArrayBuffer) {
         var bytes = new Uint8Array(rawBody)
         var chars = []
-        for (var bi = 0; bi < bytes.length; bi++) {
-          chars.push(String.fromCharCode(bytes[bi]))
-        }
+        for (var bi = 0; bi < bytes.length; bi++) chars.push(String.fromCharCode(bytes[bi]))
         return chars.join('')
       }
       if (rawBody && typeof rawBody.length === 'number' && typeof rawBody[0] === 'number') {
         var bChars = []
-        for (var bj = 0; bj < rawBody.length; bj++) {
-          bChars.push(String.fromCharCode(rawBody[bj]))
-        }
+        for (var bj = 0; bj < rawBody.length; bj++) bChars.push(String.fromCharCode(rawBody[bj]))
         return bChars.join('')
       }
       try {
@@ -40,11 +44,7 @@ routerAdd(
     }
 
     function saveError(inv, msg, rawResp, model) {
-      var payload = {
-        error: msg,
-        timestamp: new Date().toISOString(),
-        model: model || null,
-      }
+      var payload = { error: msg, timestamp: new Date().toISOString(), model: model || null }
       if (rawResp) payload.raw_response = String(rawResp).substring(0, 2000)
       inv.set('parsed_data', JSON.stringify(payload))
       inv.set('parsed_at', new Date().toISOString())
@@ -60,14 +60,13 @@ routerAdd(
     var GEMINI_API_KEY = $secrets.get('GEMINI_API_KEY') || ''
     if (!GEMINI_API_KEY) {
       $app.logger().error('GEMINI_API_KEY not configured')
-      return e.json(500, {
+      return jsonRes(500, {
         success: false,
         error: 'Chave da API Gemini não configurada. Contate o suporte.',
       })
     }
 
     $app.logger().info('PARSE_INVOICE: chave começa com = ' + GEMINI_API_KEY.substring(0, 10))
-    $app.logger().info('PARSE_INVOICE: modelo ativo = ' + chosenModel)
 
     var body = e.requestInfo().body || {}
     var invoiceId = body.invoice_id || ''
@@ -88,13 +87,9 @@ routerAdd(
     if (!token) {
       $app.logger().error('PB_SUPERUSER_TOKEN not configured')
       saveError(invoice, 'Token de autenticação interno não configurado.')
-      return e.json(500, {
-        success: false,
-        error: 'Token de autenticação não configurado',
-      })
+      return jsonRes(500, { success: false, error: 'Token de autenticação não configurado' })
     }
 
-    // ===== Step 1: Set status to pending and clean old items =====
     invoice.set('status', 'pending')
     invoice.set('parsed_at', null)
     $app.save(invoice)
@@ -107,12 +102,9 @@ routerAdd(
         500,
         0,
       )
-      for (var oi = 0; oi < oldItems.length; oi++) {
-        $app.delete(oldItems[oi])
-      }
+      for (var oi = 0; oi < oldItems.length; oi++) $app.delete(oldItems[oi])
     } catch (_) {}
 
-    // ===== Step 2: Download the file =====
     var fileUrl = pbUrl + '/api/files/invoices/' + invoiceId + '/' + fileName
     var downloadRes = $http.send({
       url: fileUrl,
@@ -126,34 +118,22 @@ routerAdd(
         .logger()
         .error('File download failed', 'status', downloadRes.statusCode, 'invoice_id', invoiceId)
       saveError(invoice, 'Falha ao baixar arquivo', null, chosenModel)
-      return e.json(500, {
-        success: false,
-        error: 'Falha ao baixar arquivo',
-      })
+      return jsonRes(500, { success: false, error: 'Falha ao baixar arquivo' })
     }
 
     var rawBody = downloadRes.body
     var fileSize = rawBody.length
-
     $app.logger().info('File downloaded', 'size', fileSize, 'invoice_id', invoiceId)
 
     if (fileSize === 0) {
       saveError(invoice, 'Arquivo vazio ou corrompido', null, chosenModel)
-      return e.json(400, {
-        success: false,
-        error: 'Arquivo vazio ou corrompido',
-      })
+      return jsonRes(400, { success: false, error: 'Arquivo vazio ou corrompido' })
     }
-
     if (fileSize > 10 * 1024 * 1024) {
       saveError(invoice, 'Arquivo muito grande. Máximo 10MB.', null, chosenModel)
-      return e.json(400, {
-        success: false,
-        error: 'Arquivo muito grande. Máximo 10MB.',
-      })
+      return jsonRes(400, { success: false, error: 'Arquivo muito grande. Máximo 10MB.' })
     }
 
-    // ===== Step 3: Detect MIME type =====
     var ext = fileName.split('.').pop().toLowerCase()
     var mimeType = 'application/pdf'
     if (ext === 'pdf') mimeType = 'application/pdf'
@@ -164,7 +144,6 @@ routerAdd(
 
     $app.logger().info('MIME detected', 'mime', mimeType, 'ext', ext, 'invoice_id', invoiceId)
 
-    // ===== Step 4: Convert to base64 =====
     var b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
     var b64Parts = []
     for (var i = 0; i < rawBody.length; i += 3) {
@@ -179,10 +158,8 @@ routerAdd(
       )
     }
     var b64 = b64Parts.join('')
-
     $app.logger().info('Base64 encoded', 'payload_size', b64.length, 'invoice_id', invoiceId)
 
-    // ===== Step 5: Build Gemini request =====
     var sysPrompt =
       'Você é um assistente financeiro especializado em faturas de cartão de crédito brasileiras. Extraia TODAS as transações individuais da fatura. IGNORE cabeçalhos, rodapés, totais, taxas, juros, multas e impostos. Para cada transação, extraia: description (descrição do item, preservando notação de parcelas como "2/3"), amount (valor numérico sem "R$" ou vírgulas, use ponto decimal), date (data no formato YYYY-MM-DD, ou null se não visível). Se houver valores em moeda estrangeira com taxa de conversão visível, converta para BRL. Se não houver taxa, use o valor original. Retorne APENAS um JSON válido, sem markdown, sem texto adicional: {"items":[{"description":"string","amount":number,"date":"YYYY-MM-DD|null"}],"total_extracted":number,"currency":"BRL","confidence":"high|medium|low"}'
 
@@ -190,12 +167,7 @@ routerAdd(
       contents: [
         {
           parts: [
-            {
-              inline_data: {
-                mime_type: mimeType,
-                data: b64,
-              },
-            },
+            { inline_data: { mime_type: mimeType, data: b64 } },
             {
               text:
                 sysPrompt +
@@ -204,19 +176,18 @@ routerAdd(
           ],
         },
       ],
-      generationConfig: {
-        temperature: 0.1,
-        topK: 1,
-        topP: 0.8,
-        maxOutputTokens: 8192,
-      },
+      generationConfig: { temperature: 0.1, topK: 1, topP: 0.8, maxOutputTokens: 8192 },
     })
 
     var GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta'
-    var geminiUrl =
-      GEMINI_BASE + '/models/' + chosenModel + ':generateContent?key=' + GEMINI_API_KEY
+    var geminiUrl = GEMINI_BASE + '/models/' + chosenModel + ':generateContent'
 
-    // ===== Step 6: Call Gemini with retries (1 request per attempt, max 3) =====
+    $app.logger().info('PARSE_INVOICE: URL = ' + geminiUrl)
+    $app.logger().info('PARSE_INVOICE: modelo = ' + chosenModel)
+    diagInfo.url = geminiUrl
+    diagInfo.logs.push('PARSE_INVOICE: URL = ' + geminiUrl)
+    diagInfo.logs.push('PARSE_INVOICE: modelo = ' + chosenModel)
+
     var maxRetries = 3
     var backoffDelays = [2000, 4000, 8000]
     var geminiResult = null
@@ -232,20 +203,12 @@ routerAdd(
         var gRes = $http.send({
           url: geminiUrl,
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-goog-api-key': GEMINI_API_KEY },
           body: geminiBody,
           timeout: 30,
         })
 
-        $app
-          .logger()
-          .info(
-            '[parse-invoice] Tipo da resposta:',
-            'type',
-            typeof gRes.body,
-            'invoice_id',
-            invoiceId,
-          )
+        diagInfo.logs.push('Gemini attempt ' + (retry + 1) + ': HTTP ' + gRes.statusCode)
 
         if (gRes.statusCode === 200) {
           geminiResult = gRes
@@ -256,8 +219,8 @@ routerAdd(
         lastErrorStatus = gRes.statusCode
         var errBodyText = bodyToText(gRes.body)
         lastErrorDetail = errBodyText.substring(0, 500)
+        rawGeminiResponse = errBodyText
 
-        // Do not retry 400 or 401
         if (gRes.statusCode === 400 || gRes.statusCode === 401) {
           $app
             .logger()
@@ -277,19 +240,18 @@ routerAdd(
             errBodyText.substring(0, 2000),
             chosenModel,
           )
-          if (gRes.statusCode === 401) {
-            return e.json(401, {
+          if (gRes.statusCode === 401)
+            return jsonRes(401, {
               success: false,
               error: 'Erro de autenticação com a API Gemini. Verifique a chave de API.',
+              raw_error: lastErrorDetail,
             })
-          }
-          return e.json(400, {
+          return jsonRes(400, {
             success: false,
             error: 'Erro de configuração da API Gemini.',
+            raw_error: lastErrorDetail,
           })
         }
-
-        // Handle 404 — model unavailable
         if (gRes.statusCode === 404) {
           $app
             .logger()
@@ -303,13 +265,12 @@ routerAdd(
               invoiceId,
             )
           saveError(invoice, 'Modelo de IA não disponível. Contate o suporte.', null, chosenModel)
-          return e.json(404, {
+          return jsonRes(404, {
             success: false,
             error: 'Modelo de IA não disponível. Contate o suporte.',
+            raw_error: lastErrorDetail,
           })
         }
-
-        // Retry 429 and 503
         if (gRes.statusCode === 429 || gRes.statusCode === 503) {
           $app
             .logger()
@@ -325,9 +286,7 @@ routerAdd(
               invoiceId,
             )
           geminiError = new Error('HTTP ' + gRes.statusCode)
-          if (retry < maxRetries - 1) {
-            sleep(backoffDelays[retry] || 8000)
-          }
+          if (retry < maxRetries - 1) sleep(backoffDelays[retry] || 8000)
         } else {
           $app
             .logger()
@@ -351,14 +310,16 @@ routerAdd(
           )
           var nonTransientStatus =
             gRes.statusCode >= 400 && gRes.statusCode < 600 ? gRes.statusCode : 500
-          return e.json(nonTransientStatus, {
+          return jsonRes(nonTransientStatus, {
             success: false,
             error: 'Erro da API Gemini (HTTP ' + gRes.statusCode + ').',
+            raw_error: lastErrorDetail,
           })
         }
       } catch (httpErr) {
         lastErrorDetail = String(httpErr.message || httpErr)
         lastErrorStatus = 0
+        rawGeminiResponse = String(httpErr.message || httpErr)
         $app
           .logger()
           .error(
@@ -376,9 +337,10 @@ routerAdd(
           null,
           chosenModel,
         )
-        return e.json(503, {
+        return jsonRes(503, {
           success: false,
           error: 'Erro de conexão com a API Gemini.',
+          raw_error: lastErrorDetail,
         })
       }
     }
@@ -395,7 +357,6 @@ routerAdd(
           'last_status',
           lastErrorStatus,
         )
-
       if (lastErrorStatus === 429) {
         saveError(
           invoice,
@@ -403,12 +364,12 @@ routerAdd(
           null,
           chosenModel,
         )
-        return e.json(429, {
+        return jsonRes(429, {
           success: false,
           error: 'Serviço de IA sobrecarregado. Tente novamente em alguns minutos.',
+          raw_error: lastErrorDetail,
         })
       }
-
       saveError(
         invoice,
         'Serviço de IA temporariamente indisponível: ' +
@@ -416,13 +377,13 @@ routerAdd(
         null,
         chosenModel,
       )
-      return e.json(503, {
+      return jsonRes(503, {
         success: false,
         error: 'Serviço de IA temporariamente indisponível. Tente novamente.',
+        raw_error: lastErrorDetail,
       })
     }
 
-    // ===== Step 7: Parse Gemini response (read body as text) =====
     var responseBody = bodyToText(geminiResult.body)
     $app
       .logger()
@@ -446,13 +407,13 @@ routerAdd(
         responseBody.substring(0, 2000),
         chosenModel,
       )
-      return e.json(500, {
+      return jsonRes(500, {
         success: false,
         error: 'Resposta da Gemini em formato inválido',
+        raw_error: responseBody.substring(0, 500),
       })
     }
 
-    // Extract text from Gemini response: candidates[0].content.parts[0].text
     var aiContent = ''
     var tokensInput = 0
     var tokensOutput = 0
@@ -461,9 +422,7 @@ routerAdd(
         var candidate = parsedJson.candidates[0]
         if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
           for (var pi = 0; pi < candidate.content.parts.length; pi++) {
-            if (candidate.content.parts[pi].text) {
-              aiContent += candidate.content.parts[pi].text
-            }
+            if (candidate.content.parts[pi].text) aiContent += candidate.content.parts[pi].text
           }
         }
       }
@@ -478,9 +437,10 @@ routerAdd(
         responseBody.substring(0, 2000),
         chosenModel,
       )
-      return e.json(500, {
+      return jsonRes(500, {
         success: false,
         error: 'Resposta da Gemini em formato inválido',
+        raw_error: String(extractErr),
       })
     }
 
@@ -491,12 +451,14 @@ routerAdd(
         responseBody.substring(0, 2000),
         chosenModel,
       )
-      return e.json(500, {
+      return jsonRes(500, {
         success: false,
         error: 'Resposta da Gemini está vazia',
+        raw_error: responseBody.substring(0, 500),
       })
     }
 
+    diagInfo.logs.push('Gemini tokens - input: ' + tokensInput + ', output: ' + tokensOutput)
     $app
       .logger()
       .info(
@@ -511,7 +473,6 @@ routerAdd(
         invoiceId,
       )
 
-    // ===== Step 8: Extract JSON from content =====
     var jsonStr = aiContent
     var cbMatch = aiContent.match(/```(?:json)?\s*([\s\S]*?)```/)
     if (cbMatch) {
@@ -529,9 +490,10 @@ routerAdd(
         aiContent.substring(0, 2000),
         chosenModel,
       )
-      return e.json(500, {
+      return jsonRes(500, {
         success: false,
         error: 'Resposta da IA não contém JSON válido',
+        raw_error: aiContent.substring(0, 500),
       })
     }
 
@@ -545,9 +507,10 @@ routerAdd(
         aiContent.substring(0, 2000),
         chosenModel,
       )
-      return e.json(500, {
+      return jsonRes(500, {
         success: false,
         error: 'JSON malformado na resposta da IA',
+        raw_error: jsonStr.substring(0, 500),
       })
     }
 
@@ -558,13 +521,13 @@ routerAdd(
         aiContent.substring(0, 2000),
         chosenModel,
       )
-      return e.json(500, {
+      return jsonRes(500, {
         success: false,
         error: 'Resposta da IA não contém array de items',
+        raw_error: aiContent.substring(0, 500),
       })
     }
 
-    // ===== Step 9: Validate items =====
     var validItems = []
     var invalidItems = []
     var totalExtracted = 0
@@ -572,38 +535,27 @@ routerAdd(
     for (var m = 0; m < parsed.items.length; m++) {
       var it = parsed.items[m]
       var reason = null
-
-      if (!it.description || typeof it.description !== 'string' || it.description.trim() === '') {
+      if (!it.description || typeof it.description !== 'string' || it.description.trim() === '')
         reason = 'Descrição ausente ou inválida'
-      } else if (
+      else if (
         it.amount === undefined ||
         it.amount === null ||
         typeof it.amount !== 'number' ||
         isNaN(it.amount)
-      ) {
+      )
         reason = 'Valor ausente ou inválido'
-      }
-
       if (reason) {
         invalidItems.push({ index: m, reason: reason })
       } else {
         var desc = it.description.trim().substring(0, 255)
         var amt = Number(it.amount)
         var itemDate = it.date || null
-        // Validate date format
-        if (itemDate && !/^\d{4}-\d{2}-\d{2}$/.test(itemDate)) {
-          itemDate = null
-        }
-        validItems.push({
-          description: desc,
-          amount: amt,
-          date: itemDate,
-        })
+        if (itemDate && !/^\d{4}-\d{2}-\d{2}$/.test(itemDate)) itemDate = null
+        validItems.push({ description: desc, amount: amt, date: itemDate })
         totalExtracted += amt
       }
     }
 
-    // ===== Step 10: Resolve categories =====
     var familyId = invoice.getString('family_id')
     var categories = []
     try {
@@ -616,11 +568,9 @@ routerAdd(
       )
     } catch (_) {}
     var catMap = {}
-    for (var k = 0; k < categories.length; k++) {
+    for (var k = 0; k < categories.length; k++)
       catMap[categories[k].getString('name').toLowerCase()] = categories[k].getId()
-    }
 
-    // ===== Step 11: Save valid items =====
     var itemsCol = $app.findCollectionByNameOrId('invoice_items')
     var itemsCreated = 0
     for (var vi = 0; vi < validItems.length; vi++) {
@@ -655,7 +605,6 @@ routerAdd(
       }
     }
 
-    // ===== Step 12: Update invoice record =====
     var successPayload = {
       items_count: itemsCreated,
       total_extracted: parsed.total_extracted || totalExtracted,
@@ -665,15 +614,14 @@ routerAdd(
       processed_at: new Date().toISOString(),
       model: chosenModel,
     }
-    if (invalidItems.length > 0) {
-      successPayload.invalid_items = invalidItems
-    }
+    if (invalidItems.length > 0) successPayload.invalid_items = invalidItems
 
     invoice.set('parsed_data', JSON.stringify(successPayload))
     invoice.set('parsed_at', new Date().toISOString())
     invoice.set('status', 'parsed')
     $app.save(invoice)
 
+    diagInfo.logs.push('Invoice parsed successfully. Items: ' + itemsCreated)
     $app
       .logger()
       .info(
@@ -686,7 +634,7 @@ routerAdd(
         invoiceId,
       )
 
-    return e.json(200, {
+    return jsonRes(200, {
       success: true,
       items_count: itemsCreated,
       total: parsed.total_extracted || totalExtracted,
