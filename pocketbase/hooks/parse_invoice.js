@@ -205,7 +205,7 @@ routerAdd(
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-goog-api-key': GEMINI_API_KEY },
           body: geminiBody,
-          timeout: 30,
+          timeout: 120,
         })
 
         diagInfo.logs.push('Gemini attempt ' + (retry + 1) + ': HTTP ' + gRes.statusCode)
