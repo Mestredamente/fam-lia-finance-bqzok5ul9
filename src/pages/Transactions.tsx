@@ -8,15 +8,28 @@ import {
   Receipt,
   FileDown,
   Upload,
+  Trash2,
+  Eraser,
+  Loader2,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useTransactions } from '@/hooks/use-transactions'
 import { getActiveMembersByFamilyId } from '@/services/members'
-import { deleteTransaction } from '@/services/transactions'
+import { deleteTransaction, cleanupOrphanTransactions } from '@/services/transactions'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { TransactionFormSheet } from '@/components/TransactionFormSheet'
 import { TransactionDetailSheet } from '@/components/TransactionDetailSheet'
 import { ExportButton } from '@/components/ExportButton'
@@ -62,6 +75,9 @@ export default function Transactions() {
   const [editingTx, setEditingTx] = useState<TransactionRecord | null>(null)
   const [detailTx, setDetailTx] = useState<TransactionRecord | null>(null)
   const [showDetail, setShowDetail] = useState(false)
+  const [deleteTx, setDeleteTx] = useState<TransactionRecord | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [cleaningUp, setCleaningUp] = useState(false)
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -93,6 +109,36 @@ export default function Transactions() {
     } catch {
       setTransactions(prev)
       toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao excluir transação' })
+    }
+  }
+
+  const handleRowDelete = async () => {
+    if (!deleteTx) return
+    const prev = transactions
+    setTransactions(prev.filter((t) => t.id !== deleteTx.id))
+    setShowDeleteDialog(false)
+    try {
+      await deleteTransaction(deleteTx.id)
+      toast({ title: 'Transação excluída' })
+    } catch {
+      setTransactions(prev)
+      toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao excluir transação' })
+    }
+  }
+
+  const handleCleanupOrphans = async () => {
+    setCleaningUp(true)
+    try {
+      const result = await cleanupOrphanTransactions()
+      toast({
+        title: `${result.deleted} transações órfãs removidas`,
+        description: `Antes: ${result.before_null_category} sem categoria, ${result.before_filled_category} com categoria. Depois: ${result.remaining_null_category} sem categoria.`,
+      })
+      refetch()
+    } catch {
+      toast({ variant: 'destructive', title: 'Erro ao limpar transações' })
+    } finally {
+      setCleaningUp(false)
     }
   }
 
@@ -130,6 +176,14 @@ export default function Transactions() {
           >
             <FileDown className="h-4 w-4" />
             <span className="hidden sm:inline ml-1">Relatório</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleCleanupOrphans} disabled={cleaningUp}>
+            {cleaningUp ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Eraser className="h-4 w-4" />
+            )}
+            <span className="hidden sm:inline ml-1">Limpar órfãs</span>
           </Button>
           <Button
             variant="ghost"
@@ -262,6 +316,19 @@ export default function Transactions() {
                           {prefix}
                           {formatBRL(t.amount)}
                         </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setDeleteTx(t)
+                            setShowDeleteDialog(true)
+                          }}
+                          className="h-8 w-8 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50 shrink-0"
+                          aria-label="Excluir transação"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </CardContent>
                     </Card>
                   )
@@ -303,6 +370,21 @@ export default function Transactions() {
         memberId={member?.id || ''}
         onImported={refetch}
       />
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir transação</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Não</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRowDelete}>Sim, excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

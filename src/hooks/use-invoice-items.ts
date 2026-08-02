@@ -19,7 +19,7 @@ export function useInvoiceItems(invoiceId: string | undefined) {
       setError(null)
       try {
         const data = await getInvoiceItemsByInvoiceId(invoiceId)
-        setItems(data)
+        setItems(data.filter((item) => !item.excluded))
       } catch {
         setError('Erro ao carregar itens')
       } finally {

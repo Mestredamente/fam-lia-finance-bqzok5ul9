@@ -264,6 +264,7 @@ export interface InvoiceItemRecord {
   confirmed_category_id: string
   is_confirmed: boolean
   converted_transaction_id: string
+  excluded?: boolean
   created: string
   updated: string
   expand?: {

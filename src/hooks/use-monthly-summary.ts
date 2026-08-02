@@ -51,12 +51,16 @@ export function useMonthlySummary(
       if (period === 'tudo' || !range.startDate || !range.endDate) {
         setOtherMonthsCount(0)
       } else {
-        const count = await getTransactionsCountOutsideRange(
-          familyId,
-          range.startDate,
-          range.endDate,
-        )
-        setOtherMonthsCount(count)
+        try {
+          const count = await getTransactionsCountOutsideRange(
+            familyId,
+            range.startDate,
+            range.endDate,
+          )
+          setOtherMonthsCount(count)
+        } catch {
+          setOtherMonthsCount(0)
+        }
       }
     } catch {
       setError('Erro ao carregar resumo. Tente novamente.')

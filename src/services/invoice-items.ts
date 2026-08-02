@@ -12,3 +12,6 @@ export const updateInvoiceItem = (id: string, data: Partial<InvoiceItemRecord>) 
   pb.collection('invoice_items').update<InvoiceItemRecord>(id, data)
 
 export const deleteInvoiceItem = (id: string) => pb.collection('invoice_items').delete(id)
+
+export const excludeInvoiceItem = (id: string) =>
+  pb.collection('invoice_items').update<InvoiceItemRecord>(id, { excluded: true })

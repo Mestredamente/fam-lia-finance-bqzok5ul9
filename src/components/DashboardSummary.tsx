@@ -21,6 +21,8 @@ interface DashboardSummaryProps {
   onPrevMonth?: () => void
   onNextMonth?: () => void
   monthLabel?: string
+  year?: number
+  month?: number
 }
 
 export function DashboardSummary({
@@ -37,6 +39,8 @@ export function DashboardSummary({
   onPrevMonth,
   onNextMonth,
   monthLabel,
+  year,
+  month,
 }: DashboardSummaryProps) {
   if (loading) {
     return (
@@ -88,6 +92,8 @@ export function DashboardSummary({
             onPrevMonth={onPrevMonth}
             onNextMonth={onNextMonth}
             monthLabel={monthLabel}
+            year={year}
+            month={month}
           />
           {!isAllView && (
             <Button

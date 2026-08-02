@@ -18,7 +18,7 @@ import { useAnnouncer } from '@/hooks/use-announcer'
 import { useInvoiceItems } from '@/hooks/use-invoice-items'
 import { useCategories } from '@/hooks/use-categories'
 import { getInvoice, updateInvoice, parseInvoice, convertInvoiceItems } from '@/services/invoices'
-import { updateInvoiceItem, deleteInvoiceItem } from '@/services/invoice-items'
+import { updateInvoiceItem } from '@/services/invoice-items'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -41,7 +41,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { formatBRL, getMonthName, cn } from '@/lib/utils'
 import { getParseStatus } from '@/lib/invoice-utils'
 import { toast } from '@/hooks/use-toast'
-import type { InvoiceRecord } from '@/types/finance'
+import type { InvoiceRecord, InvoiceItemRecord } from '@/types/finance'
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   pending: { label: 'Pendente de revisão', className: 'bg-yellow-100 text-yellow-700' },
@@ -64,6 +64,7 @@ export default function InvoiceReview() {
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [excludeConfirmItem, setExcludeConfirmItem] = useState<InvoiceItemRecord | null>(null)
   const [categoryOverrides, setCategoryOverrides] = useState<Record<string, string>>({})
   const [lastSelectedCategory, setLastSelectedCategory] = useState('')
   const [failedItemIds, setFailedItemIds] = useState<string[]>([])
@@ -77,6 +78,9 @@ export default function InvoiceReview() {
   const { items, loading: itemsLoading, error: itemsError, refetch } = useInvoiceItems(invoiceId)
   const { categories } = useCategories(family?.id)
   const { announce } = useAnnouncer()
+
+  const itemsRef = useRef(items)
+  itemsRef.current = items
 
   useEffect(() => {
     if (!invoiceId) return
@@ -171,9 +175,21 @@ export default function InvoiceReview() {
   }, [])
 
   const handleDelete = useCallback((itemId: string) => {
+    const item = itemsRef.current.find((i) => i.id === itemId)
+    if (item?.converted_transaction_id) {
+      setExcludeConfirmItem(item)
+      return
+    }
     setDeletedItemIds((prev) => [...prev, itemId])
-    deleteInvoiceItem(itemId).catch(() => {})
+    updateInvoiceItem(itemId, { excluded: true }).catch(() => {})
   }, [])
+
+  const confirmExclude = () => {
+    if (!excludeConfirmItem) return
+    setDeletedItemIds((prev) => [...prev, excludeConfirmItem.id])
+    updateInvoiceItem(excludeConfirmItem.id, { excluded: true }).catch(() => {})
+    setExcludeConfirmItem(null)
+  }
 
   const handleApplyCategoryToAll = () => {
     if (!lastSelectedCategory) {
@@ -782,6 +798,25 @@ export default function InvoiceReview() {
         monthLabel={`${getMonthName(monthDate.getMonth())} ${monthDate.getFullYear()}`}
         onSuccess={() => navigate(`/cards/${cardId}`)}
       />
+
+      <AlertDialog
+        open={!!excludeConfirmItem}
+        onOpenChange={(open) => !open && setExcludeConfirmItem(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Este item já foi convertido em transação. Excluir não removerá a transação já criada.
+              Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Não</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmExclude}>Sim</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

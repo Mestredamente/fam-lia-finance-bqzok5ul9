@@ -94,8 +94,15 @@ routerAdd(
             continue
           }
 
+          if (item.get('excluded')) {
+            $app.logger().info('CONVERT_INVOICE_ITEMS: skipping excluded item', 'item_id', itemId)
+            continue
+          }
+
           var catId =
             item.getString('confirmed_category_id') || item.getString('suggested_category_id') || ''
+
+          $app.logger().info('CONVERT: item ' + itemId + ' category_id = ' + (catId || 'null'))
 
           var amount = item.get('amount')
           if (typeof amount === 'string') {
@@ -117,6 +124,25 @@ routerAdd(
               item_id: itemId,
               description: item.getString('description') || '',
               error: 'Valor inválido (esperado número): ' + String(item.get('amount')),
+              index: j,
+            })
+            continue
+          }
+
+          if (amount < 0) {
+            $app
+              .logger()
+              .warn(
+                'CONVERT_INVOICE_ITEMS: negative amount filtered',
+                'item_id',
+                itemId,
+                'amount',
+                String(amount),
+              )
+            errors.push({
+              item_id: itemId,
+              description: item.getString('description') || '',
+              error: 'Valor negativo não permitido: ' + String(amount),
               index: j,
             })
             continue

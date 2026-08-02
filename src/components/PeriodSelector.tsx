@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { type PeriodType, periodLabels } from '@/lib/period-utils'
+import { type PeriodType, periodLabels, getPeriodDisplayLabel } from '@/lib/period-utils'
 
 interface PeriodSelectorProps {
   period: PeriodType
@@ -16,6 +16,8 @@ interface PeriodSelectorProps {
   onNextMonth?: () => void
   monthLabel?: string
   nextDisabled?: boolean
+  year?: number
+  month?: number
 }
 
 export function PeriodSelector({
@@ -25,8 +27,11 @@ export function PeriodSelector({
   onNextMonth,
   monthLabel,
   nextDisabled,
+  year,
+  month,
 }: PeriodSelectorProps) {
   const showArrows = (period === 'mes' || period === 'mes_passado') && onPrevMonth && onNextMonth
+  const displayLabel = getPeriodDisplayLabel(period, year, month)
 
   return (
     <div className="flex items-center gap-1.5">
@@ -37,7 +42,7 @@ export function PeriodSelector({
       )}
       <Select value={period} onValueChange={(v) => onPeriodChange(v as PeriodType)}>
         <SelectTrigger className="h-8 w-auto min-w-[110px] text-xs">
-          <SelectValue />
+          <span>{displayLabel}</span>
         </SelectTrigger>
         <SelectContent>
           {(Object.keys(periodLabels) as PeriodType[]).map((p) => (

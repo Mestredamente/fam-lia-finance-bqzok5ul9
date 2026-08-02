@@ -14,7 +14,7 @@ export const getTransactionsByFamilyAndPeriod = (
     })
   }
   return pb.collection('transactions').getFullList<TransactionRecord>({
-    filter: `family_id = "${familyId}" && transaction_date >= "${startDate}" && transaction_date <= "${endDate}"`,
+    filter: `family_id = "${familyId}" && transaction_date >= "${startDate}" && transaction_date < "${endDate}"`,
     sort: '-transaction_date',
     expand: 'owner_id,category_id',
   })
@@ -28,10 +28,9 @@ export const getTransactionsCountOutsideRange = (
   pb
     .collection('transactions')
     .getList(1, 1, {
-      filter: `family_id = "${familyId}" && (transaction_date < "${startDate}" || transaction_date > "${endDate}")`,
+      filter: `family_id = "${familyId}" && (transaction_date < "${startDate}" || transaction_date >= "${endDate}")`,
     })
     .then((r) => r.totalItems)
-
 function getMonthRange(year: number, month: number) {
   const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
   const nextMonth = month === 11 ? { m: 0, y: year + 1 } : { m: month + 1, y: year }
@@ -78,6 +77,9 @@ export const updateTransaction = (id: string, data: Partial<TransactionRecord>) 
   pb.collection('transactions').update<TransactionRecord>(id, data)
 
 export const deleteTransaction = (id: string) => pb.collection('transactions').delete(id)
+
+export const cleanupOrphanTransactions = () =>
+  pb.send('/backend/v1/transactions/cleanup-orphans', { method: 'POST' })
 
 export const getTransactionsByFamilyAndDateRange = (
   familyId: string,

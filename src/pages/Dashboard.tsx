@@ -136,6 +136,8 @@ export default function Dashboard() {
             onNextMonth={() => canGoForward() && setCurrentDate(new Date(year, month + 1, 1))}
             nextDisabled={!canGoForward()}
             monthLabel={`${getMonthName(month)} ${year}`}
+            year={year}
+            month={month}
           />
           {period !== 'tudo' && (
             <Button
