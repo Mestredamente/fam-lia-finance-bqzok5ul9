@@ -86,6 +86,13 @@ export default function CardDetail() {
       .finally(() => setCardLoading(false))
   }, [cardId])
 
+  const usedLimit = invoices
+    .filter((inv) => inv.status !== 'paid')
+    .reduce((sum, inv) => sum + inv.total_amount, 0)
+  const totalLimit = card?.credit_limit || 0
+  const availableLimit = totalLimit - usedLimit
+  const usedPercentage = totalLimit > 0 ? (usedLimit / totalLimit) * 100 : 0
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center gap-3">
@@ -102,6 +109,42 @@ export default function CardDetail() {
           <CreditCardVisual card={card} ownerName={card.expand?.owner_id?.display_name} />
         </div>
       ) : null}
+
+      {card && card.credit_limit != null && card.credit_limit > 0 && (
+        <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Limite total</span>
+              <span className="text-sm font-bold text-gray-900">
+                {formatBRL(card.credit_limit)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Limite usado</span>
+              <span className="text-sm font-bold text-orange-600">{formatBRL(usedLimit)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Limite disponível</span>
+              <span className="text-sm font-bold text-emerald-600">
+                {formatBRL(availableLimit)}
+              </span>
+            </div>
+            <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+              <div
+                className={cn(
+                  'h-full transition-all duration-500',
+                  usedPercentage > 80
+                    ? 'bg-red-500'
+                    : usedPercentage > 50
+                      ? 'bg-orange-500'
+                      : 'bg-emerald-500',
+                )}
+                style={{ width: `${Math.min(usedPercentage, 100)}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {loading ? (
         <div className="space-y-3">
@@ -246,6 +289,7 @@ export default function CardDetail() {
         }}
         invoiceId={deleteTarget?.id ?? ''}
         monthLabel={deleteTarget?.label ?? ''}
+        onSuccess={refetch}
       />
     </div>
   )

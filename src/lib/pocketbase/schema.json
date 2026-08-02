@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-02T20:26:25.402Z",
+  "generatedAt": "2026-08-02T22:43:00.026Z",
   "collections": [
     {
       "name": "users",
@@ -520,12 +520,19 @@
           "required": false,
           "system": false,
           "selectValues": ["pending", "paid"]
+        },
+        {
+          "name": "purchase_date",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE INDEX idx_transactions_family_id ON transactions (family_id)",
         "CREATE INDEX idx_transactions_owner_id ON transactions (owner_id)",
-        "CREATE INDEX idx_transactions_category_id ON transactions (category_id)"
+        "CREATE INDEX idx_transactions_category_id ON transactions (category_id)",
+        "CREATE INDEX `idx_transactions_transaction_date` ON `transactions` (transaction_date)"
       ]
     },
     {

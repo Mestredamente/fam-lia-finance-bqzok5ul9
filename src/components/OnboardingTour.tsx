@@ -12,27 +12,32 @@ const TOUR_STEPS: TourStep[] = [
   {
     target: '[data-tour="dashboard-summary"]',
     title: 'Resumo Financeiro',
-    desc: 'Aqui você vê receitas, despesas, saldo e seu score de saúde financeira do mês.',
+    desc: 'Aqui você vê receitas, despesas, saldo e seu score de saúde financeira. Use as setas ou o seletor de período (hoje, semana, mês, ano ou tudo) para navegar.',
   },
   {
     target: '[data-tour="add-transaction"]',
     title: 'Adicionar Transação',
-    desc: 'Toque no botão + para registrar receitas, despesas e investimentos.',
+    desc: 'Toque no botão + para registrar receitas, despesas, investimentos e pagamentos de dívidas.',
+  },
+  {
+    target: '[data-tour="nav-cards"]',
+    title: 'Cartões e Faturas',
+    desc: 'Cadastre cartões com limite de crédito, importe faturas em PDF e acompanhe o limite usado e disponível de cada cartão.',
   },
   {
     target: '[data-tour="nav-transacoes"]',
     title: 'Transações',
-    desc: 'Filtre por membro e veja o histórico detalhado de todas as transações.',
+    desc: 'Veja o histórico detalhado, filtre por membro e analise gastos por categoria ao longo do tempo.',
   },
   {
     target: '[data-tour="nav-cards"]',
-    title: 'Cartões',
-    desc: 'Cadastre cartões e importe faturas com inteligência artificial.',
+    title: 'Importação de Faturas',
+    desc: 'Faça upload do PDF da fatura. A IA extrai os itens automaticamente. Revise, categorize, exclua itens e confirme para converter em transações. Marque como paga quando quitar.',
   },
   {
     target: '[data-tour="nav-consultora"]',
     title: 'Consultora IA',
-    desc: 'Converse com a IA financeira e acesse a terapia financeira.',
+    desc: 'Converse com a IA financeira, receba dicas personalizadas, faça simulações e acesse a terapia financeira emocional.',
   },
 ]
 

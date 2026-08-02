@@ -41,8 +41,9 @@ export function DeleteInvoiceDialog({
     setTransactionCount(0)
     getInvoiceItemsByInvoiceId(invoiceId)
       .then((items) => {
-        setItemCount(items.length)
-        setTransactionCount(items.filter((i) => i.converted_transaction_id).length)
+        const activeItems = items.filter((i) => !i.excluded)
+        setItemCount(activeItems.length)
+        setTransactionCount(activeItems.filter((i) => i.converted_transaction_id).length)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -52,9 +53,14 @@ export function DeleteInvoiceDialog({
     setDeleting(true)
     try {
       const result = await deleteInvoiceCascade(invoiceId)
+      const skippedMsg =
+        result.skipped > 0 ? ` ${result.skipped} transação(ões) não puderam ser removidas.` : ''
       toast({
-        title: `Fatura excluída. ${result.deleted_items} itens e ${result.deleted_transactions} transações removidos.`,
-        className: 'border-green-500 bg-green-50 text-green-800',
+        title: `Fatura excluída. ${result.deleted_items} itens e ${result.deleted_transactions} transações removidos.${skippedMsg}`,
+        className:
+          result.skipped > 0
+            ? 'border-yellow-500 bg-yellow-50 text-yellow-800'
+            : 'border-green-500 bg-green-50 text-green-800',
       })
       onOpenChange(false)
       onSuccess?.()
@@ -77,6 +83,8 @@ export function DeleteInvoiceDialog({
     }
   }
 
+  const showWarning = transactionCount > 0
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -91,21 +99,19 @@ export function DeleteInvoiceDialog({
                   Carregando...
                 </div>
               ) : (
-                <div className="space-y-1">
-                  <p>
-                    Itens da fatura que serão excluídos: <strong>{itemCount}</strong>
-                  </p>
-                  <p>
-                    Transações que serão excluídas: <strong>{transactionCount}</strong>
+                <p>
+                  <strong>{transactionCount}</strong> de <strong>{itemCount}</strong> transações
+                  serão removidas
+                </p>
+              )}
+              {showWarning && (
+                <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
+                  <p className="text-yellow-800">
+                    Transações editadas manualmente não serão removidas
                   </p>
                 </div>
               )}
-              <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
-                <p className="text-yellow-800">
-                  Transações editadas manualmente não serão removidas
-                </p>
-              </div>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>

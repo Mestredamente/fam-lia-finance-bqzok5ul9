@@ -36,14 +36,17 @@ export const updateInvoice = (id: string, data: Partial<InvoiceRecord>) =>
 export const deleteInvoice = (id: string) => pb.collection('invoices').delete(id)
 
 export const deleteInvoiceCascade = (invoiceId: string) =>
-  pb.send<{ success: boolean; deleted_items: number; deleted_transactions: number }>(
-    '/backend/v1/delete-invoice',
-    {
-      method: 'POST',
-      body: JSON.stringify({ invoice_id: invoiceId }),
-      headers: { 'Content-Type': 'application/json' },
-    },
-  )
+  pb.send<{
+    success: boolean
+    deleted_items: number
+    deleted_transactions: number
+    skipped: number
+    errors: Array<{ item_id: string; transaction_id?: string; error: string }>
+  }>('/backend/v1/delete-invoice', {
+    method: 'POST',
+    body: JSON.stringify({ invoice_id: invoiceId }),
+    headers: { 'Content-Type': 'application/json' },
+  })
 
 export const parseInvoice = (invoiceId: string) => {
   const timeoutPromise = new Promise<never>((_, reject) => {

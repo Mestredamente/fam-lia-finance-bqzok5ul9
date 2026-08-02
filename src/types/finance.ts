@@ -188,6 +188,7 @@ export interface TransactionRecord {
   source: TransactionSource
   invoice_item_id?: string | null
   status?: 'pending' | 'paid'
+  purchase_date?: string | null
   created: string
   updated: string
   expand?: {
