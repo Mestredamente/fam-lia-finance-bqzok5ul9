@@ -245,6 +245,7 @@ export interface InvoiceRecord {
   raw_file_url: string
   parsed_data: string
   parsed_at: string
+  reviewed_at?: string | null
   created: string
   updated: string
   expand?: {

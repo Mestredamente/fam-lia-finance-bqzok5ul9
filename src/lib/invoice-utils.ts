@@ -3,17 +3,22 @@ import type { InvoiceRecord } from '@/types/finance'
 export type ParseStatus = 'processing' | 'success' | 'error' | 'none'
 
 export function getParseStatus(invoice: InvoiceRecord): ParseStatus {
-  if (!invoice.raw_file_url) return 'none'
-  if (invoice.status === 'error') return 'error'
-  if (invoice.status === 'parsed') return 'success'
-  if (!invoice.parsed_at) return 'processing'
-  try {
-    const data = invoice.parsed_data ? JSON.parse(invoice.parsed_data) : null
-    if (data && typeof data === 'object' && ('error' in data || 'erro' in data)) return 'error'
-  } catch {
-    // parsed_data is not valid JSON — assume success
+  const status = invoice.status
+  const reviewedAt = invoice.reviewed_at
+
+  let result: ParseStatus
+
+  if (status === 'reviewed' || status === 'paid' || reviewedAt) {
+    result = 'none'
+  } else if (status === 'parsed' && invoice.parsed_at) {
+    result = 'success'
+  } else {
+    result = 'none'
   }
-  return 'success'
+
+  console.log(`getParseStatus: status=${status} reviewed_at=${reviewedAt || ''} result=${result}`)
+
+  return result
 }
 
 export function getParseError(invoice: InvoiceRecord): string | null {

@@ -191,14 +191,24 @@ routerAdd(
       }
 
       var currentStatus = invoice.getString('status')
-      if (allConverted && currentStatus !== 'paid') {
-        invoice.set('status', 'reviewed')
+      if (allConverted) {
+        var reviewNow = new Date()
+        invoice.set('reviewed_at', reviewNow.toISOString())
+        if (currentStatus !== 'paid') {
+          invoice.set('status', 'reviewed')
+        }
         $app
           .logger()
           .info(
-            'CONVERT_INVOICE_ITEMS: all items converted, status set to reviewed',
+            'CONVERT_INVOICE_ITEMS: all items converted, status updated',
             'invoice_id',
             invoiceId,
+            'previous_status',
+            currentStatus,
+            'new_status',
+            currentStatus === 'paid' ? 'paid' : 'reviewed',
+            'reviewed_at',
+            reviewNow.toISOString(),
           )
       } else {
         $app

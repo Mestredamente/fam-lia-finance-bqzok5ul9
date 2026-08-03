@@ -81,3 +81,19 @@ export const getPendingInvoicesCount = (familyId: string) =>
       filter: `family_id = "${familyId}" && (status = "pending" || status = "parsed") && parsed_at != null`,
     })
     .then((r) => r.totalItems)
+
+export interface AiCategorizeResult {
+  success: boolean
+  categorized_by_rules: number
+  categorized_by_ai: number
+  no_match: number
+  ai_error: string | null
+  step: string | null
+}
+
+export const aiCategorizeInvoiceItems = (invoiceId: string) =>
+  pb.send<AiCategorizeResult>('/backend/v1/ai-categorize-invoice-items', {
+    method: 'POST',
+    body: JSON.stringify({ invoice_id: invoiceId }),
+    headers: { 'Content-Type': 'application/json' },
+  })

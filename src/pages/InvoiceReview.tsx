@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Trash2,
   Layers,
+  Sparkles,
 } from 'lucide-react'
 import { ClientResponseError } from 'pocketbase'
 import { useAuth } from '@/hooks/use-auth'
@@ -17,7 +18,13 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { useAnnouncer } from '@/hooks/use-announcer'
 import { useInvoiceItems } from '@/hooks/use-invoice-items'
 import { useCategories } from '@/hooks/use-categories'
-import { getInvoice, updateInvoice, parseInvoice, convertInvoiceItems } from '@/services/invoices'
+import {
+  getInvoice,
+  updateInvoice,
+  parseInvoice,
+  convertInvoiceItems,
+  aiCategorizeInvoiceItems,
+} from '@/services/invoices'
 import { updateInvoiceItem } from '@/services/invoice-items'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { Button } from '@/components/ui/button'
@@ -47,6 +54,8 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   pending: { label: 'Pendente de revisão', className: 'bg-yellow-100 text-yellow-700' },
   reviewed: { label: 'Revisada', className: 'bg-blue-100 text-blue-700' },
   paid: { label: 'Paga', className: 'bg-green-100 text-green-700' },
+  parsed: { label: 'Processada', className: 'bg-purple-100 text-purple-700' },
+  error: { label: 'Erro', className: 'bg-red-100 text-red-700' },
 }
 
 const TIMEOUT_MESSAGE = 'Tempo limite excedido. A fatura pode ser muito grande. Tente novamente.'
@@ -61,6 +70,7 @@ export default function InvoiceReview() {
   const [error, setError] = useState<string | null>(null)
   const [reparsing, setReparsing] = useState(false)
   const [convertingAll, setConvertingAll] = useState(false)
+  const [aiCategorizing, setAiCategorizing] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
@@ -208,6 +218,49 @@ export default function InvoiceReview() {
     }
     setCategoryOverrides((prev) => ({ ...prev, ...updates }))
     toast({ title: `${Object.keys(updates).length} itens categorizados` })
+  }
+
+  const handleAiCategorize = async () => {
+    if (!invoiceId) return
+    setAiCategorizing(true)
+    try {
+      const result = await aiCategorizeInvoiceItems(invoiceId)
+      const byRules = result.categorized_by_rules ?? 0
+      const byAI = result.categorized_by_ai ?? 0
+      const noMatch = result.no_match ?? 0
+      const aiError = result.ai_error ?? null
+
+      if (byRules > 0 || byAI > 0) {
+        setCategoryOverrides({})
+        refetch()
+      }
+
+      if (byRules > 0 && aiError) {
+        toast({
+          title: `${byRules} itens categorizados por regras. IA indisponível — tente novamente para os itens restantes.`,
+        })
+      } else if (byRules > 0 || byAI > 0) {
+        toast({
+          title: `${byRules} itens categorizados por regras, ${byAI} por IA, ${noMatch} sem categoria. Revise antes de confirmar.`,
+        })
+      } else if (aiError) {
+        toast({
+          variant: 'destructive',
+          title: 'Categorização por IA falhou',
+          description: aiError,
+        })
+      } else {
+        toast({ title: 'Nenhum item para categorizar' })
+      }
+    } catch (err) {
+      const errorMsg =
+        err instanceof ClientResponseError
+          ? ((err.response as Record<string, unknown>)?.error as string) || err.message
+          : 'Erro ao categorizar com IA'
+      toast({ variant: 'destructive', title: 'Erro na categorização', description: errorMsg })
+    } finally {
+      setAiCategorizing(false)
+    }
   }
 
   const handleConvert = useCallback(
@@ -459,6 +512,9 @@ export default function InvoiceReview() {
               {invoice.expand?.card_id?.card_brand || ''}
             </span>
             <Badge className={cn('text-[10px]', statusInfo.className)}>{statusInfo.label}</Badge>
+            {invoice.status === 'paid' && invoice.reviewed_at && (
+              <Badge className="text-[10px] bg-blue-100 text-blue-700">Revisada</Badge>
+            )}
           </div>
         </div>
         <Button
@@ -625,6 +681,23 @@ export default function InvoiceReview() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
+                  {uncategorizedCount > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleAiCategorize}
+                      disabled={aiCategorizing}
+                      className="h-7 text-xs border-purple-300 text-purple-700 hover:bg-purple-50"
+                    >
+                      {aiCategorizing ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      ) : (
+                        <Sparkles className="h-3 w-3 mr-1 shrink-0" />
+                      )}
+                      <span className="hidden sm:inline">Categorizar com IA</span>
+                      <span className="sm:hidden">IA</span>
+                    </Button>
+                  )}
                   {uncategorizedCount > 0 && lastSelectedCategory && (
                     <Button
                       size="sm"
