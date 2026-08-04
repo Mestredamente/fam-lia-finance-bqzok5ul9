@@ -19,6 +19,7 @@ import { MemberRecord } from '@/types/finance'
 import { getActiveMembersByFamilyId } from '@/services/members'
 import { getMonthName } from '@/lib/utils'
 import { BudgetProgressSection } from '@/components/BudgetProgressSection'
+import { ComprometimentoFuturoCard } from '@/components/ComprometimentoFuturoCard'
 import { UpcomingTasksSection } from '@/components/UpcomingTasksSection'
 import { Link } from 'react-router-dom'
 
@@ -179,6 +180,8 @@ export default function Dashboard() {
         error={error}
         onRetry={refetch}
       />
+
+      <ComprometimentoFuturoCard familyId={family.id} />
 
       {otherMonthsCount > 0 && period !== 'tudo' && (
         <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">

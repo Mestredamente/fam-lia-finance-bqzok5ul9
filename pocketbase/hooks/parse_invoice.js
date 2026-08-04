@@ -171,7 +171,7 @@ routerAdd(
     $app.logger().info('Base64 encoded', 'payload_size', b64.length, 'invoice_id', invoiceId)
 
     var sysPrompt =
-      'Você é um assistente financeiro especializado em faturas de cartão de crédito brasileiras. Extraia TODAS as transações individuais da fatura que sejam COMPRAS. IGNORE cabeçalhos, rodapés, totais, taxas, juros, multas, impostos, pagamentos, pagamentos anteriores, créditos, estornos e qualquer entrada que não seja uma compra. Para cada transação, extraia: description (nome CONCISO do estabelecimento com data, ex: "MERCADO X 12/05", preservando parcelas como "2/3"), amount (valor numérico sem "R$" ou vírgulas, use ponto decimal, deve ser POSITIVO), date (data no formato YYYY-MM-DD, ou null se não visível). Se houver valores em moeda estrangeira com taxa de conversão visível, converta para BRL. Se não houver taxa, use o valor original. MANTENHA as descrições curtas (apenas nome do estabelecimento e data) para reduzir o tamanho da resposta e evitar truncamento.\n\nNÃO inclua: pagamentos, pagamentos anteriores, créditos, estornos, taxas, juros, anuidade, encargos.\n\nEstrutura esperada da resposta: { items: [ { description: string, amount: number, date: string } ] }\n\nIMPORTANTE: Não inclua markdown formatting. Não use ```json ou ```. Retorne apenas o JSON puro.\n\nResponda APENAS com JSON válido, sem markdown, sem texto explicativo, sem blocos de código. Comece com { e termine com }. Não use crases.'
+      'Você é um assistente financeiro especializado em faturas de cartão de crédito brasileiras. Extraia TODAS as transações individuais da fatura que sejam COMPRAS. IGNORE cabeçalhos, rodapés, totais, taxas, juros, multas, impostos, pagamentos, pagamentos anteriores, créditos, estornos e qualquer entrada que não seja uma compra. Para cada transação, extraia: description (nome CONCISO do estabelecimento com data, ex: "MERCADO X 12/05", preservando parcelas como "2/3"), amount (valor numérico sem "R$" ou vírgulas, use ponto decimal, deve ser POSITIVO), date (data no formato YYYY-MM-DD, ou null se não visível). Se houver valores em moeda estrangeira com taxa de conversão visível, converta para BRL. Se não houver taxa, use o valor original. MANTENHA as descrições curtas (apenas nome do estabelecimento e data) para reduzir o tamanho da resposta e evitar truncamento.\n\nNÃO inclua: pagamentos, pagamentos anteriores, créditos, estornos, taxas, juros, anuidade, encargos.\n\nPara cada item, identifique se é uma compra parcelada. Se for, extraia: is_installment: true, installment_current: número da parcela atual (ex: 2 de 2/10), installment_total: total de parcelas (ex: 10 de 2/10). Se não for parcelada, is_installment: false.\n\nEstrutura esperada da resposta: { items: [ { description: string, amount: number, date: string, is_installment: boolean, installment_current: number | null, installment_total: number | null } ] }\n\nIMPORTANTE: Não inclua markdown formatting. Não use ```json ou ```. Retorne apenas o JSON puro.\n\nResponda APENAS com JSON válido, sem markdown, sem texto explicativo, sem blocos de código. Comece com { e termine com }. Não use crases.'
 
     var geminiBody = JSON.stringify({
       contents: [
@@ -741,7 +741,23 @@ routerAdd(
 
         var itemDate = it.date || null
         if (itemDate && !/^\d{4}-\d{2}-\d{2}$/.test(itemDate)) itemDate = null
-        validItems.push({ description: desc, amount: amt, date: itemDate })
+        var isInst = !!it.is_installment
+        var instCurrent =
+          typeof it.installment_current === 'number' && !isNaN(it.installment_current)
+            ? it.installment_current
+            : null
+        var instTotal =
+          typeof it.installment_total === 'number' && !isNaN(it.installment_total)
+            ? it.installment_total
+            : null
+        validItems.push({
+          description: desc,
+          amount: amt,
+          date: itemDate,
+          is_installment: isInst,
+          installment_current: instCurrent,
+          installment_total: instTotal,
+        })
         totalExtracted += amt
       }
     }
@@ -822,6 +838,11 @@ routerAdd(
         }
 
         if (suggestedCat) ir.set('suggested_category_id', suggestedCat)
+        if (vItem.is_installment) {
+          ir.set('is_installment', true)
+          if (vItem.installment_current) ir.set('installment_current', vItem.installment_current)
+          if (vItem.installment_total) ir.set('installment_total', vItem.installment_total)
+        }
         ir.set('is_confirmed', false)
         $app.save(ir)
         itemsCreated++

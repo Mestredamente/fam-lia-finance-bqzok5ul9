@@ -25,6 +25,12 @@ export const updateDebt = (id: string, data: Partial<DebtRecord>) =>
 
 export const deleteDebt = (id: string) => pb.collection('debts').delete(id)
 
+export const getFixedBillsByFamilyId = (familyId: string) =>
+  pb.collection('debts').getFullList<DebtRecord>({
+    filter: `family_id = "${familyId}" && is_active = true && (type = "utility" || type = "subscription" || type = "rent" || type = "condo")`,
+    sort: 'due_day',
+  })
+
 export async function registerDebtPayment(debt: DebtRecord): Promise<{ quitada: boolean }> {
   const categoryName = debt.type === 'credit_card' ? 'Cartão de Crédito' : 'Parcelas'
 

@@ -20,6 +20,7 @@ import {
 import { PasswordInput } from '@/components/PasswordInput'
 import { CurrencyInput } from '@/components/CurrencyInput'
 import { TermsModal } from '@/components/TermsModal'
+import { FixedBillsForm, type FixedBillEntry } from '@/components/FixedBillsForm'
 import { MemberRole, roleLabels, type FamilyRecord } from '@/types/finance'
 import { createFamily } from '@/services/families'
 import { createMember } from '@/services/members'
@@ -44,7 +45,7 @@ export default function Onboarding() {
   const navigate = useNavigate()
   const { signUp, refreshData, isAuthenticated, user } = useAuth()
 
-  const [step, setStep] = useState<1 | 2 | 3>(isAuthenticated ? 2 : 1)
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(isAuthenticated ? 2 : 1)
   const [loading, setLoading] = useState(false)
 
   const [name, setName] = useState('')
@@ -66,6 +67,7 @@ export default function Onboarding() {
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [showTermsModal, setShowTermsModal] = useState(false)
   const [familyError, setFamilyError] = useState('')
+  const [fixedBills, setFixedBills] = useState<FixedBillEntry[]>([])
 
   const getPasswordStrength = () => {
     if (!password) return { label: 'Fraca', score: 0, color: 'bg-red-500' }
@@ -205,6 +207,42 @@ export default function Onboarding() {
 
       await refreshData()
 
+      if (fixedBills.length > 0) {
+        try {
+          const memberRecords = await pb
+            .collection('members')
+            .getFullList({ filter: `user_id = "${userId}"`, limit: 1 })
+          if (memberRecords.length > 0) {
+            const m = memberRecords[0] as { id: string; family_id: string }
+            for (const bill of fixedBills) {
+              const instTotal = bill.installments_total || 1
+              const instPaid = bill.installments_paid || 0
+              await pb.collection('debts').create({
+                family_id: m.family_id,
+                owner_id: m.id,
+                description: bill.description,
+                type: bill.type,
+                total_amount: bill.installment_value * instTotal,
+                remaining_amount: bill.installment_value * Math.max(0, instTotal - instPaid),
+                installment_value: bill.installment_value,
+                installments_total: instTotal,
+                installments_paid: instPaid,
+                installments_remaining: Math.max(0, instTotal - instPaid),
+                interest_rate: 0,
+                due_day: bill.due_day,
+                start_date: new Date().toISOString(),
+                is_active: true,
+                auto_create_transaction: true,
+                status: 'active',
+                frequency: 'monthly',
+              })
+            }
+          }
+        } catch {
+          /* intentionally ignored */
+        }
+      }
+
       localStorage.setItem('ff_onboarding_complete', 'true')
       localStorage.setItem('ff_tour_pending', 'true')
 
@@ -240,7 +278,7 @@ export default function Onboarding() {
         Finanças para quem mora junto — seja qual for o seu arranjo
       </p>
       <div className="w-full max-w-xs flex items-center justify-between mb-6">
-        {[1, 2, 3].map((s) => {
+        {[1, 2, 3, 4].map((s) => {
           const isDone = step > s
           const isCurrent = step === s
           return (
@@ -252,7 +290,7 @@ export default function Onboarding() {
               >
                 {isDone ? <Check className="h-5 w-5" /> : s}
               </div>
-              {s < 3 && (
+              {s < 4 && (
                 <div
                   className={`w-12 h-1 mx-1 rounded-full ${step > s ? 'bg-[#166534]' : 'bg-gray-200'}`}
                 />
@@ -540,7 +578,7 @@ export default function Onboarding() {
             <div className="space-y-5">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Quase lá!</h2>
-                <p className="text-xs text-gray-500">Passo 3 de 3: Renda e preferências</p>
+                <p className="text-xs text-gray-500">Passo 3 de 4: Renda e preferências</p>
               </div>
 
               <div className="space-y-3">
@@ -584,31 +622,89 @@ export default function Onboarding() {
                     <Switch checked={aiTips} onCheckedChange={setAiTips} />
                   </div>
                 </div>
-
-                <div className="flex items-start gap-2 pt-2">
-                  <Checkbox
-                    id="terms"
-                    checked={acceptedTerms}
-                    onCheckedChange={(c) => setAcceptedTerms(!!c)}
-                    className="mt-0.5"
-                  />
-                  <label htmlFor="terms" className="text-xs text-gray-600 leading-tight">
-                    Li e aceito os{' '}
-                    <button
-                      type="button"
-                      onClick={() => setShowTermsModal(true)}
-                      className="text-[#16A34A] underline font-semibold"
-                    >
-                      termos de uso e política de privacidade (LGPD)
-                    </button>
-                  </label>
-                </div>
               </div>
 
               <div className="flex gap-2 pt-2">
                 <Button
                   variant="outline"
                   onClick={() => setStep(2)}
+                  className="w-1/3"
+                  disabled={loading}
+                >
+                  Voltar
+                </Button>
+                <Button
+                  onClick={() => setStep(4)}
+                  className="w-2/3 bg-[#166534] hover:bg-[#15803D] text-white"
+                >
+                  Continuar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Contas fixas e dívidas</h2>
+                <p className="text-xs text-gray-500">Passo 4 de 4: Compromissos mensais</p>
+              </div>
+
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <p className="text-xs text-gray-600">
+                  Você tem contas fixas mensais ou dívidas? Adicione-as agora ou pule este passo.
+                </p>
+              </div>
+
+              {fixedBills.length > 0 && (
+                <div className="space-y-2">
+                  {fixedBills.map((bill, idx) => (
+                    <div key={idx} className="p-3 bg-gray-50 rounded-xl space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-gray-900">
+                          {bill.description}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setFixedBills(fixedBills.filter((_, i) => i !== idx))}
+                          className="text-xs text-red-500"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {bill.type} · R$ {bill.installment_value.toFixed(2)} · Dia {bill.due_day}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <FixedBillsForm onAdd={(bill) => setFixedBills([...fixedBills, bill])} />
+
+              <div className="flex items-start gap-2 pt-2">
+                <Checkbox
+                  id="terms"
+                  checked={acceptedTerms}
+                  onCheckedChange={(c) => setAcceptedTerms(!!c)}
+                  className="mt-0.5"
+                />
+                <label htmlFor="terms" className="text-xs text-gray-600 leading-tight">
+                  Li e aceito os{' '}
+                  <button
+                    type="button"
+                    onClick={() => setShowTermsModal(true)}
+                    className="text-[#16A34A] underline font-semibold"
+                  >
+                    termos de uso e política de privacidade (LGPD)
+                  </button>
+                </label>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setStep(3)}
                   className="w-1/3"
                   disabled={loading}
                 >

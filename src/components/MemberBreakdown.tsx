@@ -41,50 +41,66 @@ export function MemberBreakdown({
   }
 
   return (
-    <div className="space-y-0.5">
-      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-2 pb-1.5 text-xs font-semibold text-gray-400 uppercase border-b border-gray-100">
-        <span>Membro</span>
-        <span className="text-right">Rec.</span>
-        <span className="text-right">Desp.</span>
-        <span className="text-right">Saldo</span>
-      </div>
-      {activeMembers.map((m) => {
-        const ms = memberSummaries[m.id]
-        const income = getMemberIncome(m, ms)
-        const expenses = ms?.totalDespesas ?? 0
-        const balance = income - expenses
-        return (
-          <div
-            key={m.id}
-            onClick={() => onMemberClick(m)}
-            className="grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <Avatar className="h-7 w-7 border border-[#22C55E] shrink-0">
-                <AvatarImage src={getMemberAvatarUrl(m)} alt={m.display_name} />
-                <AvatarFallback className="bg-emerald-100 text-[#166534] text-[10px] font-bold">
-                  {m.display_name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-xs font-medium text-gray-900 truncate">{m.display_name}</span>
-            </div>
-            <span className="text-xs font-medium text-[#166534] text-right tabular-nums">
-              {formatBRL(income)}
-            </span>
-            <span className="text-xs font-medium text-red-600 text-right tabular-nums">
-              {formatBRL(expenses)}
-            </span>
-            <span
-              className={cn(
-                'text-xs font-bold text-right tabular-nums',
-                balance >= 0 ? 'text-blue-700' : 'text-red-600',
-              )}
-            >
-              {formatBRL(balance)}
-            </span>
-          </div>
-        )
-      })}
+    <div className="w-full">
+      <table className="w-full" style={{ tableLayout: 'fixed' }}>
+        <colgroup>
+          <col style={{ width: '40%' }} />
+          <col style={{ width: '20%' }} />
+          <col style={{ width: '20%' }} />
+          <col style={{ width: '20%' }} />
+        </colgroup>
+        <thead>
+          <tr className="text-xs font-semibold text-gray-400 uppercase border-b border-gray-100">
+            <th className="text-left px-2 pb-1.5 font-semibold">Membro</th>
+            <th className="text-right px-2 pb-1.5 font-semibold">Rec.</th>
+            <th className="text-right px-2 pb-1.5 font-semibold">Desp.</th>
+            <th className="text-right px-2 pb-1.5 font-semibold">Saldo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {activeMembers.map((m) => {
+            const ms = memberSummaries[m.id]
+            const income = getMemberIncome(m, ms)
+            const expenses = ms?.totalDespesas ?? 0
+            const balance = income - expenses
+            return (
+              <tr
+                key={m.id}
+                onClick={() => onMemberClick(m)}
+                className="rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+              >
+                <td className="px-2 py-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Avatar className="h-7 w-7 border border-[#22C55E] shrink-0">
+                      <AvatarImage src={getMemberAvatarUrl(m)} alt={m.display_name} />
+                      <AvatarFallback className="bg-emerald-100 text-[#166534] text-[10px] font-bold">
+                        {m.display_name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-xs font-medium text-gray-900 truncate">
+                      {m.display_name}
+                    </span>
+                  </div>
+                </td>
+                <td className="text-xs font-medium text-[#166534] text-right tabular-nums px-2 py-2">
+                  {formatBRL(income)}
+                </td>
+                <td className="text-xs font-medium text-red-600 text-right tabular-nums px-2 py-2">
+                  {formatBRL(expenses)}
+                </td>
+                <td
+                  className={cn(
+                    'text-xs font-bold text-right tabular-nums px-2 py-2',
+                    balance >= 0 ? 'text-blue-700' : 'text-red-600',
+                  )}
+                >
+                  {formatBRL(balance)}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }

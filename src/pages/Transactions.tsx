@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useTransactions } from '@/hooks/use-transactions'
 import { getActiveMembersByFamilyId } from '@/services/members'
 import { deleteTransaction, cleanupOrphanTransactions } from '@/services/transactions'
+import { deleteFutureInstallments } from '@/services/future-installments'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -98,13 +99,22 @@ export default function Transactions() {
     memberFilter === 'all' ? transactions : transactions.filter((t) => t.owner_id === memberFilter)
   const grouped = groupByDay(filtered)
 
-  const handleDelete = async () => {
+  const handleDelete = async (deleteAll?: boolean) => {
     if (!detailTx) return
     const prev = transactions
-    setTransactions(prev.filter((t) => t.id !== detailTx.id))
+    const idsToRemove = new Set([detailTx.id])
+    if (deleteAll && detailTx.parent_transaction_id) {
+      prev.forEach((t) => {
+        if (t.parent_transaction_id === detailTx.parent_transaction_id) idsToRemove.add(t.id)
+      })
+    }
+    setTransactions(prev.filter((t) => !idsToRemove.has(t.id)))
     setShowDetail(false)
     try {
       await deleteTransaction(detailTx.id)
+      if (deleteAll && detailTx.parent_transaction_id) {
+        await deleteFutureInstallments(detailTx.parent_transaction_id)
+      }
       toast({ title: 'Transação excluída' })
     } catch {
       setTransactions(prev)

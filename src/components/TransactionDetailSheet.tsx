@@ -23,7 +23,7 @@ interface Props {
   onOpenChange: (open: boolean) => void
   isOwner: boolean
   onEdit: () => void
-  onDelete: () => void
+  onDelete: (deleteAll?: boolean) => void
 }
 
 export function TransactionDetailSheet({
@@ -128,19 +128,34 @@ export function TransactionDetailSheet({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir esta transação?</AlertDialogTitle>
-            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+            <AlertDialogDescription>
+              {transaction?.parent_transaction_id
+                ? 'Esta é uma parcela de uma compra parcelada. Deseja excluir apenas esta parcela ou todas as parcelas futuras?'
+                : 'Esta ação não pode ser desfeita.'}
+            </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 setConfirmDelete(false)
-                onDelete()
+                onDelete(false)
               }}
               className="bg-red-600 hover:bg-red-700"
             >
-              Excluir
+              {transaction?.parent_transaction_id ? 'Apenas esta' : 'Excluir'}
             </AlertDialogAction>
+            {transaction?.parent_transaction_id && (
+              <AlertDialogAction
+                onClick={() => {
+                  setConfirmDelete(false)
+                  onDelete(true)
+                }}
+                className="bg-red-800 hover:bg-red-900"
+              >
+                Esta e futuras
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

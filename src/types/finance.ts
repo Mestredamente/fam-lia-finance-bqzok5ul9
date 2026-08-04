@@ -154,7 +154,11 @@ export type CategoryType = 'expense' | 'income' | 'investment' | 'debt'
 
 export type TransactionType = 'expense' | 'income' | 'investment' | 'debt_payment'
 
-export type TransactionSource = 'manual' | 'invoice_import'
+export type TransactionSource =
+  | 'manual'
+  | 'invoice_import'
+  | 'recurring_debt'
+  | 'future_installment'
 
 export interface CategoryRecord {
   id: string
@@ -189,6 +193,11 @@ export interface TransactionRecord {
   invoice_item_id?: string | null
   status?: 'pending' | 'paid'
   purchase_date?: string | null
+  is_installment?: boolean
+  installment_current?: number | null
+  installment_total?: number | null
+  parent_transaction_id?: string | null
+  debt_id?: string | null
   created: string
   updated: string
   expand?: {
@@ -267,6 +276,10 @@ export interface InvoiceItemRecord {
   is_confirmed: boolean
   converted_transaction_id: string
   excluded?: boolean
+  is_installment?: boolean
+  installment_current?: number | null
+  installment_total?: number | null
+  parent_installment_id?: string | null
   created: string
   updated: string
   expand?: {
@@ -304,11 +317,17 @@ export interface InvestmentRecord {
   maturity_date: string | null
   is_active: boolean
   notes: string | null
+  category_id?: string | null
+  end_date?: string | null
+  status?: 'active' | 'paid_off' | 'overdue'
+  frequency?: 'monthly' | 'yearly' | 'weekly'
+  auto_create_transaction?: boolean
   created: string
   updated: string
   expand?: {
     family_id?: FamilyRecord
     owner_id?: MemberRecord
+    category_id?: CategoryRecord
   }
 }
 
@@ -319,6 +338,10 @@ export type DebtType =
   | 'financing_home'
   | 'financing_car'
   | 'personal_loan'
+  | 'utility'
+  | 'subscription'
+  | 'rent'
+  | 'condo'
   | 'other'
 
 export interface DebtRecord {

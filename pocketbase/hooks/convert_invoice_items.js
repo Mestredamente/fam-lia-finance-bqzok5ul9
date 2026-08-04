@@ -152,6 +152,57 @@ routerAdd(
           continue
         }
 
+        var isInst = item.get('is_installment')
+        if (isInst) {
+          var instCurrent = item.get('installment_current') || 1
+          var instTotal = item.get('installment_total') || 1
+          var remaining = instTotal - instCurrent
+          if (remaining > 0) {
+            for (var fi2 = 1; fi2 <= remaining; fi2++) {
+              var baseDate = new Date(txDate + 'T00:00:00')
+              baseDate.setMonth(baseDate.getMonth() + fi2)
+              var fm = baseDate.getMonth() + 1
+              var futureDateStr =
+                baseDate.getFullYear() + '-' + (fm < 10 ? '0' + fm : '' + fm) + '-01'
+              var futureDesc =
+                description + ' (parcela ' + (instCurrent + fi2) + '/' + instTotal + ')'
+              var futureTx = new Record(txCol)
+              futureTx.set('family_id', familyId)
+              futureTx.set('owner_id', ownerId)
+              if (catId) {
+                futureTx.set('category_id', catId)
+              }
+              futureTx.set('type', 'expense')
+              futureTx.set('amount', amount)
+              futureTx.set('description', futureDesc)
+              futureTx.set('transaction_date', futureDateStr)
+              futureTx.set('is_shared', false)
+              futureTx.set('is_fixed', false)
+              futureTx.set('source', 'future_installment')
+              futureTx.set('is_installment', true)
+              futureTx.set('installment_current', instCurrent + fi2)
+              futureTx.set('installment_total', instTotal)
+              futureTx.set('parent_transaction_id', tx.id)
+              futureTx.set('status', 'pending')
+              try {
+                $app.save(futureTx)
+                $app
+                  .logger()
+                  .info(
+                    'INSTALLMENT: criada transação futura - ' +
+                      futureDesc +
+                      ' para ' +
+                      futureDateStr,
+                  )
+              } catch (futErr) {
+                $app
+                  .logger()
+                  .error('INSTALLMENT: erro ao criar transação futura', 'error', String(futErr))
+              }
+            }
+          }
+        }
+
         item.set('converted_transaction_id', tx.id)
         item.set('is_confirmed', true)
         if (catId) {
