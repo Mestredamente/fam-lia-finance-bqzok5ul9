@@ -4,312 +4,319 @@ routerAdd(
   (e) => {
     var body = e.requestInfo().body || {}
     var invoiceId = body.invoice_id
+    if (!invoiceId) return e.badRequestError('invoice_id is required')
 
-    $app.logger().info('AI_CATEGORIZE: endpoint chamado, invoice_id = ' + invoiceId)
-    $app.logger().info('AI_CATEGORIZE: body recebido = ' + JSON.stringify(body))
+    var categorizedByRules = 0
+    var categorizedByAI = 0
+    var noMatch = 0
+    var aiError = null
+    var aiBatchesTotal = 0
+    var aiBatchesSuccess = 0
+    var aiBatchesFailed = 0
+    var step = null
+    var unmatchedSamples = []
 
-    if (!invoiceId) {
-      return e.json(200, {
-        success: false,
-        categorized_by_rules: 0,
-        categorized_by_ai: 0,
-        no_match: 0,
-        ai_error: 'invoice_id is required',
-        step: 'validation',
-      })
-    }
-
-    var invoice
     try {
-      invoice = $app.findRecordById('invoices', invoiceId)
-    } catch (err) {
-      return e.json(200, {
-        success: false,
-        categorized_by_rules: 0,
-        categorized_by_ai: 0,
-        no_match: 0,
-        ai_error: 'Invoice not found: ' + String(err),
-        step: 'find_invoice',
-      })
-    }
+      var invoice = $app.findRecordById('invoices', invoiceId)
+      var familyId = invoice.getString('family_id')
 
-    var familyId = invoice.getString('family_id')
+      $app
+        .logger()
+        .info('AI_CATEGORIZE: iniciando para fatura', 'invoiceId', invoiceId, 'familyId', familyId)
 
-    var allItems = []
-    try {
-      allItems = $app.findRecordsByFilter(
+      var allItems = $app.findRecordsByFilter(
         'invoice_items',
         'invoice_id = "' + invoiceId + '"',
         'created',
         500,
         0,
       )
-    } catch (err) {
-      return e.json(200, {
-        success: false,
-        categorized_by_rules: 0,
-        categorized_by_ai: 0,
-        no_match: 0,
-        ai_error: 'Failed to fetch invoice items: ' + String(err),
-        step: 'fetch_invoice_items',
-      })
-    }
 
-    var uncategorizedItems = []
-    for (var i = 0; i < allItems.length; i++) {
-      var excluded = allItems[i].getBool('excluded')
-      var confirmed = allItems[i].getString('confirmed_category_id')
-      var suggested = allItems[i].getString('suggested_category_id')
-      var converted = allItems[i].getString('converted_transaction_id')
-      if (!excluded && !confirmed && !suggested && !converted) {
-        uncategorizedItems.push(allItems[i])
-      }
-    }
-
-    $app
-      .logger()
-      .info('AI_CATEGORIZE: encontrou ' + uncategorizedItems.length + ' itens sem categoria')
-
-    if (uncategorizedItems.length === 0) {
-      $app.logger().info('AI_CATEGORIZE: fim - by_rules=0 by_ai=0 no_match=0')
-      return e.json(200, {
-        success: true,
-        categorized_by_rules: 0,
-        categorized_by_ai: 0,
-        no_match: 0,
-        ai_error: null,
-        step: null,
-      })
-    }
-
-    var rules = []
-    try {
-      rules = $app.findRecordsByFilter(
-        'categorization_rules',
-        'family_id = "' + familyId + '"',
-        'created',
-        500,
-        0,
-      )
-    } catch (err) {
-      $app.logger().error('AI_CATEGORIZE: erro ao carregar regras: ' + String(err))
-    }
-
-    $app.logger().info('AI_CATEGORIZE: carregou ' + rules.length + ' regras de keyword')
-
-    var categorizedByRules = 0
-    var stillUncategorized = []
-
-    for (var j = 0; j < uncategorizedItems.length; j++) {
-      var item = uncategorizedItems[j]
-      var description = item.getString('description') || ''
-      var bestMatch = null
-      var bestKeywordLen = 0
-      var bestKeyword = ''
-      var lowerDesc = description.toLowerCase()
-
-      for (var k = 0; k < rules.length; k++) {
-        var keyword = rules[k].getString('keyword').toLowerCase()
-        var matchType = rules[k].getString('match_type')
-        var categoryId = rules[k].getString('category_id')
-
-        var isMatch = false
-        if (matchType === 'contains') {
-          isMatch = lowerDesc.indexOf(keyword) !== -1
-        } else if (matchType === 'starts_with') {
-          isMatch = lowerDesc.indexOf(keyword) === 0
-        }
-
-        if (isMatch && keyword.length > bestKeywordLen) {
-          bestMatch = categoryId
-          bestKeywordLen = keyword.length
-          bestKeyword = keyword
+      var uncategorizedItems = []
+      for (var i = 0; i < allItems.length; i++) {
+        var isExcluded = allItems[i].get('excluded')
+        if (isExcluded === true) continue
+        var converted = allItems[i].getString('converted_transaction_id')
+        if (converted) continue
+        var existingSuggested = allItems[i].getString('suggested_category_id')
+        var existingConfirmed = allItems[i].getString('confirmed_category_id')
+        if (!existingSuggested && !existingConfirmed) {
+          uncategorizedItems.push(allItems[i])
         }
       }
 
-      if (bestMatch) {
-        $app
-          .logger()
-          .info(
-            'AI_CATEGORIZE: item "' +
-              description +
-              '" match regra "' +
-              bestKeyword +
-              '" -> categoria ' +
-              bestMatch,
-          )
-        try {
-          var ruleRecord = $app.findRecordById('invoice_items', item.id)
-          ruleRecord.set('suggested_category_id', bestMatch)
-          $app.save(ruleRecord)
-          categorizedByRules++
-        } catch (saveErr) {
-          $app
-            .logger()
-            .error(
-              'AI_CATEGORIZE: failed to save rule-based category',
-              'item_id',
-              item.id,
-              'error',
-              String(saveErr),
-            )
-          stillUncategorized.push(item)
-        }
-      } else {
-        stillUncategorized.push(item)
-      }
-    }
-
-    var categorizedByAI = 0
-    var aiError = null
-    var failedStep = null
-
-    if (stillUncategorized.length > 0) {
-      $app
-        .logger()
-        .info(
-          'AI_CATEGORIZE: ' +
-            stillUncategorized.length +
-            ' itens sem match de regra, enviando para Gemini',
-        )
-
-      var hasApiKey =
-        $secrets.has('SKIP_AI_GATEWAY_API_KEY') && $secrets.get('SKIP_AI_GATEWAY_API_KEY') !== ''
-
-      if (hasApiKey) {
-        $app.logger().info('AI_CATEGORIZE: API key configurada = sim')
-      } else {
-        $app.logger().info('AI_CATEGORIZE: API key configurada = NÃO')
+      if (uncategorizedItems.length === 0) {
+        $app.logger().info('AI_CATEGORIZE: nenhum item sem categoria')
+        return e.json(200, {
+          success: true,
+          categorized_by_rules: 0,
+          categorized_by_ai: 0,
+          no_match: 0,
+          ai_error: null,
+          ai_batches_total: 0,
+          ai_batches_success: 0,
+          ai_batches_failed: 0,
+          step: null,
+          unmatched_samples: [],
+        })
       }
 
-      var categories = []
+      var rules = []
       try {
-        categories = $app.findRecordsByFilter(
-          'categories',
-          'family_id = "' + familyId + '" && type = "expense"',
+        rules = $app.findRecordsByFilter(
+          'categorization_rules',
+          'family_id = "' + familyId + '"',
           'created',
-          100,
+          500,
           0,
         )
       } catch (err) {
-        $app.logger().error('AI_CATEGORIZE: erro ao carregar categorias: ' + String(err))
+        $app.logger().error('AI_CATEGORIZE: erro ao buscar regras', 'error', String(err))
       }
 
-      if (categories.length === 0) {
-        aiError = 'No categories available for AI categorization'
-        failedStep = 'load_categories'
-        $app.logger().info('AI_CATEGORIZE: no categories found, skipping AI step')
-      } else {
-        var validCategoryIds = {}
-        var categoryList = ''
-        for (var cl = 0; cl < categories.length; cl++) {
-          validCategoryIds[categories[cl].id] = true
-          categoryList += categories[cl].id + ': ' + categories[cl].getString('name') + '\n'
+      var itemsNeedingAI = []
+      for (var i = 0; i < uncategorizedItems.length; i++) {
+        var item = uncategorizedItems[i]
+        var description = item.getString('description')
+        var lowerDesc = description.toLowerCase()
+        var bestMatch = null
+        var bestKeywordLen = 0
+
+        for (var j = 0; j < rules.length; j++) {
+          var keyword = rules[j].getString('keyword').toLowerCase()
+          var matchType = rules[j].getString('match_type')
+          var categoryId = rules[j].getString('category_id')
+
+          var isMatch = false
+          if (matchType === 'contains') {
+            isMatch = lowerDesc.indexOf(keyword) !== -1
+          } else if (matchType === 'starts_with') {
+            isMatch = lowerDesc.indexOf(keyword) === 0
+          }
+
+          if (isMatch && keyword.length > bestKeywordLen) {
+            bestMatch = categoryId
+            bestKeywordLen = keyword.length
+          }
         }
 
-        var itemList = ''
-        for (var il = 0; il < stillUncategorized.length; il++) {
-          itemList += il + ': ' + stillUncategorized[il].getString('description') + '\n'
+        if (bestMatch) {
+          try {
+            var record = $app.findRecordById('invoice_items', item.id)
+            record.set('suggested_category_id', bestMatch)
+            $app.save(record)
+            categorizedByRules++
+          } catch (err) {
+            $app
+              .logger()
+              .error(
+                'AI_CATEGORIZE: erro ao salvar item categorizado por regra',
+                'itemId',
+                item.id,
+                'error',
+                String(err),
+              )
+            itemsNeedingAI.push(item)
+          }
+        } else {
+          itemsNeedingAI.push(item)
         }
+      }
 
-        var systemPrompt =
-          'You are a financial categorization assistant for a Brazilian family finance app. Given a list of credit card invoice items and available categories, assign each item to the most appropriate category. Respond ONLY with a valid JSON array of objects with "index" (number) and "category_id" (string) properties. Do not include any other text or explanation.'
+      $app
+        .logger()
+        .info(
+          'AI_CATEGORIZE: regras aplicadas',
+          'categorized_by_rules',
+          categorizedByRules,
+          'needing_ai',
+          itemsNeedingAI.length,
+        )
 
-        var userPrompt =
-          'Available categories (id: name):\n' +
-          categoryList +
-          '\nItems to categorize (index: description):\n' +
-          itemList +
-          '\nRespond with JSON array like [{"index": 0, "category_id": "abc123"}].'
+      var aiCategorizedIds = {}
 
-        var fullPrompt = systemPrompt + '\n\n' + userPrompt
-
-        $app.logger().info('AI_CATEGORIZE: modelo = fast')
-        $app.logger().info('AI_CATEGORIZE: prompt = ' + fullPrompt.substring(0, 500))
-
+      if (itemsNeedingAI.length > 0) {
+        var categories = []
         try {
-          var reply = $ai.chat({
-            model: 'fast',
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt },
-            ],
-          })
+          categories = $app.findRecordsByFilter(
+            'categories',
+            'family_id = "' + familyId + '"',
+            'created',
+            500,
+            0,
+          )
+        } catch (err) {
+          $app.logger().error('AI_CATEGORIZE: erro ao buscar categorias', 'error', String(err))
+        }
 
-          var content = reply.choices[0].message.content
-          $app.logger().info('AI_CATEGORIZE: resposta Gemini = ' + content)
-
-          var jsonStr = content.trim()
-          if (jsonStr.indexOf('```') === 0) {
-            jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '')
+        if (categories.length > 0) {
+          var categoryList = []
+          for (var c = 0; c < categories.length; c++) {
+            categoryList.push({
+              id: categories[c].id,
+              name: categories[c].getString('name'),
+              type: categories[c].getString('type'),
+            })
           }
 
-          var arrayStart = jsonStr.indexOf('[')
-          var arrayEnd = jsonStr.lastIndexOf(']')
-          if (arrayStart !== -1 && arrayEnd !== -1) {
-            jsonStr = jsonStr.substring(arrayStart, arrayEnd + 1)
+          var batchSize = 20
+          var batches = []
+          for (var i = 0; i < itemsNeedingAI.length; i += batchSize) {
+            batches.push(itemsNeedingAI.slice(i, i + batchSize))
           }
+          aiBatchesTotal = batches.length
 
-          var assignments = JSON.parse(jsonStr)
+          for (var b = 0; b < batches.length; b++) {
+            var batch = batches[b]
+            $app
+              .logger()
+              .info(
+                'AI_CATEGORIZE: processando lote ' +
+                  (b + 1) +
+                  ' de ' +
+                  batches.length +
+                  ' (' +
+                  batch.length +
+                  ' itens)',
+              )
 
-          for (var m = 0; m < assignments.length; m++) {
-            var assignment = assignments[m]
-            var aiItem = stillUncategorized[assignment.index]
-            if (aiItem && assignment.category_id && validCategoryIds[assignment.category_id]) {
-              try {
-                var aiRecord = $app.findRecordById('invoice_items', aiItem.id)
-                aiRecord.set('suggested_category_id', assignment.category_id)
-                $app.save(aiRecord)
-                categorizedByAI++
-              } catch (saveErr) {
-                $app
-                  .logger()
-                  .error(
-                    'AI_CATEGORIZE: failed to save AI category suggestion',
-                    'item_id',
-                    aiItem.id,
-                    'error',
-                    String(saveErr),
-                  )
+            try {
+              var itemsList = []
+              for (var k = 0; k < batch.length; k++) {
+                itemsList.push(batch[k].getString('description'))
               }
+
+              var prompt =
+                'Para cada item abaixo, retorne apenas o ID da categoria mais adequada. Itens: ' +
+                JSON.stringify(itemsList) +
+                '. Categorias disponiveis: ' +
+                JSON.stringify(categoryList) +
+                '. Responda em JSON: [{"item_index": 0, "category_id": "xxx"}]'
+
+              var reply = $ai.chat({
+                model: 'fast',
+                messages: [
+                  {
+                    role: 'system',
+                    content:
+                      'Voce e um assistente de categorizacao financeira. Responda apenas com JSON valido, sem texto adicional.',
+                  },
+                  { role: 'user', content: prompt },
+                ],
+              })
+
+              var content = reply.choices[0].message.content
+              var jsonStr = content
+              var jsonMatch = jsonStr.match(/\[[\s\S]*\]/)
+              if (jsonMatch) {
+                jsonStr = jsonMatch[0]
+              }
+
+              var aiResults = JSON.parse(jsonStr)
+
+              for (var r = 0; r < aiResults.length; r++) {
+                var itemIndex = aiResults[r].item_index
+                var catId = aiResults[r].category_id
+                if (itemIndex >= 0 && itemIndex < batch.length && catId) {
+                  try {
+                    var itemRecord = $app.findRecordById('invoice_items', batch[itemIndex].id)
+                    itemRecord.set('suggested_category_id', catId)
+                    $app.save(itemRecord)
+                    aiCategorizedIds[batch[itemIndex].id] = true
+                    categorizedByAI++
+                  } catch (err) {
+                    $app
+                      .logger()
+                      .error(
+                        'AI_CATEGORIZE: erro ao salvar item categorizado por IA',
+                        'itemId',
+                        batch[itemIndex].id,
+                        'error',
+                        String(err),
+                      )
+                  }
+                }
+              }
+
+              aiBatchesSuccess++
+              $app.logger().info('AI_CATEGORIZE: lote ' + (b + 1) + ' concluido com sucesso')
+            } catch (err) {
+              aiBatchesFailed++
+              var batchErrorMsg = String(err.message || err)
+              if (typeof SkipAiConfigError !== 'undefined' && err instanceof SkipAiConfigError) {
+                batchErrorMsg = 'IA nao configurada'
+              } else if (typeof SkipAiError !== 'undefined' && err instanceof SkipAiError) {
+                batchErrorMsg = String(err.message || err)
+              }
+              var batchError = 'lote ' + (b + 1) + ' falhou: ' + batchErrorMsg
+              if (!aiError) {
+                aiError = batchError
+              }
+              step = 'ai_categorization'
+              $app.logger().error('AI_CATEGORIZE: ' + batchError, 'error', String(err))
             }
           }
-        } catch (err) {
-          aiError = String(err.message || err)
-          failedStep = 'gemini_call'
+        } else {
           $app
             .logger()
-            .error(
-              'AI_CATEGORIZE: erro Gemini = ' +
-                err.toString() +
-                ' stack = ' +
-                (err.stack || 'no stack'),
-            )
+            .info('AI_CATEGORIZE: nenhuma categoria encontrada para a familia, pulando IA')
         }
       }
-    }
 
-    var noMatch = stillUncategorized.length - categorizedByAI
+      for (var i = 0; i < itemsNeedingAI.length; i++) {
+        if (!aiCategorizedIds[itemsNeedingAI[i].id]) {
+          noMatch++
+          if (unmatchedSamples.length < 5) {
+            unmatchedSamples.push(itemsNeedingAI[i].getString('description'))
+          }
+        }
+      }
 
-    $app
-      .logger()
-      .info(
-        'AI_CATEGORIZE: fim - by_rules=' +
-          categorizedByRules +
-          ' by_ai=' +
-          categorizedByAI +
-          ' no_match=' +
+      $app
+        .logger()
+        .info(
+          'AI_CATEGORIZE: concluido',
+          'categorized_by_rules',
+          categorizedByRules,
+          'categorized_by_ai',
+          categorizedByAI,
+          'no_match',
           noMatch,
-      )
+          'batches_total',
+          aiBatchesTotal,
+          'batches_success',
+          aiBatchesSuccess,
+          'batches_failed',
+          aiBatchesFailed,
+        )
 
-    return e.json(200, {
-      success: true,
-      categorized_by_rules: categorizedByRules,
-      categorized_by_ai: categorizedByAI,
-      no_match: noMatch,
-      ai_error: aiError,
-      step: failedStep,
-    })
+      return e.json(200, {
+        success: true,
+        categorized_by_rules: categorizedByRules,
+        categorized_by_ai: categorizedByAI,
+        no_match: noMatch,
+        ai_error: aiError,
+        ai_batches_total: aiBatchesTotal,
+        ai_batches_success: aiBatchesSuccess,
+        ai_batches_failed: aiBatchesFailed,
+        step: step,
+        unmatched_samples: unmatchedSamples,
+      })
+    } catch (err) {
+      $app.logger().error('AI_CATEGORIZE: erro geral', 'error', String(err))
+      return e.json(200, {
+        success: false,
+        categorized_by_rules: categorizedByRules,
+        categorized_by_ai: categorizedByAI,
+        no_match: noMatch,
+        ai_error: String(err),
+        ai_batches_total: aiBatchesTotal,
+        ai_batches_success: aiBatchesSuccess,
+        ai_batches_failed: aiBatchesFailed,
+        step: 'general',
+        unmatched_samples: unmatchedSamples,
+      })
+    }
   },
   $apis.requireAuth(),
 )

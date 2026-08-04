@@ -84,6 +84,9 @@ export default function InvoiceReview() {
   const [deletedItemIds, setDeletedItemIds] = useState<string[]>([])
   const [parsingSeconds, setParsingSeconds] = useState(0)
   const [parseError, setParseError] = useState<string | null>(null)
+  const [unmatchedSamples, setUnmatchedSamples] = useState<string[]>([])
+  const [aiProcessingLabel, setAiProcessingLabel] = useState<string | null>(null)
+  const [aiNoMatchCount, setAiNoMatchCount] = useState(0)
 
   const { items, loading: itemsLoading, error: itemsError, refetch } = useInvoiceItems(invoiceId)
   const { categories } = useCategories(family?.id)
@@ -223,19 +226,26 @@ export default function InvoiceReview() {
   const handleAiCategorize = async () => {
     if (!invoiceId) return
     setAiCategorizing(true)
+    setAiProcessingLabel('Processando categorização com IA...')
+    setUnmatchedSamples([])
+    setAiNoMatchCount(0)
     try {
       const result = await aiCategorizeInvoiceItems(invoiceId)
       const byRules = result.categorized_by_rules ?? 0
       const byAI = result.categorized_by_ai ?? 0
       const noMatch = result.no_match ?? 0
       const aiError = result.ai_error ?? null
+      const samples: string[] = result.unmatched_samples ?? []
+
+      setUnmatchedSamples(samples)
+      setAiNoMatchCount(noMatch)
 
       if (byRules > 0 || byAI > 0) {
         setCategoryOverrides({})
         refetch()
       }
 
-      if (byRules > 0 && aiError) {
+      if (byRules > 0 && byAI === 0 && aiError) {
         toast({
           title: `${byRules} itens categorizados por regras. IA indisponível — tente novamente para os itens restantes.`,
         })
@@ -260,6 +270,7 @@ export default function InvoiceReview() {
       toast({ variant: 'destructive', title: 'Erro na categorização', description: errorMsg })
     } finally {
       setAiCategorizing(false)
+      setAiProcessingLabel(null)
     }
   }
 
@@ -694,7 +705,11 @@ export default function InvoiceReview() {
                       ) : (
                         <Sparkles className="h-3 w-3 mr-1 shrink-0" />
                       )}
-                      <span className="hidden sm:inline">Categorizar com IA</span>
+                      <span className="hidden sm:inline">
+                        {aiCategorizing && aiProcessingLabel
+                          ? 'Processando...'
+                          : 'Categorizar com IA'}
+                      </span>
                       <span className="sm:hidden">IA</span>
                     </Button>
                   )}
@@ -727,6 +742,41 @@ export default function InvoiceReview() {
                   )}
                 </div>
               </div>
+
+              {aiCategorizing && (
+                <Card className="rounded-2xl border-purple-200 bg-purple-50">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <Loader2 className="h-5 w-5 text-purple-600 animate-spin shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-purple-900">
+                        {aiProcessingLabel || 'Processando categorização com IA...'}
+                      </p>
+                      <p className="text-xs text-purple-600">
+                        Faturas com muitos itens são processadas em lotes e podem levar alguns
+                        segundos cada.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {unmatchedSamples.length > 0 && !aiCategorizing && (
+                <Card className="rounded-2xl border-yellow-200 bg-yellow-50">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-yellow-900">
+                          {aiNoMatchCount}{' '}
+                          {aiNoMatchCount === 1 ? 'item sem categoria' : 'itens sem categoria'}.
+                          Exemplos: {unmatchedSamples.join(', ')} — considere criar regras para
+                          estes.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {unconvertedItems.length > 0 && (
                 <div className="space-y-2">
