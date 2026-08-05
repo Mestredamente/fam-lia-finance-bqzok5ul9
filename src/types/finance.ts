@@ -56,6 +56,8 @@ export interface FamilyRecord {
   updated: string
 }
 
+export type AccessLevel = 'guardian' | 'co_admin' | 'member' | 'guest'
+
 export interface MemberRecord {
   id: string
   family_id: string
@@ -75,6 +77,16 @@ export interface MemberRecord {
   occupation?: string | null
   avatar_url?: string | null
   is_active: boolean
+  access_level?: AccessLevel
+  perm_view_others?: boolean
+  perm_edit_others?: boolean
+  perm_view_patrimony?: boolean
+  perm_view_budgets?: boolean
+  perm_import_invoices?: boolean
+  perm_delete_transactions?: boolean
+  perm_delete_invoices?: boolean
+  perm_manage_debts?: boolean
+  perm_manage_members?: boolean
   created: string
   updated: string
   expand?: {
