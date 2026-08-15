@@ -97,6 +97,7 @@ export default function Projections() {
     key,
     label: shortLabel(key),
     value: data.total,
+    count: data.count,
   }))
 
   const peakMonth = monthlyMap.reduce(
@@ -106,7 +107,14 @@ export default function Projections() {
 
   const lastMonth = monthlyMap.length > 0 ? monthlyMap[monthlyMap.length - 1][0] : null
 
-  const activeDebts = debts.filter((d) => d.is_active)
+  const activeDebts = debts
+    .filter((d) => d.is_active)
+    .slice()
+    .sort(
+      (a, b) =>
+        b.installment_value * (b.installments_total - b.installments_paid) -
+        a.installment_value * (a.installments_total - a.installments_paid),
+    )
   const totalDebtRemaining = activeDebts.reduce(
     (s, d) => s + d.installment_value * (d.installments_total - d.installments_paid),
     0,
@@ -230,7 +238,7 @@ export default function Projections() {
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {activeDebts.map((debt) => {
                 const meta = getDebtMeta(debt.type)
                 const Icon = meta.icon
@@ -335,7 +343,11 @@ export default function Projections() {
                     width={80}
                   />
                   <Tooltip
-                    formatter={(value: number) => [formatBRL(value), 'Comprometido']}
+                    formatter={(value: number, _name: string, props: any) => {
+                      const count = props?.payload?.count ?? 0
+                      return [`${formatBRL(value)} (${count} parcelas)`, 'Comprometido']
+                    }}
+                    labelFormatter={(label: string) => `Mês: ${label}`}
                     contentStyle={{
                       borderRadius: 12,
                       border: '1px solid #e5e7eb',

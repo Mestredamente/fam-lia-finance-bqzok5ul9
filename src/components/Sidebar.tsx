@@ -148,7 +148,14 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 
   return (
     <>
-      {isOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={onClose} />}
+      <div
+        className={cn(
+          'fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity duration-300',
+          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none',
+        )}
+        onClick={onClose}
+        aria-hidden="true"
+      />
       <aside
         className={cn(
           'fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-gray-200 flex flex-col transition-transform duration-300 lg:static lg:z-auto lg:w-64 lg:translate-x-0',
