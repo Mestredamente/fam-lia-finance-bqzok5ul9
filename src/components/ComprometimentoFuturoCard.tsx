@@ -6,9 +6,12 @@ import { formatBRL, getMonthName } from '@/lib/utils'
 
 interface Props {
   familyId: string
+  /** When true (edit mode), always render a skeleton placeholder even with no
+   * installments so the user can still see/move the card. */
+  forceRender?: boolean
 }
 
-export function ComprometimentoFuturoCard({ familyId }: Props) {
+export function ComprometimentoFuturoCard({ familyId, forceRender }: Props) {
   const { installments, loading } = useFutureInstallments(familyId)
 
   if (loading) {
@@ -20,7 +23,7 @@ export function ComprometimentoFuturoCard({ familyId }: Props) {
     )
   }
 
-  if (installments.length === 0) return null
+  if (installments.length === 0 && !forceRender) return null
 
   const total = installments.reduce((s, t) => s + t.amount, 0)
 
@@ -33,6 +36,24 @@ export function ComprometimentoFuturoCard({ familyId }: Props) {
   }
 
   const months = Object.entries(monthlyMap).sort(([a], [b]) => a.localeCompare(b))
+
+  if (installments.length === 0) {
+    return (
+      <section className="space-y-4">
+        <h2 className="text-xl font-bold text-gray-900">Comprometimento futuro</h2>
+        <Card className="border-dashed border-gray-200 rounded-2xl bg-white">
+          <CardContent className="p-6 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
+              <CalendarClock className="h-5 w-5" />
+            </div>
+            <p className="text-sm text-gray-500">
+              Nenhum comprometimento futuro em parcelas no momento.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+    )
+  }
 
   return (
     <section className="space-y-4">

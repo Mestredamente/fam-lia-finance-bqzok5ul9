@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Plus, Sparkles, Eye } from 'lucide-react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { Plus, Sparkles, Eye, SlidersHorizontal, Check } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useMonthlySummary } from '@/hooks/use-monthly-summary'
@@ -9,8 +9,6 @@ import { Button } from '@/components/ui/button'
 import { MemberDetailSheet } from '@/components/MemberDetailSheet'
 import { InviteCodeDialog } from '@/components/InviteCodeDialog'
 import { UnifiedHealthCard } from '@/components/UnifiedHealthCard'
-import { OverviewGrid } from '@/components/OverviewGrid'
-import { DashboardCards } from '@/components/DashboardCards'
 import { TransactionFormSheet } from '@/components/TransactionFormSheet'
 import { ScenarioComparator } from '@/components/ScenarioComparator'
 import { ExportButton } from '@/components/ExportButton'
@@ -18,10 +16,17 @@ import { DashboardInstallBanner } from '@/components/DashboardInstallBanner'
 import { MemberRecord } from '@/types/finance'
 import { getActiveMembersByFamilyId } from '@/services/members'
 import { getMonthName } from '@/lib/utils'
-import { BudgetProgressSection } from '@/components/BudgetProgressSection'
 import { ComprometimentoFuturoCard } from '@/components/ComprometimentoFuturoCard'
 import { UpcomingTasksSection } from '@/components/UpcomingTasksSection'
 import { EmotionalSpendingCard } from '@/components/EmotionalSpendingCard'
+import { ExpensesByCategoryCard } from '@/components/ExpensesByCategoryCard'
+import { MemberViewCard } from '@/components/MemberViewCard'
+import { FixedBillsCard } from '@/components/FixedBillsCard'
+import { PatrimonyCard } from '@/components/PatrimonyCard'
+import { SubscriptionsCard } from '@/components/SubscriptionsCard'
+import { AiInsightsCard } from '@/components/AiInsightsCard'
+import { CustomizableCard } from '@/components/CustomizableCard'
+import { useDashboardLayout, CARD_TITLES, type DashboardCardId } from '@/hooks/use-dashboard-layout'
 import { Link } from 'react-router-dom'
 
 export default function Dashboard() {
@@ -36,6 +41,9 @@ export default function Dashboard() {
   const [showScenarioModal, setShowScenarioModal] = useState(false)
   const [scenarioTab, setScenarioTab] = useState<string | undefined>(undefined)
   const [period, setPeriod] = useState<PeriodType>('mes')
+  const [editMode, setEditMode] = useState(false)
+
+  const { cards, toggleVisible, moveCard } = useDashboardLayout()
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -93,6 +101,115 @@ export default function Dashboard() {
     }
   }, [loadMembers])
 
+  // Render the content for each customizable dashboard card.
+  const renderCard = useCallback(
+    (id: DashboardCardId) => {
+      if (!family) return null
+      switch (id) {
+        case 'summary':
+          return (
+            <UnifiedHealthCard
+              familyId={family.id}
+              totalReceitas={summary.totalReceitas}
+              totalDespesas={summary.totalDespesas}
+              saldo={summary.saldo}
+              porcentagemGasta={summary.porcentagemGasta}
+              loading={loading}
+              error={error}
+              onRetry={refetch}
+              isFutureMonth={
+                year > new Date().getFullYear() ||
+                (year === new Date().getFullYear() && month > new Date().getMonth())
+              }
+            />
+          )
+        case 'expensesByCategory':
+          return (
+            <ExpensesByCategoryCard
+              familyId={family.id}
+              year={year}
+              month={month}
+              loading={loading}
+            />
+          )
+        case 'memberView':
+          return (
+            <MemberViewCard
+              members={members}
+              memberSummaries={summary.memberSummaries}
+              loading={loading}
+              onMemberClick={(m) => {
+                setSelectedMember(m)
+                setShowMemberSheet(true)
+              }}
+            />
+          )
+        case 'futureCommitment':
+          return <ComprometimentoFuturoCard familyId={family.id} forceRender={editMode} />
+        case 'fixedBills':
+          return (
+            <FixedBillsCard
+              familyId={family.id}
+              year={year}
+              month={month}
+              onAddFixed={() => {
+                setDefaultIsFixed(true)
+                setShowForm(true)
+              }}
+            />
+          )
+        case 'patrimony':
+          return <PatrimonyCard familyId={family.id} />
+        case 'subscriptions':
+          return <SubscriptionsCard familyId={family.id} />
+        case 'aiInsights':
+          return <AiInsightsCard familyId={family.id} memberId={member?.id || ''} />
+        case 'upcomingTasks':
+          return <UpcomingTasksSection familyId={family.id} />
+        case 'emotionalSpending':
+          return (
+            <EmotionalSpendingCard
+              familyId={family.id}
+              year={year}
+              month={month}
+              loading={loading}
+            />
+          )
+        default:
+          return null
+      }
+    },
+    [family, summary, loading, error, refetch, year, month, members, member?.id, editMode],
+  )
+
+  // Render each card in order, wrapping visible ones in CustomizableCard and
+  // skipping hidden ones entirely (unless in edit mode).
+  const orderedCards = useMemo(() => {
+    const result: React.ReactNode[] = []
+    cards.forEach((c, idx) => {
+      if (!c.visible && !editMode) return
+      const content = renderCard(c.id)
+      // The two-column row layout is used only for expensesByCategory +
+      // memberView. Everything else is full-width.
+      result.push(
+        <CustomizableCard
+          key={c.id}
+          id={c.id}
+          visible={c.visible}
+          editMode={editMode}
+          isFirst={idx === 0}
+          isLast={idx === cards.length - 1}
+          onToggle={() => toggleVisible(c.id)}
+          onMoveUp={() => moveCard(c.id, 'up')}
+          onMoveDown={() => moveCard(c.id, 'down')}
+        >
+          {content}
+        </CustomizableCard>,
+      )
+    })
+    return result
+  }, [cards, editMode, renderCard, toggleVisible, moveCard])
+
   if (!family) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -117,10 +234,6 @@ export default function Dashboard() {
   }
   const openForm = () => {
     setDefaultIsFixed(false)
-    setShowForm(true)
-  }
-  const openFixedForm = () => {
-    setDefaultIsFixed(true)
     setShowForm(true)
   }
   const openScenario = (scenario?: string) => {
@@ -174,6 +287,25 @@ export default function Dashboard() {
               <span className="ml-1 sm:hidden text-xs">Cenários</span>
               <span className="ml-1 hidden sm:inline">Simular Cenários</span>
             </Button>
+            <Button
+              variant={editMode ? 'default' : 'outline'}
+              size="sm"
+              className="min-h-[36px] px-3 py-2"
+              onClick={() => setEditMode((v) => !v)}
+              aria-pressed={editMode}
+            >
+              {editMode ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  <span className="ml-1">Concluir</span>
+                </>
+              ) : (
+                <>
+                  <SlidersHorizontal className="h-4 w-4" />
+                  <span className="ml-1 hidden sm:inline">Personalizar</span>
+                </>
+              )}
+            </Button>
             <Link to="/orcamentos">
               <Button variant="outline" size="sm">
                 Orçamentos
@@ -188,53 +320,18 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <UnifiedHealthCard
-        familyId={family.id}
-        totalReceitas={summary.totalReceitas}
-        totalDespesas={summary.totalDespesas}
-        saldo={summary.saldo}
-        porcentagemGasta={summary.porcentagemGasta}
-        loading={loading}
-        error={error}
-        onRetry={refetch}
-        isFutureMonth={isFutureMonth}
-      />
-
-      <ComprometimentoFuturoCard familyId={family.id} />
-
-      {otherMonthsCount > 0 && period !== 'tudo' && (
-        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
-          <p className="text-xs text-amber-700">
-            Você tem {otherMonthsCount} {otherMonthsCount === 1 ? 'transação' : 'transações'} em
-            outros meses. Use as setas para navegar.
+      {editMode && (
+        <div className="flex items-start gap-2 p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+          <SlidersHorizontal className="h-4 w-4 text-indigo-600 mt-0.5 shrink-0" />
+          <p className="text-xs text-indigo-700">
+            Modo de personalização ativo. Use os botões no canto superior direito de cada card para
+            mostrar/ocultar (olho) e reordenar (setas ↑↓). O card <strong>Resumo Financeiro</strong>{' '}
+            é fixo e não pode ser ocultado. Suas alterações são salvas automaticamente.
           </p>
         </div>
       )}
 
-      <OverviewGrid
-        familyId={family.id}
-        year={year}
-        month={month}
-        members={members}
-        memberSummaries={summary.memberSummaries}
-        loading={loading}
-        onMemberClick={handleMemberClick}
-        onInvite={() => setShowInviteModal(true)}
-      />
-
-      <EmotionalSpendingCard familyId={family.id} year={year} month={month} loading={loading} />
-
-      <BudgetProgressSection familyId={family.id} year={year} month={month} />
-
-      <UpcomingTasksSection familyId={family.id} />
-
-      <DashboardCards
-        familyId={family.id}
-        memberId={member?.id || ''}
-        year={year}
-        month={month}
-        onAddFixed={openFixedForm}
-      />
+      {orderedCards}
 
       <button
         data-tour="add-transaction"
