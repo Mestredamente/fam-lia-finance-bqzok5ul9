@@ -210,6 +210,8 @@ export interface TransactionRecord {
   installment_total?: number | null
   parent_transaction_id?: string | null
   debt_id?: string | null
+  emotion?: TransactionEmotion | null
+  emotion_note?: string | null
   created: string
   updated: string
   expand?: {
@@ -218,6 +220,8 @@ export interface TransactionRecord {
     category_id?: CategoryRecord
   }
 }
+
+export type TransactionEmotion = 'happy' | 'necessary' | 'regret' | 'impulsive' | 'neutral'
 
 export interface CreditCardRecord {
   id: string

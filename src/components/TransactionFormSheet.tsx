@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react'
 import { z } from 'zod'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { CurrencyInput } from '@/components/CurrencyInput'
@@ -15,7 +16,23 @@ import { createTransaction, updateTransaction } from '@/services/transactions'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
-import type { TransactionRecord } from '@/types/finance'
+import type { TransactionRecord, TransactionEmotion } from '@/types/finance'
+
+const EMOTIONS: { value: TransactionEmotion; emoji: string; label: string }[] = [
+  { value: 'happy', emoji: '😊', label: 'Feliz' },
+  { value: 'necessary', emoji: '✅', label: 'Necessário' },
+  { value: 'neutral', emoji: '😐', label: 'Neutro' },
+  { value: 'regret', emoji: '😬', label: 'Arrependido' },
+  { value: 'impulsive', emoji: '😤', label: 'Impulsivo' },
+]
+
+export const EMOTION_META: Record<TransactionEmotion, { emoji: string; label: string }> = {
+  happy: { emoji: '😊', label: 'Feliz' },
+  necessary: { emoji: '✅', label: 'Necessário' },
+  neutral: { emoji: '😐', label: 'Neutro' },
+  regret: { emoji: '😬', label: 'Arrependido' },
+  impulsive: { emoji: '😤', label: 'Impulsivo' },
+}
 
 const schema = z
   .object({
@@ -63,6 +80,8 @@ export function TransactionFormSheet({
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [isShared, setIsShared] = useState(false)
   const [isFixed, setIsFixed] = useState(false)
+  const [emotion, setEmotion] = useState<TransactionEmotion | null>(null)
+  const [emotionNote, setEmotionNote] = useState('')
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const { rules } = useCategorizationRules(familyId)
@@ -86,6 +105,8 @@ export function TransactionFormSheet({
         setDate(editingTransaction.transaction_date.split(' ')[0].split('T')[0])
         setIsShared(editingTransaction.is_shared)
         setIsFixed(editingTransaction.is_fixed)
+        setEmotion((editingTransaction.emotion as TransactionEmotion) || null)
+        setEmotionNote(editingTransaction.emotion_note || '')
       } else {
         setType('expense')
         setAmount(0)
@@ -259,6 +280,54 @@ export function TransactionFormSheet({
                 {errors.category_id}
               </p>
             )}
+          </div>
+          <div>
+            <span className="text-xs font-semibold text-gray-700">
+              Como você se sentiu com esta compra?
+            </span>
+            <p className="text-[11px] text-gray-400 mb-2">Opcional</p>
+            <div className="grid grid-cols-5 gap-2" role="group" aria-label="Emoção da compra">
+              {EMOTIONS.map((e) => {
+                const selected = emotion === e.value
+                return (
+                  <button
+                    key={e.value}
+                    type="button"
+                    onClick={() => setEmotion(selected ? null : e.value)}
+                    aria-pressed={selected}
+                    aria-label={e.label}
+                    className={cn(
+                      'flex flex-col items-center justify-center gap-1 py-2 rounded-xl border-2 transition-all',
+                      selected
+                        ? 'border-[#166534] bg-emerald-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300',
+                    )}
+                  >
+                    <span className="text-2xl leading-none" aria-hidden="true">
+                      {e.emoji}
+                    </span>
+                    <span
+                      className={cn(
+                        'text-[10px] font-medium leading-tight text-center',
+                        selected ? 'text-[#166534]' : 'text-gray-500',
+                      )}
+                    >
+                      {e.label}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            <Textarea
+              placeholder="O que te motivou a comprar?"
+              value={emotionNote}
+              onChange={(e) => setEmotionNote(e.target.value)}
+              maxLength={200}
+              rows={2}
+              className="mt-2 text-sm resize-none"
+              aria-label="Nota sobre a emoção da compra"
+            />
+            <p className="text-[11px] text-gray-400 mt-0.5 text-right">{emotionNote.length}/200</p>
           </div>
           <div>
             <label htmlFor="tx-date" className="text-xs font-semibold text-gray-700">

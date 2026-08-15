@@ -12,6 +12,13 @@ import {
   Eraser,
   Loader2,
 } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useAuth } from '@/hooks/use-auth'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useTransactions } from '@/hooks/use-transactions'
@@ -32,7 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { TransactionFormSheet } from '@/components/TransactionFormSheet'
+import { TransactionFormSheet, EMOTION_META } from '@/components/TransactionFormSheet'
 import { TransactionDetailSheet } from '@/components/TransactionDetailSheet'
 import { ExportButton } from '@/components/ExportButton'
 import { BankImportSheet } from '@/components/BankImportSheet'
@@ -40,7 +47,15 @@ import { generateMonthlyPDF } from '@/lib/pdf-report'
 import { getCategoryIcon } from '@/lib/category-icons'
 import { formatBRL, cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
-import type { TransactionRecord, MemberRecord } from '@/types/finance'
+import type { TransactionRecord, MemberRecord, TransactionEmotion } from '@/types/finance'
+
+const EMOTION_FILTERS: { value: TransactionEmotion; label: string; emoji: string }[] = [
+  { value: 'happy', label: 'Feliz', emoji: '😊' },
+  { value: 'necessary', label: 'Necessário', emoji: '✅' },
+  { value: 'neutral', label: 'Neutro', emoji: '😐' },
+  { value: 'regret', label: 'Arrependido', emoji: '😬' },
+  { value: 'impulsive', label: 'Impulsivo', emoji: '😤' },
+]
 
 const MONTHS = [
   'Janeiro',
@@ -73,6 +88,7 @@ export default function Transactions() {
   const canDeleteTransactions = perms.canDeleteTransactions()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [memberFilter, setMemberFilter] = useState('all')
+  const [emotionFilter, setEmotionFilter] = useState<TransactionEmotion | 'all'>('all')
   const [members, setMembers] = useState<MemberRecord[]>([])
   const [showForm, setShowForm] = useState(false)
   const [showImport, setShowImport] = useState(false)
@@ -98,8 +114,11 @@ export default function Transactions() {
         .catch(() => {})
   }, [family?.id])
 
-  const filtered =
-    memberFilter === 'all' ? transactions : transactions.filter((t) => t.owner_id === memberFilter)
+  const filtered = transactions.filter((t) => {
+    if (memberFilter !== 'all' && t.owner_id !== memberFilter) return false
+    if (emotionFilter !== 'all' && t.emotion !== emotionFilter) return false
+    return true
+  })
   const grouped = groupByDay(filtered)
 
   const handleDelete = async (deleteAll?: boolean) => {
@@ -220,26 +239,44 @@ export default function Transactions() {
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        <Button
-          variant={memberFilter === 'all' ? 'default' : 'outline'}
-          size="sm"
-          className={cn(memberFilter === 'all' && 'bg-[#166534] hover:bg-[#15803D]')}
-          onClick={() => setMemberFilter('all')}
-        >
-          Todos
-        </Button>
-        {members.map((m) => (
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
           <Button
-            key={m.id}
-            variant={memberFilter === m.id ? 'default' : 'outline'}
+            variant={memberFilter === 'all' ? 'default' : 'outline'}
             size="sm"
-            className={cn(memberFilter === m.id && 'bg-[#166534] hover:bg-[#15803D]')}
-            onClick={() => setMemberFilter(m.id)}
+            className={cn(memberFilter === 'all' && 'bg-[#166534] hover:bg-[#15803D]')}
+            onClick={() => setMemberFilter('all')}
           >
-            {m.display_name}
+            Todos
           </Button>
-        ))}
+          {members.map((m) => (
+            <Button
+              key={m.id}
+              variant={memberFilter === m.id ? 'default' : 'outline'}
+              size="sm"
+              className={cn(memberFilter === m.id && 'bg-[#166534] hover:bg-[#15803D]')}
+              onClick={() => setMemberFilter(m.id)}
+            >
+              {m.display_name}
+            </Button>
+          ))}
+        </div>
+        <Select
+          value={emotionFilter}
+          onValueChange={(v) => setEmotionFilter(v as TransactionEmotion | 'all')}
+        >
+          <SelectTrigger className="w-[150px] h-9 text-sm shrink-0">
+            <SelectValue placeholder="Todas emoções" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas emoções</SelectItem>
+            {EMOTION_FILTERS.map((e) => (
+              <SelectItem key={e.value} value={e.value}>
+                <span className="mr-1">{e.emoji}</span> {e.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {loading ? (
@@ -327,10 +364,21 @@ export default function Transactions() {
                             </div>
                           )}
                         </div>
-                        <span className={cn('font-bold text-sm whitespace-nowrap', color)}>
-                          {prefix}
-                          {formatBRL(t.amount)}
-                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {t.emotion && EMOTION_META[t.emotion] && (
+                            <span
+                              className="text-lg leading-none"
+                              title={EMOTION_META[t.emotion].label}
+                              aria-label={`Emoção: ${EMOTION_META[t.emotion].label}`}
+                            >
+                              {EMOTION_META[t.emotion].emoji}
+                            </span>
+                          )}
+                          <span className={cn('font-bold text-sm whitespace-nowrap', color)}>
+                            {prefix}
+                            {formatBRL(t.amount)}
+                          </span>
+                        </div>
                         {canDeleteTransactions && (
                           <Button
                             size="sm"
