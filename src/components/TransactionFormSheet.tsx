@@ -115,6 +115,8 @@ export function TransactionFormSheet({
         setDate(new Date().toISOString().split('T')[0])
         setIsShared(false)
         setIsFixed(defaultIsFixed ?? false)
+        setEmotion(null)
+        setEmotionNote('')
       }
       setErrors({})
       userTouchedCategory.current = false
@@ -150,6 +152,8 @@ export function TransactionFormSheet({
         is_shared: isShared,
         is_fixed: isFixed,
         source: 'manual' as const,
+        emotion: emotion || null,
+        emotion_note: emotionNote || null,
       }
       if (editingTransaction) {
         await updateTransaction(editingTransaction.id, data)
