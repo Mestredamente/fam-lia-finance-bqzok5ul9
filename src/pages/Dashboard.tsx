@@ -10,7 +10,7 @@ import { MemberDetailSheet } from '@/components/MemberDetailSheet'
 import { InviteCodeDialog } from '@/components/InviteCodeDialog'
 import { UnifiedHealthCard } from '@/components/UnifiedHealthCard'
 import { OverviewGrid } from '@/components/OverviewGrid'
-import { DashboardTabs } from '@/components/DashboardTabs'
+import { DashboardCards } from '@/components/DashboardCards'
 import { TransactionFormSheet } from '@/components/TransactionFormSheet'
 import { ScenarioComparator } from '@/components/ScenarioComparator'
 import { ExportButton } from '@/components/ExportButton'
@@ -214,13 +214,12 @@ export default function Dashboard() {
 
       <UpcomingTasksSection familyId={family.id} />
 
-      <DashboardTabs
+      <DashboardCards
         familyId={family.id}
         memberId={member?.id || ''}
         year={year}
         month={month}
         onAddFixed={openFixedForm}
-        onSeeSubscriptions={() => openScenario('cut-subscriptions')}
       />
 
       <button
