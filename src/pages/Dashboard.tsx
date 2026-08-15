@@ -151,10 +151,17 @@ export default function Dashboard() {
               Ver todas
             </Button>
           )}
-          <div className="hidden sm:flex items-center gap-2 ml-2">
+          <div className="flex items-center gap-2 ml-2">
             <ExportButton transactions={monthTransactions} month={month} year={year} />
-            <Button variant="outline" size="sm" onClick={() => openScenario()}>
-              <Sparkles className="h-4 w-4" /> <span className="ml-1">E se...?</span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="min-h-[36px] min-w-[36px] px-3 py-2"
+              onClick={() => openScenario()}
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="ml-1 sm:hidden text-xs">Cenários</span>
+              <span className="ml-1 hidden sm:inline">Simular Cenários</span>
             </Button>
             <Link to="/orcamentos">
               <Button variant="outline" size="sm">
