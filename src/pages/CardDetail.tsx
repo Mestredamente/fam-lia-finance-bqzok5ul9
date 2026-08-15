@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useInvoices } from '@/hooks/use-invoices'
+import { usePermissions } from '@/hooks/use-permissions'
 import { getCreditCard } from '@/services/credit-cards'
 import { parseInvoice } from '@/services/invoices'
 import { Button } from '@/components/ui/button'
@@ -43,6 +44,9 @@ const parseStatusConfig: Record<ParseStatus, { label: string; className: string 
 export default function CardDetail() {
   const { cardId } = useParams<{ cardId: string }>()
   const navigate = useNavigate()
+  const perms = usePermissions()
+  const canDeleteInvoices = perms.canDeleteInvoices()
+  const canImportInvoices = perms.canImportInvoices()
   const { invoices, loading, error, refetch } = useInvoices(cardId)
   const [card, setCard] = useState<CreditCardRecord | null>(null)
   const [cardLoading, setCardLoading] = useState(true)
@@ -245,19 +249,21 @@ export default function CardDetail() {
                   <span className="font-bold text-sm text-gray-900 whitespace-nowrap">
                     {formatBRL(inv.total_amount)}
                   </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setDeleteTarget({
-                        id: inv.id,
-                        label: `${getMonthName(monthDate.getMonth())} ${monthDate.getFullYear()}`,
-                      })
-                    }}
-                    className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
-                    aria-label="Excluir fatura"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {canDeleteInvoices && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDeleteTarget({
+                          id: inv.id,
+                          label: `${getMonthName(monthDate.getMonth())} ${monthDate.getFullYear()}`,
+                        })
+                      }}
+                      className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                      aria-label="Excluir fatura"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </CardContent>
               </Card>
             )
@@ -265,12 +271,14 @@ export default function CardDetail() {
         </div>
       )}
 
-      <button
-        onClick={() => setShowInvoiceForm(true)}
-        className="fixed bottom-20 right-6 lg:bottom-8 lg:right-8 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 z-20"
-      >
-        <Plus className="h-6 w-6" />
-      </button>
+      {canImportInvoices && (
+        <button
+          onClick={() => setShowInvoiceForm(true)}
+          className="fixed bottom-20 right-6 lg:bottom-8 lg:right-8 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 z-20"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+      )}
 
       {card && cardId && (
         <InvoiceFormSheet

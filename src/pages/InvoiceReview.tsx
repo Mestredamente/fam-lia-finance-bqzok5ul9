@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { ClientResponseError } from 'pocketbase'
 import { useAuth } from '@/hooks/use-auth'
+import { usePermissions } from '@/hooks/use-permissions'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAnnouncer } from '@/hooks/use-announcer'
 import { useInvoiceItems } from '@/hooks/use-invoice-items'
@@ -64,6 +65,8 @@ export default function InvoiceReview() {
   const { cardId, invoiceId } = useParams<{ cardId: string; invoiceId: string }>()
   const navigate = useNavigate()
   const { family } = useAuth()
+  const perms = usePermissions()
+  const canDeleteInvoices = perms.canDeleteInvoices()
 
   const [invoice, setInvoice] = useState<InvoiceRecord | null>(null)
   const [loading, setLoading] = useState(true)
@@ -528,15 +531,17 @@ export default function InvoiceReview() {
             )}
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setShowDeleteDialog(true)}
-          aria-label="Excluir fatura"
-          className="text-red-500 hover:text-red-600 hover:bg-red-50"
-        >
-          <Trash2 className="h-5 w-5" aria-hidden="true" />
-        </Button>
+        {canDeleteInvoices && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowDeleteDialog(true)}
+            aria-label="Excluir fatura"
+            className="text-red-500 hover:text-red-600 hover:bg-red-50"
+          >
+            <Trash2 className="h-5 w-5" aria-hidden="true" />
+          </Button>
+        )}
       </div>
 
       <Card className="rounded-2xl border-gray-100 shadow-subtle">

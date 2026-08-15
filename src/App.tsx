@@ -17,7 +17,9 @@ import { SkipLink } from '@/components/SkipLink'
 import pb from '@/lib/pocketbase/client'
 import { toast } from '@/hooks/use-toast'
 import Layout from '@/components/Layout'
-
+import { usePermissions } from '@/hooks/use-permissions'
+const ProjectionsLazy = lazy(() => import('@/pages/Projections'))
+const MemberSettingsLazy = lazy(() => import('@/pages/MemberSettings'))
 const Login = lazy(() => import('@/pages/Login'))
 const Onboarding = lazy(() => import('@/pages/Onboarding'))
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
@@ -95,6 +97,22 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function PermissionRoute({
+  children,
+  check,
+}: {
+  children: React.ReactNode
+  check: (perms: ReturnType<typeof usePermissions>) => boolean
+}) {
+  const { loading } = useAuth()
+  const perms = usePermissions()
+  if (loading) return <LoadingScreen />
+  if (!check(perms) && !perms.isGuardian()) {
+    return <Navigate to="/dashboard" replace />
+  }
+  return <>{children}</>
+}
+
 function PageFallback() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]" role="status" aria-live="polite">
@@ -167,7 +185,27 @@ function AppInner() {
                       />
                       <Route
                         path="/patrimonio"
-                        element={<ProtectedRoute>{withSuspense(Patrimony)}</ProtectedRoute>}
+                        element={
+                          <ProtectedRoute>
+                            <PermissionRoute check={(p) => p.canViewPatrimony()}>
+                              {withSuspense(Patrimony)}
+                            </PermissionRoute>
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/membros"
+                        element={
+                          <ProtectedRoute>
+                            <PermissionRoute check={(p) => p.canManageMembers()}>
+                              {withSuspense(MemberSettingsLazy)}
+                            </PermissionRoute>
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/projections"
+                        element={<ProtectedRoute>{withSuspense(ProjectionsLazy)}</ProtectedRoute>}
                       />
                       <Route
                         path="/consultora"
@@ -189,7 +227,13 @@ function AppInner() {
                       />
                       <Route
                         path="/orcamentos"
-                        element={<ProtectedRoute>{withSuspense(Budgets)}</ProtectedRoute>}
+                        element={
+                          <ProtectedRoute>
+                            <PermissionRoute check={(p) => p.canViewBudgets()}>
+                              {withSuspense(Budgets)}
+                            </PermissionRoute>
+                          </ProtectedRoute>
+                        }
                       />
                       <Route
                         path="/evolucao"

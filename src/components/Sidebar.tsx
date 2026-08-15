@@ -16,6 +16,7 @@ import {
   X,
   PiggyBank,
   Users,
+  CalendarClock,
   type LucideIcon,
 } from 'lucide-react'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -54,7 +55,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Planejamento',
     items: [
-      { label: 'Projeções', path: '/projections', icon: TrendingUp },
+      { label: 'Projeções', path: '/projections', icon: CalendarClock },
       { label: 'Patrimônio', path: '/patrimonio', icon: PiggyBank, perm: 'canViewPatrimony' },
       { label: 'Casa', path: '/casa', icon: Home },
     ],
@@ -137,7 +138,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     touchStartX.current = e.touches[0].clientX
   }
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (e.changedTouches[0].clientX - touchStartX.current < -50) onClose()
+    if (e.changedTouches[0].clientX - touchStartX.current < -80) onClose()
   }
 
   const visibleGroups = NAV_GROUPS.map((g) => ({

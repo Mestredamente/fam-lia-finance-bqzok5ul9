@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, AlertCircle, FileText, Calculator } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { usePermissions } from '@/hooks/use-permissions'
 import { useDebts } from '@/hooks/use-debts'
 import { deleteDebt, registerDebtPayment } from '@/services/debts'
 import { Card, CardContent } from '@/components/ui/card'
@@ -22,6 +23,8 @@ interface Props {
 
 export function DebtList({ familyId, members }: Props) {
   const { member } = useAuth()
+  const perms = usePermissions()
+  const canManageDebts = perms.canManageDebts()
   const { debts, totalRemaining, totalInstallments, incomeCommitment, loading, error, refetch } =
     useDebts(familyId)
   const [memberFilter, setMemberFilter] = useState('all')
@@ -70,16 +73,18 @@ export function DebtList({ familyId, members }: Props) {
               <Calculator className="h-4 w-4 mr-1" /> Simular quitação
             </Button>
           )}
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditingDebt(null)
-              setShowForm(true)
-            }}
-            className="bg-[#166534] hover:bg-[#15803D]"
-          >
-            <Plus className="h-4 w-4 mr-1" /> Adicionar
-          </Button>
+          {canManageDebts && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingDebt(null)
+                setShowForm(true)
+              }}
+              className="bg-[#166534] hover:bg-[#15803D]"
+            >
+              <Plus className="h-4 w-4 mr-1" /> Adicionar
+            </Button>
+          )}
         </div>
       </div>
 
@@ -240,15 +245,17 @@ export function DebtList({ familyId, members }: Props) {
         </>
       )}
 
-      <button
-        onClick={() => {
-          setEditingDebt(null)
-          setShowForm(true)
-        }}
-        className="fixed bottom-20 right-6 lg:bottom-8 lg:right-8 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 z-20"
-      >
-        <Plus className="h-6 w-6" />
-      </button>
+      {canManageDebts && (
+        <button
+          onClick={() => {
+            setEditingDebt(null)
+            setShowForm(true)
+          }}
+          className="fixed bottom-20 right-6 lg:bottom-8 lg:right-8 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 z-20"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+      )}
 
       <DebtFormSheet
         open={showForm}

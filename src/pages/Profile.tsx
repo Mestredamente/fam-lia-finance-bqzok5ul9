@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   UserCheck,
   ShieldAlert,
+  Shield,
   Download,
   Trash2,
   LogOut,
@@ -14,6 +15,7 @@ import {
   Tags,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { usePermissions } from '@/hooks/use-permissions'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -51,6 +53,8 @@ import { Sun, Moon, Monitor } from 'lucide-react'
 export default function Profile() {
   const navigate = useNavigate()
   const { user, member, family, signOut, deleteAccount, updateMemberData } = useAuth()
+  const perms = usePermissions()
+  const canManageMembers = perms.canManageMembers()
   const { theme, setTheme } = useTheme()
 
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
@@ -309,6 +313,12 @@ export default function Profile() {
               <span className="text-xs text-gray-500">Membros cadastrados</span>
             </div>
             <div className="flex gap-2">
+              {canManageMembers && (
+                <Button size="sm" variant="outline" onClick={() => navigate('/membros')}>
+                  <Shield className="h-4 w-4 mr-1.5" />
+                  Permissões
+                </Button>
+              )}
               <Button size="sm" variant="outline" onClick={() => navigate('/familia')}>
                 <Users className="h-4 w-4 mr-1.5" />
                 Gerenciar

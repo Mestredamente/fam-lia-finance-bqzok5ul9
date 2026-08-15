@@ -13,6 +13,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { usePermissions } from '@/hooks/use-permissions'
 import { useTransactions } from '@/hooks/use-transactions'
 import { getActiveMembersByFamilyId } from '@/services/members'
 import { deleteTransaction, cleanupOrphanTransactions } from '@/services/transactions'
@@ -68,6 +69,8 @@ function groupByDay(items: TransactionRecord[]) {
 
 export default function Transactions() {
   const { family, member } = useAuth()
+  const perms = usePermissions()
+  const canDeleteTransactions = perms.canDeleteTransactions()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [memberFilter, setMemberFilter] = useState('all')
   const [members, setMembers] = useState<MemberRecord[]>([])
@@ -174,10 +177,12 @@ export default function Transactions() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">Transações</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
-            <Upload className="h-4 w-4" />
-            <span className="hidden sm:inline ml-1">Importar</span>
-          </Button>
+          {perms.canImportInvoices() && (
+            <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
+              <Upload className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1">Importar</span>
+            </Button>
+          )}
           <ExportButton transactions={filtered} month={month} year={year} />
           <Button
             variant="outline"
@@ -326,19 +331,21 @@ export default function Transactions() {
                           {prefix}
                           {formatBRL(t.amount)}
                         </span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setDeleteTx(t)
-                            setShowDeleteDialog(true)
-                          }}
-                          className="h-8 w-8 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50 shrink-0"
-                          aria-label="Excluir transação"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canDeleteTransactions && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setDeleteTx(t)
+                              setShowDeleteDialog(true)
+                            }}
+                            className="h-8 w-8 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50 shrink-0"
+                            aria-label="Excluir transação"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </CardContent>
                     </Card>
                   )

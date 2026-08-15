@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { useExpenseNotifications } from '@/hooks/use-expense-notifications'
-import { Header, Sidebar, BottomNav } from '@/components/Navigation'
+import { Header, BottomNav } from '@/components/Navigation'
+import { Sidebar } from '@/components/Sidebar'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { OnboardingTour } from '@/components/OnboardingTour'
 import { PullToRefresh } from '@/components/PullToRefresh'
@@ -9,6 +11,7 @@ import { PullToRefresh } from '@/components/PullToRefresh'
 export default function Layout() {
   const { isAuthenticated, loading } = useAuth()
   useExpenseNotifications(isAuthenticated)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   if (loading) {
     return <LoadingScreen />
@@ -26,9 +29,9 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] flex flex-col lg:flex-row">
-      <Sidebar />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0">
-        <Header />
+        <Header onMenuClick={() => setIsSidebarOpen(true)} />
         <main
           id="main-content"
           role="main"
