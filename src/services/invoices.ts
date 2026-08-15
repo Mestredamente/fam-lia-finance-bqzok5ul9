@@ -38,10 +38,9 @@ export const deleteInvoice = (id: string) => pb.collection('invoices').delete(id
 export const deleteInvoiceCascade = (invoiceId: string) =>
   pb.send<{
     success: boolean
-    deleted_items: number
-    deleted_transactions: number
+    deleted: { transactions: number; invoice_items: number }
     skipped: number
-    errors: Array<{ item_id: string; transaction_id?: string; error: string }>
+    errors: Array<{ item_id?: string; transaction_id?: string; error: string }>
   }>('/backend/v1/delete-invoice', {
     method: 'POST',
     body: JSON.stringify({ invoice_id: invoiceId }),

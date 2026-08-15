@@ -56,7 +56,7 @@ export function DeleteInvoiceDialog({
       const skippedMsg =
         result.skipped > 0 ? ` ${result.skipped} transação(ões) não puderam ser removidas.` : ''
       toast({
-        title: `Fatura excluída. ${result.deleted_items} itens e ${result.deleted_transactions} transações removidos.${skippedMsg}`,
+        title: `Fatura excluída. ${result.deleted.invoice_items} itens e ${result.deleted.transactions} transações removidos.${skippedMsg}`,
         className:
           result.skipped > 0
             ? 'border-yellow-500 bg-yellow-50 text-yellow-800'

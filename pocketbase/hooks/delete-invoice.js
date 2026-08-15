@@ -18,6 +18,7 @@ routerAdd(
     var errors = []
 
     try {
+      // 1. Buscar todos os invoice_items da invoice
       var items = $app.findRecordsByFilter(
         'invoice_items',
         'invoice_id = "' + invoiceId + '"',
@@ -26,6 +27,8 @@ routerAdd(
         0,
       )
 
+      // 2. Buscar todas as transactions com invoice_item_id apontando para os invoice_items
+      var transactions = []
       for (var i = 0; i < items.length; i++) {
         var itemId = items[i].id
         try {
@@ -37,59 +40,72 @@ routerAdd(
             0,
           )
           for (var t = 0; t < txs.length; t++) {
-            try {
-              $app.delete(txs[t])
-              deletedTransactions++
-            } catch (txErr) {
-              skipped++
-              errors.push({
-                item_id: itemId,
-                transaction_id: txs[t].id,
-                error: String(txErr.message || txErr),
-              })
-              $app
-                .logger()
-                .warn(
-                  'DELETE_INVOICE: skipped transaction',
-                  'tx_id',
-                  txs[t].id,
-                  'item_id',
-                  itemId,
-                  'error',
-                  String(txErr),
-                )
-            }
+            transactions.push(txs[t])
           }
         } catch (_) {}
       }
 
-      for (var j = 0; j < items.length; j++) {
+      // 3. Deletar cada transaction diretamente via DAO (bypassa onRecordDeleteRequest)
+      for (var ti = 0; ti < transactions.length; ti++) {
+        var tx = transactions[ti]
         try {
-          $app.delete(items[j])
+          $app.logger().info('DELETE_INVOICE: deletando transaction id=' + tx.id)
+          $app.dao().deleteRecord(tx)
+          deletedTransactions++
+        } catch (txErr) {
+          skipped++
+          errors.push({
+            transaction_id: tx.id,
+            error: String(txErr.message || txErr),
+          })
+          $app
+            .logger()
+            .warn('DELETE_INVOICE: skipped transaction', 'tx_id', tx.id, 'error', String(txErr))
+        }
+      }
+      $app.logger().info('DELETE_INVOICE: ' + deletedTransactions + ' transactions deletadas')
+
+      // 4. Deletar cada invoice_item diretamente via DAO
+      for (var j = 0; j < items.length; j++) {
+        var item = items[j]
+        try {
+          $app.logger().info('DELETE_INVOICE: deletando invoice_item id=' + item.id)
+          $app.dao().deleteRecord(item)
           deletedItems++
         } catch (itemErr) {
+          skipped++
+          errors.push({
+            item_id: item.id,
+            error: String(itemErr.message || itemErr),
+          })
           $app
             .logger()
             .warn(
               'DELETE_INVOICE: failed to delete item',
               'item_id',
-              items[j].id,
+              item.id,
               'error',
               String(itemErr),
             )
         }
       }
+      $app.logger().info('DELETE_INVOICE: ' + deletedItems + ' invoice_items deletados')
 
+      // 5. Por fim, deletar a propria invoice diretamente via DAO
       var invoice = $app.findRecordById('invoices', invoiceId)
-      $app.delete(invoice)
+      $app.logger().info('DELETE_INVOICE: deletando invoice id=' + invoice.id)
+      $app.dao().deleteRecord(invoice)
+      $app.logger().info('DELETE_INVOICE: invoice deletada com sucesso')
     } catch (err) {
       $app.logger().error('DELETE_INVOICE: erro = ' + String(err))
       $app.logger().error('DELETE_INVOICE: stack = ' + String(err.stack || ''))
       return e.json(500, {
         error: String(err.message || err),
         stack: String(err.stack || ''),
-        deleted_items: deletedItems,
-        deleted_transactions: deletedTransactions,
+        deleted: {
+          transactions: deletedTransactions,
+          invoice_items: deletedItems,
+        },
         skipped: skipped,
         errors: errors,
       })
@@ -101,18 +117,20 @@ routerAdd(
         'DELETE_INVOICE: success',
         'invoice_id',
         invoiceId,
-        'deleted_items',
-        String(deletedItems),
         'deleted_transactions',
         String(deletedTransactions),
+        'deleted_items',
+        String(deletedItems),
         'skipped',
         String(skipped),
       )
 
     return e.json(200, {
       success: true,
-      deleted_items: deletedItems,
-      deleted_transactions: deletedTransactions,
+      deleted: {
+        transactions: deletedTransactions,
+        invoice_items: deletedItems,
+      },
       skipped: skipped,
       errors: errors,
     })
