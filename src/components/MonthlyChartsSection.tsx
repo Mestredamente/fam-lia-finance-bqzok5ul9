@@ -1,5 +1,6 @@
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { Card, CardContent } from '@/components/ui/card'
+import { useTheme } from '@/hooks/use-theme'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   ChartContainer,
@@ -18,6 +19,9 @@ interface Props {
 
 export function MonthlyChartsSection({ familyId, year, month }: Props) {
   const { expensesByCategory, monthlyComparison, loading } = useMonthlyCharts(familyId, year, month)
+  const isDark = useTheme().resolvedTheme === 'dark'
+  const axisColor = isDark ? '#e5e7eb' : '#374151'
+  const gridColor = isDark ? '#374151' : '#e5e7eb'
 
   if (loading) {
     return (
@@ -38,9 +42,11 @@ export function MonthlyChartsSection({ familyId, year, month }: Props) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
+      <Card className="border border-gray-100 dark:border-gray-700 shadow-subtle rounded-2xl bg-white dark:bg-card">
         <CardContent className="p-3 sm:p-5">
-          <h3 className="font-bold text-sm text-gray-900 mb-4">Despesas por Categoria</h3>
+          <h3 className="font-bold text-sm text-gray-900 dark:text-foreground mb-4">
+            Despesas por Categoria
+          </h3>
           {hasPieData ? (
             <ChartContainer config={pieConfig} className="h-48 w-full">
               <PieChart>
@@ -74,9 +80,11 @@ export function MonthlyChartsSection({ familyId, year, month }: Props) {
                       className="w-2.5 h-2.5 rounded-full shrink-0"
                       style={{ backgroundColor: cat.color }}
                     />
-                    <span className="text-gray-600 truncate">{cat.name}</span>
+                    <span className="text-gray-600 dark:text-gray-300 truncate">{cat.name}</span>
                   </div>
-                  <span className="font-medium text-gray-900 shrink-0">{formatBRL(cat.value)}</span>
+                  <span className="font-medium text-gray-900 dark:text-foreground shrink-0">
+                    {formatBRL(cat.value)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -84,23 +92,25 @@ export function MonthlyChartsSection({ familyId, year, month }: Props) {
         </CardContent>
       </Card>
 
-      <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
+      <Card className="border border-gray-100 dark:border-gray-700 shadow-subtle rounded-2xl bg-white dark:bg-card">
         <CardContent className="p-3 sm:p-5">
-          <h3 className="font-bold text-sm text-gray-900 mb-4">Receitas x Despesas (12 meses)</h3>
+          <h3 className="font-bold text-sm text-gray-900 dark:text-foreground mb-4">
+            Receitas x Despesas (12 meses)
+          </h3>
           {hasBarData ? (
             <ChartContainer config={barConfig} className="h-64 w-full">
               <BarChart data={monthlyComparison}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
                 <XAxis
                   dataKey="month"
-                  tick={{ fontSize: 10 }}
+                  tick={{ fontSize: 10, fill: axisColor }}
                   interval={0}
                   angle={-45}
                   textAnchor="end"
                   height={50}
                 />
                 <YAxis
-                  tick={{ fontSize: 10 }}
+                  tick={{ fontSize: 10, fill: axisColor }}
                   tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />

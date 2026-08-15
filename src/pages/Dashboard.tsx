@@ -96,7 +96,7 @@ export default function Dashboard() {
   if (!family) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-sm text-gray-500">Carregando dados da família...</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Carregando dados da família...</p>
       </div>
     )
   }
@@ -134,7 +134,7 @@ export default function Dashboard() {
     <div className="space-y-8 animate-fade-in">
       <DashboardInstallBanner />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Resumo Financeiro</h1>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Resumo Financeiro</h1>
         <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
           <PeriodSelector
             period={period}

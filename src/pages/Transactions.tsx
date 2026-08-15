@@ -187,14 +187,14 @@ export default function Transactions() {
   if (!family)
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-gray-500 text-sm">Carregando...</p>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">Carregando...</p>
       </div>
     )
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Transações</h1>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Transações</h1>
         <div className="flex items-center gap-2">
           {perms.canImportInvoices() && (
             <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
@@ -226,7 +226,7 @@ export default function Transactions() {
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <span className="text-sm font-semibold text-gray-700 min-w-[120px] text-center">
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 min-w-[120px] text-center">
             {MONTHS[month]} {year}
           </span>
           <Button
@@ -288,19 +288,21 @@ export default function Transactions() {
       ) : error ? (
         <Card className="border-red-200 rounded-2xl">
           <CardContent className="p-6 text-center space-y-3">
-            <p className="text-sm text-red-600">{error}</p>
+            <p className="text-sm text-danger">{error}</p>
             <Button size="sm" variant="outline" onClick={refetch}>
               Tentar novamente
             </Button>
           </CardContent>
         </Card>
       ) : grouped.length === 0 ? (
-        <Card className="border-dashed border-gray-200 rounded-2xl">
+        <Card className="border-dashed border-gray-200 dark:border-gray-700 rounded-2xl">
           <CardContent className="p-8 flex flex-col items-center text-center space-y-3">
-            <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
+            <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400">
               <Receipt className="h-7 w-7" />
             </div>
-            <p className="text-sm font-medium text-gray-500">Nenhuma transação neste mês</p>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              Nenhuma transação neste mês
+            </p>
             <Button size="sm" onClick={openForm} className="bg-[#166534] hover:bg-[#15803D]">
               Adicionar transação
             </Button>
@@ -312,7 +314,7 @@ export default function Transactions() {
             const d = new Date(date + 'T00:00:00')
             return (
               <div key={date} className="space-y-2">
-                <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                <h2 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   {d.getDate()} de {MONTHS[d.getMonth()]}
                 </h2>
                 {items.map((t) => {
@@ -320,10 +322,10 @@ export default function Transactions() {
                   const Icon = getCategoryIcon(cat?.icon || 'plus-circle')
                   const color =
                     t.type === 'income'
-                      ? 'text-[#22C55E]'
+                      ? 'text-[#22C55E] dark:text-success'
                       : t.type === 'investment'
-                        ? 'text-blue-600'
-                        : 'text-red-600'
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : 'text-danger'
                   const prefix = t.type === 'income' ? '+ ' : '- '
                   return (
                     <Card
@@ -333,7 +335,7 @@ export default function Transactions() {
                         setDetailTx(t)
                         setShowDetail(true)
                       }}
-                      className="border border-gray-100 shadow-subtle hover:shadow-elevation rounded-2xl bg-white cursor-pointer transition-all"
+                      className="border border-gray-100 dark:border-gray-700 shadow-subtle hover:shadow-elevation rounded-2xl bg-white dark:bg-card cursor-pointer transition-all"
                     >
                       <CardContent className="p-4 flex items-center gap-3">
                         <div
@@ -343,10 +345,12 @@ export default function Transactions() {
                           <Icon className="h-5 w-5" style={{ color: cat?.color || '#999' }} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-sm text-gray-900 truncate">
+                          <p className="font-bold text-sm text-gray-900 dark:text-foreground truncate">
                             {t.description}
                           </p>
-                          <p className="text-xs text-gray-500">{cat?.name || 'Sem categoria'}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {cat?.name || 'Sem categoria'}
+                          </p>
                           {(t.is_shared || t.is_fixed) && (
                             <div className="flex gap-1 mt-1">
                               {t.is_shared && (
@@ -388,7 +392,7 @@ export default function Transactions() {
                               setDeleteTx(t)
                               setShowDeleteDialog(true)
                             }}
-                            className="h-8 w-8 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50 shrink-0"
+                            className="h-8 w-8 p-0 text-gray-400 hover:text-red-500 hover:bg-danger/5 shrink-0"
                             aria-label="Excluir transação"
                           >
                             <Trash2 className="h-4 w-4" />
