@@ -9,9 +9,12 @@ routerAdd(
       var body = e.requestInfo().body || {}
       var invoiceId = body.invoice_id || ''
       var itemIds = body.invoice_item_ids || []
+      var itemEmotions = body.item_emotions || {}
       if (!invoiceId) return e.badRequestError('ID da fatura é obrigatório')
       if (!Array.isArray(itemIds) || itemIds.length === 0)
         return e.badRequestError('Nenhum item fornecido')
+
+      var VALID_EMOTIONS = ['happy', 'necessary', 'regret', 'impulsive', 'neutral']
 
       totalItems = itemIds.length
 
@@ -131,6 +134,15 @@ routerAdd(
         tx.set('invoice_item_id', itemId)
         tx.set('status', 'pending')
 
+        var itemEmotion = itemEmotions[itemId] || ''
+        if (itemEmotion && VALID_EMOTIONS.indexOf(itemEmotion) !== -1) {
+          tx.set('emotion', itemEmotion)
+          tx.set('emotion_note', '')
+        } else {
+          tx.set('emotion', '')
+          tx.set('emotion_note', '')
+        }
+
         try {
           $app.save(tx)
         } catch (saveErr) {
@@ -184,6 +196,11 @@ routerAdd(
               futureTx.set('installment_total', instTotal)
               futureTx.set('parent_transaction_id', tx.id)
               futureTx.set('status', 'pending')
+              var parentEmotion = tx.getString('emotion')
+              if (parentEmotion && VALID_EMOTIONS.indexOf(parentEmotion) !== -1) {
+                futureTx.set('emotion', parentEmotion)
+                futureTx.set('emotion_note', '')
+              }
               try {
                 $app.save(futureTx)
                 $app

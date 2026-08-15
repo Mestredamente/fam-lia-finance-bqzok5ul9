@@ -66,12 +66,22 @@ interface ConvertResult {
   errors?: Array<{ item_id: string; description?: string; error: string }>
 }
 
-export const convertInvoiceItems = (invoiceId: string, itemIds: string[]) =>
-  pb.send<ConvertResult>('/backend/v1/convert-invoice-items', {
+export const convertInvoiceItems = (
+  invoiceId: string,
+  itemIds: string[],
+  emotions?: Record<string, string | null>,
+) => {
+  const body: Record<string, unknown> = {
+    invoice_id: invoiceId,
+    invoice_item_ids: itemIds,
+  }
+  if (emotions) body.item_emotions = emotions
+  return pb.send<ConvertResult>('/backend/v1/convert-invoice-items', {
     method: 'POST',
-    body: JSON.stringify({ invoice_id: invoiceId, invoice_item_ids: itemIds }),
+    body: JSON.stringify(body),
     headers: { 'Content-Type': 'application/json' },
   })
+}
 
 export const getPendingInvoicesCount = (familyId: string) =>
   pb

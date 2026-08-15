@@ -49,7 +49,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { formatBRL, getMonthName, cn } from '@/lib/utils'
 import { getParseStatus } from '@/lib/invoice-utils'
 import { toast } from '@/hooks/use-toast'
-import type { InvoiceRecord, InvoiceItemRecord } from '@/types/finance'
+import type { InvoiceRecord, InvoiceItemRecord, TransactionEmotion } from '@/types/finance'
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   pending: { label: 'Pendente de revisão', className: 'bg-yellow-100 text-yellow-700' },
@@ -79,6 +79,9 @@ export default function InvoiceReview() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [excludeConfirmItem, setExcludeConfirmItem] = useState<InvoiceItemRecord | null>(null)
   const [categoryOverrides, setCategoryOverrides] = useState<Record<string, string>>({})
+  const [emotionOverrides, setEmotionOverrides] = useState<
+    Record<string, TransactionEmotion | null>
+  >({})
   const [lastSelectedCategory, setLastSelectedCategory] = useState('')
   const [failedItemIds, setFailedItemIds] = useState<string[]>([])
   const [failedItemsDetail, setFailedItemsDetail] = useState<
@@ -190,6 +193,22 @@ export default function InvoiceReview() {
     setFailedItemsDetail((prev) => prev.filter((d) => d.item_id !== itemId))
   }, [])
 
+  const handleEmotionChange = useCallback((itemId: string, emotion: TransactionEmotion | null) => {
+    setEmotionOverrides((prev) => ({ ...prev, [itemId]: emotion }))
+  }, [])
+
+  const itemEmotions = useMemo(() => {
+    const result: Record<string, TransactionEmotion | null> = {}
+    activeItems.forEach((item) => {
+      const override = emotionOverrides[item.id]
+      result[item.id] = override !== undefined ? override : null
+    })
+    return result
+  }, [activeItems, emotionOverrides])
+
+  const itemEmotionsRef = useRef(itemEmotions)
+  itemEmotionsRef.current = itemEmotions
+
   const handleDelete = useCallback((itemId: string) => {
     const item = itemsRef.current.find((i) => i.id === itemId)
     if (item?.converted_transaction_id) {
@@ -288,7 +307,9 @@ export default function InvoiceReview() {
           confirmed_category_id: catId || '',
           is_confirmed: true,
         })
-        const result = await convertInvoiceItems(invoiceId, [itemId])
+        const result = await convertInvoiceItems(invoiceId, [itemId], {
+          [itemId]: itemEmotionsRef.current[itemId] || null,
+        })
         if (result.errors && result.errors.length > 0) {
           const err = result.errors[0]
           setFailedItemIds((prev) => [...new Set([...prev, itemId])])
@@ -361,7 +382,11 @@ export default function InvoiceReview() {
           }),
         ),
       )
-      const result = await convertInvoiceItems(invoiceId, convertible)
+      const result = await convertInvoiceItems(
+        invoiceId,
+        convertible,
+        Object.fromEntries(convertible.map((id) => [id, itemEmotionsRef.current[id] || null])),
+      )
       if (result.errors && result.errors.length > 0) {
         const failedIds = result.errors
           .map((e: { item_id?: string }) => e.item_id)
@@ -794,7 +819,9 @@ export default function InvoiceReview() {
                       item={item}
                       categories={categories}
                       selectedCategoryId={itemCategories[item.id] || ''}
+                      selectedEmotion={itemEmotions[item.id]}
                       onCategoryChange={handleCategoryChange}
+                      onEmotionChange={handleEmotionChange}
                       onConvert={handleConvert}
                       onDelete={handleDelete}
                       isFailed={failedItemIds.includes(item.id)}
@@ -815,6 +842,7 @@ export default function InvoiceReview() {
                       categories={categories}
                       selectedCategoryId={itemCategories[item.id] || ''}
                       onCategoryChange={handleCategoryChange}
+                      onEmotionChange={handleEmotionChange}
                       onConvert={handleConvert}
                       onDelete={handleDelete}
                       isFailed={failedItemIds.includes(item.id)}

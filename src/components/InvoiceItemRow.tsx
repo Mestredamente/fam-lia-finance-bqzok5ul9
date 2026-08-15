@@ -1,5 +1,5 @@
 import { memo, useState } from 'react'
-import { AlertCircle, CheckCircle2, Loader2, Sparkles, X, Trash2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader2, Sparkles, X, Trash2, Smile } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -9,17 +9,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { getCategoryIcon } from '@/lib/category-icons'
 import { formatBRL, cn } from '@/lib/utils'
-import type { InvoiceItemRecord, CategoryRecord } from '@/types/finance'
+import type { InvoiceItemRecord, CategoryRecord, TransactionEmotion } from '@/types/finance'
 
 const NONE_VALUE = '__none__'
+
+const EMOTION_OPTIONS: { value: TransactionEmotion; emoji: string; label: string }[] = [
+  { value: 'happy', emoji: '😊', label: 'Feliz' },
+  { value: 'necessary', emoji: '✅', label: 'Necessário' },
+  { value: 'neutral', emoji: '😐', label: 'Neutro' },
+  { value: 'regret', emoji: '😬', label: 'Arrependido' },
+  { value: 'impulsive', emoji: '😤', label: 'Impulsivo' },
+]
+
+const EMOTION_EMOJI: Record<TransactionEmotion, string> = {
+  happy: '😊',
+  necessary: '✅',
+  neutral: '😐',
+  regret: '😬',
+  impulsive: '😤',
+}
 
 interface Props {
   item: InvoiceItemRecord
   categories: CategoryRecord[]
   selectedCategoryId: string
+  selectedEmotion?: TransactionEmotion | null
   onCategoryChange: (itemId: string, categoryId: string) => void
+  onEmotionChange?: (itemId: string, emotion: TransactionEmotion | null) => void
   onConvert: (itemId: string) => Promise<void>
   onDelete: (itemId: string) => void
   isFailed?: boolean
@@ -27,9 +46,11 @@ interface Props {
 
 function arePropsEqual(prev: Props, next: Props): boolean {
   if (prev.selectedCategoryId !== next.selectedCategoryId) return false
+  if (prev.selectedEmotion !== next.selectedEmotion) return false
   if (prev.isFailed !== next.isFailed) return false
   if (prev.categories !== next.categories) return false
   if (prev.onCategoryChange !== next.onCategoryChange) return false
+  if (prev.onEmotionChange !== next.onEmotionChange) return false
   if (prev.onConvert !== next.onConvert) return false
   if (prev.onDelete !== next.onDelete) return false
   if (prev.item.id !== next.item.id) return false
@@ -47,12 +68,15 @@ function InvoiceItemRowComponent({
   item,
   categories,
   selectedCategoryId,
+  selectedEmotion,
   onCategoryChange,
+  onEmotionChange,
   onConvert,
   onDelete,
   isFailed,
 }: Props) {
   const [converting, setConverting] = useState(false)
+  const [emotionOpen, setEmotionOpen] = useState(false)
 
   const expenseCats = categories.filter((c) => c.type === 'expense')
   const activeCat = item.expand?.confirmed_category_id || item.expand?.suggested_category_id
@@ -117,6 +141,56 @@ function InvoiceItemRowComponent({
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {onEmotionChange && (
+            <Popover open={emotionOpen} onOpenChange={setEmotionOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0 shrink-0"
+                  aria-label="Marcar emoção"
+                >
+                  {selectedEmotion ? (
+                    <span className="text-base leading-none" aria-hidden="true">
+                      {EMOTION_EMOJI[selectedEmotion]}
+                    </span>
+                  ) : (
+                    <Smile className="h-3.5 w-3.5 text-gray-400" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2" align="end">
+                <div className="grid grid-cols-5 gap-1" role="group" aria-label="Selecionar emoção">
+                  {EMOTION_OPTIONS.map((e) => {
+                    const selected = selectedEmotion === e.value
+                    return (
+                      <button
+                        key={e.value}
+                        type="button"
+                        aria-label={e.label}
+                        aria-pressed={selected}
+                        onClick={() => {
+                          onEmotionChange(item.id, selected ? null : e.value)
+                          setEmotionOpen(false)
+                        }}
+                        className={cn(
+                          'flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 rounded-lg border transition-all',
+                          selected
+                            ? 'border-[#166534] bg-emerald-50'
+                            : 'border-transparent hover:border-gray-200 hover:bg-gray-50',
+                        )}
+                      >
+                        <span className="text-lg leading-none" aria-hidden="true">
+                          {e.emoji}
+                        </span>
+                        <span className="text-[9px] text-gray-500 leading-tight">{e.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
           <Button
             size="sm"
             variant="ghost"

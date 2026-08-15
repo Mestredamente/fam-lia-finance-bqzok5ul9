@@ -21,6 +21,7 @@ import { getMonthName } from '@/lib/utils'
 import { BudgetProgressSection } from '@/components/BudgetProgressSection'
 import { ComprometimentoFuturoCard } from '@/components/ComprometimentoFuturoCard'
 import { UpcomingTasksSection } from '@/components/UpcomingTasksSection'
+import { EmotionalSpendingCard } from '@/components/EmotionalSpendingCard'
 import { Link } from 'react-router-dom'
 
 export default function Dashboard() {
@@ -220,6 +221,8 @@ export default function Dashboard() {
         onMemberClick={handleMemberClick}
         onInvite={() => setShowInviteModal(true)}
       />
+
+      <EmotionalSpendingCard familyId={family.id} year={year} month={month} loading={loading} />
 
       <BudgetProgressSection familyId={family.id} year={year} month={month} />
 
