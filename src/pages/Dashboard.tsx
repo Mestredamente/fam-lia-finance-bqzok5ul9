@@ -100,9 +100,14 @@ export default function Dashboard() {
     )
   }
 
+  const now = new Date()
+  const isFutureMonth =
+    year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth())
+
   const canGoForward = () => {
-    const now = new Date()
-    return year < now.getFullYear() || (year === now.getFullYear() && month < now.getMonth())
+    const maxFuture = new Date(now.getFullYear() + 2, now.getMonth(), 1)
+    const target = new Date(year, month + 1, 1)
+    return target <= maxFuture
   }
 
   const handleMemberClick = (m: MemberRecord) => {
@@ -140,6 +145,11 @@ export default function Dashboard() {
             year={year}
             month={month}
           />
+          {isFutureMonth && (
+            <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-indigo-500 text-white">
+              Projeção
+            </span>
+          )}
           {period !== 'tudo' && (
             <Button
               size="sm"
@@ -186,6 +196,7 @@ export default function Dashboard() {
         loading={loading}
         error={error}
         onRetry={refetch}
+        isFutureMonth={isFutureMonth}
       />
 
       <ComprometimentoFuturoCard familyId={family.id} />

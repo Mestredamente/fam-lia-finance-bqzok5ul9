@@ -16,6 +16,7 @@ interface Props {
   loading: boolean
   error: string | null
   onRetry: () => void
+  isFutureMonth?: boolean
 }
 
 export function UnifiedHealthCard({
@@ -27,6 +28,7 @@ export function UnifiedHealthCard({
   loading,
   error,
   onRetry,
+  isFutureMonth = false,
 }: Props) {
   const [expanded, setExpanded] = useState(false)
   const {
@@ -106,19 +108,25 @@ export function UnifiedHealthCard({
 
           <div className="flex-1 flex flex-col gap-2 sm:hidden">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-gray-500">Receitas</span>
+              <span className="text-xs font-medium text-gray-500">
+                {isFutureMonth ? 'Receitas previstas' : 'Receitas'}
+              </span>
               <span className="text-lg font-extrabold text-[#166534]">
                 <AnimatedCounter value={totalReceitas} format={formatBRL} />
               </span>
             </div>
             <div className="flex items-center justify-between border-t border-gray-100 pt-2">
-              <span className="text-xs font-medium text-gray-500">Despesas</span>
+              <span className="text-xs font-medium text-gray-500">
+                {isFutureMonth ? 'Despesas previstas' : 'Despesas'}
+              </span>
               <span className="text-lg font-extrabold text-red-600">
                 <AnimatedCounter value={totalDespesas} format={formatBRL} />
               </span>
             </div>
             <div className="flex items-center justify-between border-t border-gray-100 pt-2">
-              <span className="text-xs font-medium text-gray-500">Saldo</span>
+              <span className="text-xs font-medium text-gray-500">
+                {isFutureMonth ? 'Saldo projetado' : 'Saldo'}
+              </span>
               <span
                 className={cn(
                   'text-lg font-extrabold',
@@ -132,19 +140,25 @@ export function UnifiedHealthCard({
 
           <div className="hidden sm:grid sm:grid-cols-3 gap-3 flex-1">
             <div className="text-center">
-              <span className="text-xs font-medium text-gray-500 block">Receitas</span>
+              <span className="text-xs font-medium text-gray-500 block">
+                {isFutureMonth ? 'Receitas previstas' : 'Receitas'}
+              </span>
               <span className="text-xl font-extrabold text-[#166534]">
                 <AnimatedCounter value={totalReceitas} format={formatBRL} />
               </span>
             </div>
             <div className="text-center">
-              <span className="text-xs font-medium text-gray-500 block">Despesas</span>
+              <span className="text-xs font-medium text-gray-500 block">
+                {isFutureMonth ? 'Despesas previstas' : 'Despesas'}
+              </span>
               <span className="text-xl font-extrabold text-red-600">
                 <AnimatedCounter value={totalDespesas} format={formatBRL} />
               </span>
             </div>
             <div className="text-center">
-              <span className="text-xs font-medium text-gray-500 block">Saldo</span>
+              <span className="text-xs font-medium text-gray-500 block">
+                {isFutureMonth ? 'Saldo projetado' : 'Saldo'}
+              </span>
               <span
                 className={cn(
                   'text-xl font-extrabold',
