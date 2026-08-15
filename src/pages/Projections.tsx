@@ -138,6 +138,16 @@ export default function Projections() {
         </div>
       </div>
 
+      {/* Filtro de categoria — sempre visível no topo */}
+      <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+        <TabsList>
+          <TabsTrigger value="all">Todos</TabsTrigger>
+          <TabsTrigger value="card">Cartão</TabsTrigger>
+          <TabsTrigger value="debt">Dívida</TabsTrigger>
+          <TabsTrigger value="investment">Investimento</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {/* SEÇÃO 1 — Comprometimento futuro em parcelas */}
       <section className="space-y-3">
         <h2 className="text-base font-bold text-gray-900">Comprometimento futuro em parcelas</h2>
@@ -168,15 +178,6 @@ export default function Projections() {
                 </div>
               </CardContent>
             </Card>
-
-            <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
-              <TabsList>
-                <TabsTrigger value="all">Todos</TabsTrigger>
-                <TabsTrigger value="card">Cartão</TabsTrigger>
-                <TabsTrigger value="debt">Dívida</TabsTrigger>
-                <TabsTrigger value="investment">Investimento</TabsTrigger>
-              </TabsList>
-            </Tabs>
 
             <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
               <CardContent className="p-5 space-y-3">
