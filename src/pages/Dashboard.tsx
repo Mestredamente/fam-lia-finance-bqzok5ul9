@@ -7,8 +7,6 @@ import {
   Check,
   MoreHorizontal,
   Download,
-  Wallet,
-  TrendingUp,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -57,7 +55,6 @@ import { SubscriptionsCard } from '@/components/SubscriptionsCard'
 import { AiInsightsCard } from '@/components/AiInsightsCard'
 import { CustomizableCard } from '@/components/CustomizableCard'
 import { useDashboardLayout, CARD_TITLES, type DashboardCardId } from '@/hooks/use-dashboard-layout'
-import { Link } from 'react-router-dom'
 
 export default function Dashboard() {
   const { family, member } = useAuth()
@@ -366,38 +363,48 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {/* ZONA CENTRO — Ações principais */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* ZONA DIREITA — Ações centrais + Personalizar + overflow */}
+          <div className="flex-1 flex items-center justify-end gap-2">
+            {/* Ações centrais alinhadas */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                title="Simular Cenários"
+                onClick={() => openScenario()}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors"
+              >
+                <Sparkles className="h-4 w-4" />
+                <span className="hidden sm:inline">Simular Cenários</span>
+                <span className="sm:hidden">Cenários</span>
+              </button>
+              <button
+                type="button"
+                title="Ver todas"
+                onClick={() => setPeriod('tudo')}
+                disabled={period === 'tudo'}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              >
+                <Eye className="h-4 w-4" />
+                <span className="hidden sm:inline">Ver todas</span>
+              </button>
+            </div>
+            {/* Personalizar — só ícone */}
             <button
               type="button"
-              title="Simular Cenários"
-              onClick={() => openScenario()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors"
-            >
-              <Sparkles className="h-4 w-4" />
-              <span className="hidden sm:inline">Simular Cenários</span>
-              <span className="sm:hidden">Cenários</span>
-            </button>
-            <button
-              type="button"
-              title="Personalizar"
+              title={editMode ? 'Concluir personalização' : 'Personalizar'}
               onClick={() => setEditMode((v) => !v)}
               aria-pressed={editMode}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors"
+              className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0"
             >
               {editMode ? <Check className="h-4 w-4" /> : <SlidersHorizontal className="h-4 w-4" />}
-              <span className="hidden sm:inline">{editMode ? 'Concluir' : 'Personalizar'}</span>
             </button>
-          </div>
-
-          {/* ZONA DIREITA — Menu overflow */}
-          <div className="flex-1 flex items-center justify-end gap-2">
+            {/* Menu overflow — apenas Exportar */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
                   title="Mais opções"
-                  className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors"
+                  className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0"
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </button>
@@ -423,22 +430,6 @@ export default function Dashboard() {
                     </DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
-                <DropdownMenuItem onClick={() => setPeriod('tudo')} disabled={period === 'tudo'}>
-                  <Eye className="h-4 w-4" />
-                  Ver todas
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/orcamentos">
-                    <Wallet className="h-4 w-4" />
-                    Orçamentos
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/evolucao">
-                    <TrendingUp className="h-4 w-4" />
-                    Evolução
-                  </Link>
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
