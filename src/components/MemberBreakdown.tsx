@@ -79,29 +79,31 @@ export function MemberBreakdown({
               </Avatar>
 
               <div className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium leading-tight">{first}</span>
+                <span className="block whitespace-normal break-words text-sm font-medium leading-tight">
+                  {first}
+                </span>
                 {rest ? (
-                  <span className="block truncate text-xs text-muted-foreground leading-tight">
+                  <span className="block whitespace-normal break-words text-xs text-muted-foreground leading-tight">
                     {rest}
                   </span>
                 ) : null}
               </div>
 
-              <div className="grid grid-cols-3 gap-2 shrink-0">
+              <div className="grid grid-cols-3 gap-1.5 shrink-0">
                 <div className="text-right">
-                  <span className="block text-[10px] uppercase text-muted-foreground">Rec.</span>
+                  <span className="block text-[10px] uppercase text-muted-foreground">R</span>
                   <span className="block text-xs font-medium tabular-nums text-green-600 dark:text-green-500">
                     {formatBRL(income)}
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="block text-[10px] uppercase text-muted-foreground">Desp.</span>
+                  <span className="block text-[10px] uppercase text-muted-foreground">D</span>
                   <span className="block text-xs font-medium tabular-nums text-red-600 dark:text-red-400">
                     {formatBRL(expenses)}
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="block text-[10px] uppercase text-muted-foreground">Saldo</span>
+                  <span className="block text-[10px] uppercase text-muted-foreground">S</span>
                   <span
                     className={cn(
                       'block text-xs font-bold tabular-nums',
