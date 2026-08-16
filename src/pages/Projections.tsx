@@ -132,11 +132,11 @@ export default function Projections() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700">
+        <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-700">
           <CalendarClock className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-foreground">
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-foreground">
             Projeções Financeiras
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -273,7 +273,7 @@ export default function Projections() {
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-center gap-2">
                         <div
-                          className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                          className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
                           style={{ backgroundColor: meta.color + '20' }}
                         >
                           <Icon className="h-5 w-5" style={{ color: meta.color }} />

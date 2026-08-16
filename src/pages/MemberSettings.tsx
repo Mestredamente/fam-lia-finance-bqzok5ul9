@@ -143,12 +143,19 @@ export default function MemberSettings() {
   return (
     <div className="space-y-6 max-w-3xl mx-auto animate-fade-in">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
-          <ArrowLeft className="h-5 w-5" />
+        <Button
+          variant="secondary"
+          onClick={() => navigate('/dashboard')}
+          className="h-9 w-9 p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground"
+          aria-label="Voltar"
+        >
+          <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gerenciar Membros</h1>
-          <p className="text-xs text-gray-500">
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-foreground">
+            Gerenciar Membros
+          </h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             Defina o nível de acesso e permissões de cada membro da família.
           </p>
         </div>

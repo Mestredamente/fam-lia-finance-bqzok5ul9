@@ -89,16 +89,15 @@ export default function Budgets() {
   return (
     <div className="space-y-6 max-w-2xl mx-auto animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Orçamentos</h1>
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-foreground">Orçamentos</h1>
         <Button
-          size="sm"
           onClick={() => {
             setEditing(null)
             setFormOpen(true)
           }}
-          className="bg-[#166534] hover:bg-[#15803D]"
+          className="h-9 px-3 py-2 rounded-lg text-sm bg-[#166534] hover:bg-[#15803D]"
         >
-          <Plus className="h-4 w-4 mr-1.5" />
+          <Plus className="h-4 w-4" />
           Novo
         </Button>
       </div>
@@ -120,7 +119,7 @@ export default function Budgets() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {progress.map(({ budget, spent, pct }) => {
             const cat = budget.expand?.category_id
             const Icon = getCategoryIcon(cat?.icon || 'wallet')
@@ -131,7 +130,7 @@ export default function Budgets() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center"
+                        className="w-10 h-10 rounded-lg flex items-center justify-center"
                         style={{ backgroundColor: (cat?.color || '#999') + '20' }}
                       >
                         <Icon className="h-5 w-5" style={{ color: cat?.color || '#999' }} />

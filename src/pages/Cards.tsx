@@ -21,13 +21,12 @@ export default function Cards() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Cartões</h1>
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-foreground">Cartões</h1>
         <Button
-          size="sm"
           onClick={() => setShowForm(true)}
-          className="bg-[#166534] hover:bg-[#15803D]"
+          className="h-9 px-3 py-2 rounded-lg text-sm bg-[#166534] hover:bg-[#15803D]"
         >
-          <Plus className="h-4 w-4 mr-1" /> Adicionar
+          <Plus className="h-4 w-4" /> Adicionar
         </Button>
       </div>
 

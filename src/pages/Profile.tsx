@@ -200,7 +200,9 @@ export default function Profile() {
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto animate-fade-in">
-      <h1 className="text-2xl font-bold text-gray-900">Perfil do Usuário</h1>
+      <h1 className="text-xl font-semibold text-gray-900 dark:text-foreground">
+        Perfil do Usuário
+      </h1>
 
       <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
         <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
@@ -312,23 +314,30 @@ export default function Profile() {
               </h3>
               <span className="text-xs text-gray-500">Membros cadastrados</span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {canManageMembers && (
-                <Button size="sm" variant="outline" onClick={() => navigate('/membros')}>
-                  <Shield className="h-4 w-4 mr-1.5" />
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate('/membros')}
+                  className="h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground"
+                >
+                  <Shield className="h-4 w-4" />
                   Permissões
                 </Button>
               )}
-              <Button size="sm" variant="outline" onClick={() => navigate('/familia')}>
-                <Users className="h-4 w-4 mr-1.5" />
+              <Button
+                variant="secondary"
+                onClick={() => navigate('/familia')}
+                className="h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground"
+              >
+                <Users className="h-4 w-4" />
                 Gerenciar
               </Button>
               <Button
-                size="sm"
                 onClick={handleGenerateInvite}
-                className="bg-[#166534] hover:bg-[#15803D] text-white"
+                className="h-9 px-3 py-2 rounded-lg text-sm bg-[#166534] hover:bg-[#15803D] text-white"
               >
-                <Key className="h-4 w-4 mr-1.5" />
+                <Key className="h-4 w-4" />
                 Convite
               </Button>
             </div>

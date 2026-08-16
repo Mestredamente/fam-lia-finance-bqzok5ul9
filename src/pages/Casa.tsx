@@ -235,61 +235,72 @@ export default function Casa() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Planejador</h1>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-foreground">Planejador</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Tarefas e compromissos financeiros da família
           </p>
         </div>
-        <Button size="sm" onClick={openForm} className="bg-[#166534] hover:bg-[#15803D]">
-          <Plus className="h-4 w-4 mr-1" /> Adicionar
+        <Button
+          onClick={openForm}
+          className="h-9 px-3 py-2 rounded-lg text-sm bg-[#166534] hover:bg-[#15803D]"
+        >
+          <Plus className="h-4 w-4" /> Adicionar
         </Button>
       </div>
 
       <div className="space-y-2">
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
           {STATUS_FILTERS.map((f) => (
             <Button
               key={f.value}
-              variant={statusFilter === f.value ? 'default' : 'outline'}
-              size="sm"
-              className={cn(statusFilter === f.value && 'bg-[#166534] hover:bg-[#15803D]')}
+              variant={statusFilter === f.value ? 'default' : 'secondary'}
               onClick={() => setStatusFilter(f.value)}
+              className={cn(
+                'h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground',
+                statusFilter === f.value && 'bg-[#166534] hover:bg-[#15803D] text-white',
+              )}
             >
               {f.label}
             </Button>
           ))}
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
           {CATEGORY_FILTERS.map((f) => (
             <Button
               key={f.value}
-              variant={categoryFilter === f.value ? 'default' : 'outline'}
-              size="sm"
-              className={cn(categoryFilter === f.value && 'bg-[#166534] hover:bg-[#15803D]')}
+              variant={categoryFilter === f.value ? 'default' : 'secondary'}
               onClick={() => setCategoryFilter(f.value)}
+              className={cn(
+                'h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground',
+                categoryFilter === f.value && 'bg-[#166534] hover:bg-[#15803D] text-white',
+              )}
             >
               {f.label}
             </Button>
           ))}
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
           <Button
-            variant={memberFilter === 'all' ? 'default' : 'outline'}
-            size="sm"
-            className={cn(memberFilter === 'all' && 'bg-[#166534] hover:bg-[#15803D]')}
+            variant={memberFilter === 'all' ? 'default' : 'secondary'}
             onClick={() => setMemberFilter('all')}
+            className={cn(
+              'h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground',
+              memberFilter === 'all' && 'bg-[#166534] hover:bg-[#15803D] text-white',
+            )}
           >
             Todos
           </Button>
           {members.map((m) => (
             <Button
               key={m.id}
-              variant={memberFilter === m.id ? 'default' : 'outline'}
-              size="sm"
-              className={cn(memberFilter === m.id && 'bg-[#166534] hover:bg-[#15803D]')}
+              variant={memberFilter === m.id ? 'default' : 'secondary'}
               onClick={() => setMemberFilter(m.id)}
+              className={cn(
+                'h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground',
+                memberFilter === m.id && 'bg-[#166534] hover:bg-[#15803D] text-white',
+              )}
             >
               {m.display_name}
             </Button>

@@ -375,7 +375,9 @@ export default function Dashboard() {
     <div className="space-y-8 animate-fade-in max-w-full overflow-x-hidden">
       <DashboardInstallBanner />
       <div className="space-y-3">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Resumo Financeiro</h1>
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-foreground">
+          Resumo Financeiro
+        </h1>
         <div className="flex flex-wrap items-center gap-2">
           {/* MOBILE — minimal header: only the current month, centered & tappable.
               Swipe left/right on this area navigates between months. */}
@@ -387,7 +389,7 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => setShowMonthPicker(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-muted hover:bg-muted/80 text-foreground transition-colors"
+              className="flex items-center gap-2 h-9 px-3 py-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors text-sm"
               aria-label="Selecionar mês"
             >
               <span className="text-sm font-semibold capitalize">
@@ -407,7 +409,7 @@ export default function Dashboard() {
               type="button"
               title="Mês anterior"
               onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
-              className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0"
+              className="h-9 w-9 p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -439,7 +441,7 @@ export default function Dashboard() {
               title="Próximo mês"
               onClick={() => canGoForward() && setCurrentDate(new Date(year, month + 1, 1))}
               disabled={!canGoForward()}
-              className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0 disabled:opacity-40 disabled:pointer-events-none"
+              className="h-9 w-9 p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0 disabled:opacity-40 disabled:pointer-events-none"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -453,7 +455,7 @@ export default function Dashboard() {
                 type="button"
                 title="Simular Cenários"
                 onClick={() => openScenario()}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors"
+                className="inline-flex items-center gap-1.5 h-9 px-3 py-2 text-sm rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors"
               >
                 <Sparkles className="h-4 w-4" />
                 <span className="hidden sm:inline">Simular Cenários</span>
@@ -464,7 +466,7 @@ export default function Dashboard() {
                 title="Ver todas"
                 onClick={() => setPeriod('tudo')}
                 disabled={period === 'tudo'}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                className="inline-flex items-center gap-1.5 h-9 px-3 py-2 text-sm rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
               >
                 <Eye className="h-4 w-4" />
                 <span className="hidden sm:inline">Ver todas</span>
@@ -476,7 +478,7 @@ export default function Dashboard() {
               title={editMode ? 'Concluir personalização' : 'Personalizar'}
               onClick={() => setEditMode((v) => !v)}
               aria-pressed={editMode}
-              className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0"
+              className="h-9 w-9 p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0"
             >
               {editMode ? <Check className="h-4 w-4" /> : <SlidersHorizontal className="h-4 w-4" />}
             </button>
@@ -486,7 +488,7 @@ export default function Dashboard() {
                 <button
                   type="button"
                   title="Mais opções"
-                  className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0"
+                  className="h-9 w-9 p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0"
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </button>

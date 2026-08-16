@@ -145,41 +145,53 @@ export default function MonthlyEvolution() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Evolução Mensal</h1>
-        <Button variant="outline" size="sm" onClick={handlePDF}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-foreground">
+          Evolução Mensal
+        </h1>
+        <Button
+          variant="secondary"
+          onClick={handlePDF}
+          className="h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground"
+        >
           <FileDown className="h-4 w-4" />
-          <span className="hidden sm:inline ml-1">PDF</span>
+          <span className="hidden sm:inline">PDF</span>
         </Button>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <div className="flex gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           {[3, 6, 12].map((m) => (
             <Button
               key={m}
-              variant={months === m ? 'default' : 'outline'}
-              size="sm"
-              className={cn('h-8 px-2 text-xs', months === m && 'bg-[#166534] hover:bg-[#15803D]')}
+              variant={months === m ? 'default' : 'secondary'}
               onClick={() => setMonths(m)}
+              className={cn(
+                'h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground',
+                months === m && 'bg-[#166534] hover:bg-[#15803D] text-white',
+              )}
             >
               {m}m
             </Button>
           ))}
         </div>
-        <div className="flex gap-1">
+        <div className="flex items-center gap-2">
           <Button
-            variant={viewMode === 'bar' ? 'default' : 'outline'}
-            size="sm"
-            className={cn('h-8 px-2 text-xs', viewMode === 'bar' && 'bg-[#166534]')}
+            variant={viewMode === 'bar' ? 'default' : 'secondary'}
             onClick={() => setViewMode('bar')}
+            className={cn(
+              'h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground',
+              viewMode === 'bar' && 'bg-[#166534] hover:bg-[#15803D] text-white',
+            )}
           >
             Barras
           </Button>
           <Button
-            variant={viewMode === 'line' ? 'default' : 'outline'}
-            size="sm"
-            className={cn('h-8 px-2 text-xs', viewMode === 'line' && 'bg-[#166534]')}
+            variant={viewMode === 'line' ? 'default' : 'secondary'}
             onClick={() => setViewMode('line')}
+            className={cn(
+              'h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground',
+              viewMode === 'line' && 'bg-[#166534] hover:bg-[#15803D] text-white',
+            )}
           >
             Linhas
           </Button>
@@ -187,7 +199,7 @@ export default function MonthlyEvolution() {
         <select
           value={memberFilter}
           onChange={(e) => setMemberFilter(e.target.value)}
-          className="text-xs border rounded-lg px-2 py-1.5 bg-white max-w-[140px]"
+          className="h-9 rounded-lg px-3 py-1.5 text-sm bg-muted border-0 hover:bg-muted/80 max-w-[140px] focus:outline-none"
         >
           <option value="all">Todos</option>
           {members.map((m) => (

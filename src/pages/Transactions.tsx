@@ -193,69 +193,84 @@ export default function Transactions() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Transações</h1>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-foreground">Transações</h1>
+        <div className="flex flex-wrap items-center gap-2">
           {perms.canImportInvoices() && (
-            <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
+            <Button
+              variant="secondary"
+              onClick={() => setShowImport(true)}
+              className="h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground"
+            >
               <Upload className="h-4 w-4" />
-              <span className="hidden sm:inline ml-1">Importar</span>
+              <span className="hidden sm:inline">Importar</span>
             </Button>
           )}
           <ExportButton transactions={filtered} month={month} year={year} />
           <Button
-            variant="outline"
-            size="sm"
+            variant="secondary"
             onClick={() => generateMonthlyPDF(filtered, month, year)}
+            className="h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground"
           >
             <FileDown className="h-4 w-4" />
-            <span className="hidden sm:inline ml-1">Relatório</span>
+            <span className="hidden sm:inline">Relatório</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={handleCleanupOrphans} disabled={cleaningUp}>
+          <Button
+            variant="secondary"
+            onClick={handleCleanupOrphans}
+            disabled={cleaningUp}
+            className="h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground"
+          >
             {cleaningUp ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Eraser className="h-4 w-4" />
             )}
-            <span className="hidden sm:inline ml-1">Limpar órfãs</span>
+            <span className="hidden sm:inline">Limpar órfãs</span>
           </Button>
           <Button
-            variant="ghost"
-            size="icon"
+            variant="secondary"
             onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
+            className="h-9 w-9 p-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground"
+            aria-label="Mês anterior"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 min-w-[120px] text-center">
             {MONTHS[month]} {year}
           </span>
           <Button
-            variant="ghost"
-            size="icon"
+            variant="secondary"
             onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
+            className="h-9 w-9 p-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground"
+            aria-label="Próximo mês"
           >
-            <ChevronRight className="h-5 w-5" />
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
           <Button
-            variant={memberFilter === 'all' ? 'default' : 'outline'}
-            size="sm"
-            className={cn(memberFilter === 'all' && 'bg-[#166534] hover:bg-[#15803D]')}
+            variant={memberFilter === 'all' ? 'default' : 'secondary'}
             onClick={() => setMemberFilter('all')}
+            className={cn(
+              'h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground',
+              memberFilter === 'all' && 'bg-[#166534] hover:bg-[#15803D] text-white',
+            )}
           >
             Todos
           </Button>
           {members.map((m) => (
             <Button
               key={m.id}
-              variant={memberFilter === m.id ? 'default' : 'outline'}
-              size="sm"
-              className={cn(memberFilter === m.id && 'bg-[#166534] hover:bg-[#15803D]')}
+              variant={memberFilter === m.id ? 'default' : 'secondary'}
               onClick={() => setMemberFilter(m.id)}
+              className={cn(
+                'h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground',
+                memberFilter === m.id && 'bg-[#166534] hover:bg-[#15803D] text-white',
+              )}
             >
               {m.display_name}
             </Button>
@@ -265,7 +280,7 @@ export default function Transactions() {
           value={emotionFilter}
           onValueChange={(v) => setEmotionFilter(v as TransactionEmotion | 'all')}
         >
-          <SelectTrigger className="w-[150px] h-9 text-sm shrink-0">
+          <SelectTrigger className="w-[150px] h-9 rounded-lg px-3 py-1.5 text-sm shrink-0 bg-muted border-0 hover:bg-muted/80">
             <SelectValue placeholder="Todas emoções" />
           </SelectTrigger>
           <SelectContent>
@@ -339,7 +354,7 @@ export default function Transactions() {
                     >
                       <CardContent className="p-4 flex items-center gap-3">
                         <div
-                          className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                          className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
                           style={{ backgroundColor: (cat?.color || '#999') + '20' }}
                         >
                           <Icon className="h-5 w-5" style={{ color: cat?.color || '#999' }} />

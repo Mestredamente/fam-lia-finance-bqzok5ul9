@@ -34,13 +34,17 @@ export function ExportButton({ transactions, month, year }: Props) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" disabled={exporting}>
+        <Button
+          variant="secondary"
+          disabled={exporting}
+          className="h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground"
+        >
           {exporting ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Download className="h-4 w-4" />
           )}
-          <span className="hidden sm:inline ml-1">Exportar</span>
+          <span className="hidden sm:inline">Exportar</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

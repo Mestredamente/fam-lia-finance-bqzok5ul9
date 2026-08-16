@@ -29,14 +29,15 @@ export default function Patrimony() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex gap-2">
+      <h1 className="text-xl font-semibold text-gray-900 dark:text-foreground">Patrimônio</h1>
+      <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => setActiveTab('investments')}
           className={cn(
-            'px-4 py-2 rounded-full text-sm font-medium transition-all',
+            'h-9 px-3 py-2 rounded-lg text-sm font-medium transition-all',
             activeTab === 'investments'
               ? 'bg-[#166534] text-white'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700',
+              : 'bg-muted hover:bg-muted/80 text-foreground',
           )}
         >
           Investimentos
@@ -44,10 +45,10 @@ export default function Patrimony() {
         <button
           onClick={() => setActiveTab('debts')}
           className={cn(
-            'px-4 py-2 rounded-full text-sm font-medium transition-all',
+            'h-9 px-3 py-2 rounded-lg text-sm font-medium transition-all',
             activeTab === 'debts'
               ? 'bg-[#166534] text-white'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700',
+              : 'bg-muted hover:bg-muted/80 text-foreground',
           )}
         >
           Dívidas

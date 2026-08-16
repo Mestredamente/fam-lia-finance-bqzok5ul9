@@ -97,12 +97,21 @@ export default function FamilyManagement() {
   return (
     <div className="space-y-6 max-w-2xl mx-auto animate-fade-in">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/profile')}>
-          <ArrowLeft className="h-5 w-5" />
+        <Button
+          variant="secondary"
+          onClick={() => navigate('/profile')}
+          className="h-9 w-9 p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground"
+          aria-label="Voltar"
+        >
+          <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gerenciar Domicílio</h1>
-          <p className="text-xs text-gray-500">Adicione, edite ou remova membros</p>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-foreground">
+            Gerenciar Domicílio
+          </h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Adicione, edite ou remova membros
+          </p>
         </div>
       </div>
 
@@ -114,11 +123,10 @@ export default function FamilyManagement() {
         </span>
         {isCreator && (
           <Button
-            size="sm"
             onClick={handleAdd}
-            className="bg-[#166534] hover:bg-[#15803D] text-white"
+            className="h-9 px-3 py-2 rounded-lg text-sm bg-[#166534] hover:bg-[#15803D] text-white"
           >
-            <Plus className="h-4 w-4 mr-1.5" />
+            <Plus className="h-4 w-4" />
             Adicionar membro
           </Button>
         )}
