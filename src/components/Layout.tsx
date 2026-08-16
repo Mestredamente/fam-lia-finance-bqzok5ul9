@@ -19,7 +19,7 @@ export default function Layout() {
 
   if (!isAuthenticated) {
     return (
-      <main className="min-h-screen bg-[#F9FAFB] flex flex-col items-center justify-center p-4">
+      <main className="min-h-screen bg-[#F9FAFB] dark:bg-background flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-[480px]">
           <Outlet />
         </div>
@@ -28,7 +28,7 @@ export default function Layout() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-[#F9FAFB] dark:bg-background flex flex-col lg:flex-row">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0">
         <Header onMenuClick={() => setIsSidebarOpen(true)} />

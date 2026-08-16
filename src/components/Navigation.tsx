@@ -16,16 +16,16 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   return (
     <header
       role="banner"
-      className="h-16 bg-white border-b border-gray-200 px-4 lg:px-8 flex items-center justify-between sticky top-0 z-30 shadow-subtle theme-transition"
+      className="h-16 bg-white dark:bg-card border-b border-gray-200 dark:border-gray-700 px-4 lg:px-8 flex items-center justify-between sticky top-0 z-30 shadow-subtle theme-transition"
     >
       <div className="flex items-center gap-3">
         {onMenuClick && (
           <button
             onClick={onMenuClick}
-            className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             aria-label="Abrir menu"
           >
-            <Menu className="h-6 w-6 text-gray-600" aria-hidden="true" />
+            <Menu className="h-6 w-6 text-gray-600 dark:text-gray-300" aria-hidden="true" />
           </button>
         )}
         <div
@@ -38,7 +38,9 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
           >
             <Home className="h-5 w-5" />
           </div>
-          <span className="font-bold text-lg text-gray-900 hidden sm:inline">Família Finance</span>
+          <span className="font-bold text-lg text-gray-900 dark:text-foreground hidden sm:inline">
+            Família Finance
+          </span>
         </div>
         {family && (
           <Badge className="bg-emerald-100 text-[#166534] hover:bg-emerald-100 border border-emerald-300 font-medium">
@@ -54,7 +56,9 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
             className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => navigate('/profile')}
           >
-            <span className="text-sm font-medium text-gray-700 hidden sm:inline">{user.name}</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:inline">
+              {user.name}
+            </span>
             <Avatar className="h-9 w-9 border-2 border-[#22C55E]">
               <AvatarImage
                 src={
@@ -93,7 +97,7 @@ export function BottomNav() {
     <nav
       role="tablist"
       aria-label="Navegação principal"
-      className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-gray-200 flex items-center justify-around z-30 lg:hidden shadow-lg theme-transition"
+      className="fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-card border-t border-gray-200 dark:border-gray-700 flex items-center justify-around z-30 lg:hidden shadow-lg theme-transition"
     >
       {tabs.map((tab) => {
         const isCurrent =
