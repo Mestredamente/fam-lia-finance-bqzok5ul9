@@ -495,21 +495,7 @@ export default function Dashboard() {
                 <span className="hidden sm:inline">Simular Cenários</span>
                 <span className="sm:hidden">Cenários</span>
               </button>
-              <button
-                type="button"
-                title="Exportar PDF"
-                onClick={handleExportFullPdf}
-                disabled={exporting}
-                className="inline-flex items-center gap-1.5 h-9 px-3 py-2 text-sm rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
-              >
-                {exporting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileText className="h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">Exportar PDF</span>
-                <span className="sm:hidden">PDF</span>
-              </button>
+
               <button
                 type="button"
                 title="Ver todas"
