@@ -87,7 +87,9 @@ export function BudgetFormSheet({
         </SheetHeader>
         <div className="space-y-4 mt-4">
           <div>
-            <Label className="text-xs font-semibold text-gray-700">Categoria</Label>
+            <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+              Categoria
+            </Label>
             <div className="mt-1 grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
               {expenseCategories.map((cat) => {
                 const Icon = getCategoryIcon(cat.icon || 'wallet')
@@ -99,8 +101,8 @@ export function BudgetFormSheet({
                     className={cn(
                       'flex items-center gap-2 p-2 rounded-xl border-2 text-xs font-medium transition-all',
                       categoryId === cat.id
-                        ? 'border-[#166534] bg-emerald-50'
-                        : 'border-gray-200 bg-white text-gray-600',
+                        ? 'border-[#166534] bg-emerald-50 dark:bg-emerald-950/40'
+                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-card text-gray-600 dark:text-gray-300',
                     )}
                   >
                     <div
@@ -116,13 +118,17 @@ export function BudgetFormSheet({
             </div>
           </div>
           <div>
-            <Label className="text-xs font-semibold text-gray-700">Limite mensal (R$)</Label>
+            <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+              Limite mensal (R$)
+            </Label>
             <div className="mt-1">
               <CurrencyInput value={limit} onChange={setLimit} />
             </div>
           </div>
           <div>
-            <Label className="text-xs font-semibold text-gray-700">Membro (opcional)</Label>
+            <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+              Membro (opcional)
+            </Label>
             <div className="mt-1 flex flex-wrap gap-2">
               <button
                 type="button"
@@ -130,8 +136,8 @@ export function BudgetFormSheet({
                 className={cn(
                   'px-3 py-1.5 rounded-full text-xs font-medium border-2 transition-all',
                   !memberId
-                    ? 'border-[#166534] bg-emerald-50 text-[#166534]'
-                    : 'border-gray-200 text-gray-600',
+                    ? 'border-[#166534] bg-emerald-50 dark:bg-emerald-950/40 text-[#166534] dark:text-emerald-300'
+                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300',
                 )}
               >
                 Todos
@@ -144,8 +150,8 @@ export function BudgetFormSheet({
                   className={cn(
                     'px-3 py-1.5 rounded-full text-xs font-medium border-2 transition-all',
                     memberId === m.id
-                      ? 'border-[#166534] bg-emerald-50 text-[#166534]'
-                      : 'border-gray-200 text-gray-600',
+                      ? 'border-[#166534] bg-emerald-50 dark:bg-emerald-950/40 text-[#166534] dark:text-emerald-300'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300',
                   )}
                 >
                   {m.display_name}

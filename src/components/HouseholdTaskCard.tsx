@@ -22,11 +22,13 @@ export function HouseholdTaskCard({ task, onClick }: Props) {
   return (
     <Card
       onClick={onClick}
-      className="border border-gray-100 shadow-subtle hover:shadow-elevation rounded-2xl bg-white cursor-pointer transition-all"
+      className="border border-gray-100 dark:border-gray-700 shadow-subtle hover:shadow-elevation rounded-2xl bg-white dark:bg-card cursor-pointer transition-all"
     >
       <CardContent className="p-4 space-y-2">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-bold text-sm text-gray-900 leading-tight">{task.title}</h3>
+          <h3 className="font-bold text-sm text-gray-900 dark:text-foreground leading-tight">
+            {task.title}
+          </h3>
           <Badge className={`${priMeta.bg} ${priMeta.color} border-0 text-xs font-bold shrink-0`}>
             {priMeta.label}
           </Badge>
@@ -37,7 +39,7 @@ export function HouseholdTaskCard({ task, onClick }: Props) {
             {catMeta.label}
           </Badge>
           {task.estimated_cost != null && task.estimated_cost > 0 && (
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
               Estimado: {formatBRL(task.estimated_cost)}
             </span>
           )}
@@ -52,16 +54,18 @@ export function HouseholdTaskCard({ task, onClick }: Props) {
           {days ? (
             <span className={`text-xs font-medium ${days.color}`}>{days.text}</span>
           ) : (
-            <span className="text-xs text-gray-400">Sem prazo</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">Sem prazo</span>
           )}
           {assignee && (
             <div className="flex items-center gap-1">
               <Avatar className="h-5 w-5">
-                <AvatarFallback className="text-xs bg-emerald-100 text-[#166534]">
+                <AvatarFallback className="text-xs bg-emerald-100 dark:bg-emerald-900/40 text-[#166534] dark:text-emerald-300">
                   {assignee.display_name.charAt(0)}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-xs text-gray-500">{assignee.display_name}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {assignee.display_name}
+              </span>
             </div>
           )}
         </div>

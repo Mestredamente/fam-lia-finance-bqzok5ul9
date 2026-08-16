@@ -54,7 +54,7 @@ export function InvestmentList({ familyId, members }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-gray-900">Investimentos</h2>
+        <h2 className="text-lg font-bold text-gray-900 dark:text-foreground">Investimentos</h2>
         <Button
           size="sm"
           onClick={() => {
@@ -75,9 +75,9 @@ export function InvestmentList({ familyId, members }: Props) {
           ))}
         </div>
       ) : error ? (
-        <Card className="border-red-200 rounded-2xl">
+        <Card className="border-red-200 dark:border-red-900/50 rounded-2xl">
           <CardContent className="p-6 text-center">
-            <p className="text-sm text-red-600 mb-2">{error}</p>
+            <p className="text-sm text-danger mb-2">{error}</p>
             <Button size="sm" variant="outline" onClick={refetch}>
               Tentar novamente
             </Button>
@@ -85,26 +85,26 @@ export function InvestmentList({ familyId, members }: Props) {
         </Card>
       ) : (
         <>
-          <Card className="border-none shadow-subtle bg-[#F0FDF4] rounded-2xl">
+          <Card className="border-none shadow-subtle bg-[#F0FDF4] dark:bg-emerald-950/30 rounded-2xl">
             <CardContent className="p-5 grid grid-cols-3 gap-3">
               <div>
-                <span className="text-xs text-gray-500 block">Investido</span>
-                <span className="text-base font-bold text-gray-900">
+                <span className="text-xs text-gray-500 dark:text-gray-400 block">Investido</span>
+                <span className="text-base font-bold text-gray-900 dark:text-foreground">
                   {formatBRL(totalInvested)}
                 </span>
               </div>
               <div>
-                <span className="text-xs text-gray-500 block">Atual</span>
-                <span className="text-base font-bold text-[#166534]">
+                <span className="text-xs text-gray-500 dark:text-gray-400 block">Atual</span>
+                <span className="text-base font-bold text-[#166534] dark:text-emerald-400">
                   {formatBRL(totalCurrent)}
                 </span>
               </div>
               <div>
-                <span className="text-xs text-gray-500 block">Retorno</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 block">Retorno</span>
                 <span
                   className={cn(
                     'text-base font-bold',
-                    totalReturn >= 0 ? 'text-[#22C55E]' : 'text-red-600',
+                    totalReturn >= 0 ? 'text-[#22C55E] dark:text-emerald-400' : 'text-danger',
                   )}
                 >
                   {formatBRL(totalReturn)}{' '}
@@ -137,12 +137,14 @@ export function InvestmentList({ familyId, members }: Props) {
           </div>
 
           {filtered.length === 0 ? (
-            <Card className="border-dashed border-gray-200 rounded-2xl">
+            <Card className="border-dashed border-gray-200 dark:border-gray-700 rounded-2xl">
               <CardContent className="p-8 flex flex-col items-center text-center space-y-3">
-                <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
+                <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400">
                   <TrendingUp className="h-7 w-7" />
                 </div>
-                <p className="text-sm font-medium text-gray-500">Nenhum investimento cadastrado</p>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Nenhum investimento cadastrado
+                </p>
                 <Button
                   size="sm"
                   onClick={() => {
@@ -169,7 +171,7 @@ export function InvestmentList({ familyId, members }: Props) {
                       setDetailInv(inv)
                       setShowDetail(true)
                     }}
-                    className="border border-gray-100 shadow-subtle hover:shadow-elevation rounded-2xl bg-white cursor-pointer transition-all"
+                    className="border border-gray-100 dark:border-gray-700 shadow-subtle hover:shadow-elevation rounded-2xl bg-white dark:bg-card cursor-pointer transition-all"
                   >
                     <CardContent className="p-4 space-y-2">
                       <div className="flex items-center gap-2">
@@ -180,23 +182,27 @@ export function InvestmentList({ familyId, members }: Props) {
                           <Icon className="h-5 w-5" style={{ color: meta.color }} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-sm text-gray-900 truncate">{inv.name}</p>
-                          <p className="text-xs text-gray-500 truncate">{inv.institution}</p>
+                          <p className="font-bold text-sm text-gray-900 dark:text-foreground truncate">
+                            {inv.name}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {inv.institution}
+                          </p>
                         </div>
                         <Badge style={{ backgroundColor: meta.color + '20', color: meta.color }}>
                           {meta.label}
                         </Badge>
                       </div>
                       <div className="flex justify-between text-xs">
-                        <span className="text-gray-500">
+                        <span className="text-gray-500 dark:text-gray-400">
                           Investido:{' '}
-                          <span className="font-medium text-gray-700">
+                          <span className="font-medium text-gray-700 dark:text-gray-300">
                             {formatBRL(inv.amount_invested)}
                           </span>
                         </span>
-                        <span className="text-gray-500">
+                        <span className="text-gray-500 dark:text-gray-400">
                           Atual:{' '}
-                          <span className="font-bold text-gray-900">
+                          <span className="font-bold text-gray-900 dark:text-foreground">
                             {formatBRL(inv.current_value)}
                           </span>
                         </span>
@@ -204,19 +210,21 @@ export function InvestmentList({ familyId, members }: Props) {
                       <div
                         className={cn(
                           'text-xs font-bold',
-                          ret >= 0 ? 'text-[#22C55E]' : 'text-red-600',
+                          ret >= 0 ? 'text-[#22C55E] dark:text-emerald-400' : 'text-danger',
                         )}
                       >
                         {ret >= 0 ? '+' : ''}
                         {formatBRL(ret)} ({retPct.toFixed(1)}%)
                       </div>
                       {inv.maturity_date && (
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
                           Vence em {new Date(inv.maturity_date).toLocaleDateString('pt-BR')}
                         </p>
                       )}
                       {inv.expand?.owner_id && (
-                        <p className="text-xs text-gray-400">{inv.expand.owner_id.display_name}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                          {inv.expand.owner_id.display_name}
+                        </p>
                       )}
                     </CardContent>
                   </Card>

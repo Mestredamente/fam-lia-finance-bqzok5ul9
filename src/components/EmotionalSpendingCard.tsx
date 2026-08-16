@@ -96,7 +96,9 @@ export function EmotionalSpendingCard({ familyId, year, month, loading }: Props)
         <CardContent className="p-5">
           <div className="flex items-center gap-2 mb-4">
             <Brain className="h-5 w-5 text-[#166534]" />
-            <h2 className="text-sm font-bold text-gray-900">Padrões Emocionais de Gasto</h2>
+            <h2 className="text-sm font-bold text-gray-900 dark:text-foreground">
+              Padrões Emocionais de Gasto
+            </h2>
           </div>
           <Skeleton className="h-40 w-full rounded-xl" />
         </CardContent>
@@ -142,12 +144,14 @@ export function EmotionalSpendingCard({ familyId, year, month, loading }: Props)
       <CardContent className="p-5">
         <div className="flex items-center gap-2 mb-4">
           <Brain className="h-5 w-5 text-[#166534]" />
-          <h2 className="text-sm font-bold text-gray-900">Padrões Emocionais de Gasto</h2>
+          <h2 className="text-sm font-bold text-gray-900 dark:text-foreground">
+            Padrões Emocionais de Gasto
+          </h2>
         </div>
 
         {/* a) Gasto por Emoção */}
         <div className="space-y-2">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
             Gasto por Emoção
           </h3>
           <div className="space-y-1.5">
@@ -158,9 +162,9 @@ export function EmotionalSpendingCard({ familyId, year, month, loading }: Props)
                 <div key={meta.value} className="flex items-center gap-2">
                   <span className="text-sm w-28 shrink-0 flex items-center gap-1">
                     <span aria-hidden="true">{meta.emoji}</span>
-                    <span className="text-xs text-gray-600">{meta.label}</span>
+                    <span className="text-xs text-gray-600 dark:text-gray-300">{meta.label}</span>
                   </span>
-                  <div className="flex-1 h-5 bg-gray-100 rounded-md overflow-hidden relative">
+                  <div className="flex-1 h-5 bg-gray-100 dark:bg-gray-800 rounded-md overflow-hidden relative">
                     <div
                       className={cn('h-full rounded-md transition-all', meta.barColor)}
                       style={{ width: `${Math.max(widthPct, total > 0 ? 4 : 0)}%` }}
@@ -169,7 +173,9 @@ export function EmotionalSpendingCard({ familyId, year, month, loading }: Props)
                   <span
                     className={cn(
                       'text-xs font-medium w-20 text-right shrink-0',
-                      total > 0 ? 'text-gray-900' : 'text-gray-400',
+                      total > 0
+                        ? 'text-gray-900 dark:text-foreground'
+                        : 'text-gray-400 dark:text-gray-500',
                     )}
                   >
                     {formatBRL(total)}
@@ -183,7 +189,7 @@ export function EmotionalSpendingCard({ familyId, year, month, loading }: Props)
         {/* b) Top Categorias por Emoção */}
         {hasData && (
           <div className="mt-4 space-y-1.5">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
               Top Categorias por Emoção
             </h3>
             {analysis.ranked.slice(0, 3).map((r) => (
@@ -191,9 +197,11 @@ export function EmotionalSpendingCard({ familyId, year, month, loading }: Props)
                 <span aria-hidden="true" className="text-sm">
                   {r.emoji}
                 </span>
-                <span className="font-medium text-gray-700">{r.label}:</span>
-                <span className="text-gray-600 truncate flex-1">{r.topCat?.name || '—'}</span>
-                <span className="font-medium text-gray-900 whitespace-nowrap">
+                <span className="font-medium text-gray-700 dark:text-gray-300">{r.label}:</span>
+                <span className="text-gray-600 dark:text-gray-300 truncate flex-1">
+                  {r.topCat?.name || '—'}
+                </span>
+                <span className="font-medium text-gray-900 dark:text-foreground whitespace-nowrap">
                   {formatBRL(r.topCat?.total || r.total)}
                 </span>
               </div>
@@ -202,10 +210,10 @@ export function EmotionalSpendingCard({ familyId, year, month, loading }: Props)
         )}
 
         {/* c) Insight */}
-        <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+        <div className="mt-4 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-lg">
           <div className="flex items-start gap-2">
-            <Brain className="h-4 w-4 text-[#166534] shrink-0 mt-0.5" />
-            <p className="text-xs text-gray-700 leading-relaxed">{insight}</p>
+            <Brain className="h-4 w-4 text-[#166534] dark:text-emerald-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">{insight}</p>
           </div>
         </div>
       </CardContent>

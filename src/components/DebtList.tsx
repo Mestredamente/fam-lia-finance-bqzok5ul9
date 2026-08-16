@@ -66,7 +66,7 @@ export function DebtList({ familyId, members }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-gray-900">Dívidas</h2>
+        <h2 className="text-lg font-bold text-gray-900 dark:text-foreground">Dívidas</h2>
         <div className="flex gap-2">
           {debts.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => setShowPayoffCalc(true)}>
@@ -96,9 +96,9 @@ export function DebtList({ familyId, members }: Props) {
           ))}
         </div>
       ) : error ? (
-        <Card className="border-red-200 rounded-2xl">
+        <Card className="border-red-200 dark:border-red-900/50 rounded-2xl">
           <CardContent className="p-6 text-center">
-            <p className="text-sm text-red-600 mb-2">{error}</p>
+            <p className="text-sm text-danger mb-2">{error}</p>
             <Button size="sm" variant="outline" onClick={refetch}>
               Tentar novamente
             </Button>
@@ -106,25 +106,31 @@ export function DebtList({ familyId, members }: Props) {
         </Card>
       ) : (
         <>
-          <Card className="border-none shadow-subtle bg-[#FEF2F2] rounded-2xl">
+          <Card className="border-none shadow-subtle bg-[#FEF2F2] dark:bg-red-950/20 rounded-2xl">
             <CardContent className="p-5 space-y-2">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <span className="text-xs text-gray-500 block">Total em dívidas</span>
-                  <span className="text-base font-bold text-red-600">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                    Total em dívidas
+                  </span>
+                  <span className="text-base font-bold text-danger">
                     {formatBRL(totalRemaining)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-xs text-gray-500 block">Parcelas restantes</span>
-                  <span className="text-base font-bold text-gray-900">{totalInstallments}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                    Parcelas restantes
+                  </span>
+                  <span className="text-base font-bold text-gray-900 dark:text-foreground">
+                    {totalInstallments}
+                  </span>
                 </div>
               </div>
               {incomeCommitment !== null ? (
                 <div
                   className={cn(
                     'flex items-center gap-2 text-xs font-medium',
-                    commitmentHigh ? 'text-red-600' : 'text-gray-600',
+                    commitmentHigh ? 'text-danger' : 'text-gray-600 dark:text-gray-300',
                   )}
                 >
                   {commitmentHigh && <AlertCircle className="h-3.5 w-3.5" />}
@@ -132,7 +138,7 @@ export function DebtList({ familyId, members }: Props) {
                   {commitmentHigh && ' — Renda comprometida!'}
                 </div>
               ) : (
-                <p className="text-xs text-gray-500">Renda não informada</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Renda não informada</p>
               )}
             </CardContent>
           </Card>
@@ -160,12 +166,14 @@ export function DebtList({ familyId, members }: Props) {
           </div>
 
           {filtered.length === 0 ? (
-            <Card className="border-dashed border-gray-200 rounded-2xl">
+            <Card className="border-dashed border-gray-200 dark:border-gray-700 rounded-2xl">
               <CardContent className="p-8 flex flex-col items-center text-center space-y-3">
-                <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
+                <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400">
                   <FileText className="h-7 w-7" />
                 </div>
-                <p className="text-sm font-medium text-gray-500">Nenhuma dívida cadastrada</p>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Nenhuma dívida cadastrada
+                </p>
                 <Button
                   size="sm"
                   onClick={() => {
@@ -191,7 +199,7 @@ export function DebtList({ familyId, members }: Props) {
                       setDetailDebt(debt)
                       setShowDetail(true)
                     }}
-                    className="border border-gray-100 shadow-subtle hover:shadow-elevation rounded-2xl bg-white cursor-pointer transition-all"
+                    className="border border-gray-100 dark:border-gray-700 shadow-subtle hover:shadow-elevation rounded-2xl bg-white dark:bg-card cursor-pointer transition-all"
                   >
                     <CardContent className="p-4 space-y-2">
                       <div className="flex items-center gap-2">
@@ -202,7 +210,7 @@ export function DebtList({ familyId, members }: Props) {
                           <Icon className="h-5 w-5" style={{ color: meta.color }} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-sm text-gray-900 truncate">
+                          <p className="font-bold text-sm text-gray-900 dark:text-foreground truncate">
                             {debt.description}
                           </p>
                         </div>
@@ -211,28 +219,28 @@ export function DebtList({ familyId, members }: Props) {
                         </Badge>
                       </div>
                       <div className="flex justify-between text-xs">
-                        <span className="font-bold text-red-600">
+                        <span className="font-bold text-danger">
                           {formatBRL(debt.remaining_amount)} restantes
                         </span>
-                        <span className="text-gray-500">
+                        <span className="text-gray-500 dark:text-gray-400">
                           {formatBRL(debt.installment_value)}/mês
                         </span>
                       </div>
                       <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] text-gray-500">
+                        <div className="flex justify-between text-[10px] text-gray-500 dark:text-gray-400">
                           <span>
                             {debt.installments_paid} de {debt.installments_total} parcelas
                           </span>
                           <span>{Math.round(progress)}%</span>
                         </div>
-                        <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 h-1.5 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-[#22C55E] transition-all duration-500"
                             style={{ width: `${progress}%` }}
                           />
                         </div>
                       </div>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-gray-400 dark:text-gray-500">
                         Juros: {debt.interest_rate}% a.m.
                         {debt.expand?.owner_id ? ` • ${debt.expand.owner_id.display_name}` : ''}
                       </p>
