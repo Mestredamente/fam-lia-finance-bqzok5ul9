@@ -12,14 +12,20 @@ interface MemberBreakdownProps {
   onMemberClick: (member: MemberRecord) => void
 }
 
-/** Splits a display name into first name and the remainder (surname). */
-function splitName(fullName: string): { first: string; rest: string } {
-  const trimmed = (fullName || '').trim()
-  if (!trimmed) return { first: '', rest: '' }
+/**
+ * Returns a short display name for narrow mobile layouts:
+ * first name + last name. Never the full name.
+ *   "Sylvio Takayoshi Barbosa Tutya" -> "Sylvio Tutya"
+ *   "Lidia Carolina Rodrigues Balabuch" -> "Lidia Balabuch"
+ */
+function getDisplayName(name: string): string {
+  const trimmed = (name || '').trim()
+  if (!trimmed) return ''
   const parts = trimmed.split(/\s+/)
-  const first = parts[0]
-  const rest = parts.slice(1).join(' ')
-  return { first, rest }
+  if (parts.length === 1) return parts[0]
+  const firstName = parts[0]
+  const lastName = parts[parts.length - 1]
+  return `${firstName} ${lastName}`
 }
 
 export function MemberBreakdown({
@@ -63,13 +69,13 @@ export function MemberBreakdown({
       {/* MOBILE: stacked cards (< 640px) */}
       <div className="flex flex-col gap-2 sm:hidden">
         {rows.map(({ m, income, expenses, balance }) => {
-          const { first, rest } = splitName(m.display_name)
+          const shortName = getDisplayName(m.display_name)
           return (
             <button
               key={m.id}
               type="button"
               onClick={() => onMemberClick(m)}
-              className="flex items-center gap-3 rounded-lg border border-border/60 bg-card p-2.5 text-left transition-colors hover:bg-accent/50 active:bg-accent"
+              className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-card p-2.5 text-left transition-colors hover:bg-accent/50 active:bg-accent"
             >
               <Avatar className="h-8 w-8 border border-[#22C55E] shrink-0">
                 <AvatarImage src={getMemberAvatarUrl(m)} alt={m.display_name} />
@@ -79,41 +85,42 @@ export function MemberBreakdown({
               </Avatar>
 
               <div className="min-w-0 flex-1">
-                <span className="block whitespace-normal break-words text-sm font-medium leading-tight">
-                  {first}
+                <span className="block truncate text-sm font-medium leading-tight">
+                  {shortName}
                 </span>
-                {rest ? (
-                  <span className="block whitespace-normal break-words text-xs text-muted-foreground leading-tight">
-                    {rest}
-                  </span>
-                ) : null}
-              </div>
 
-              <div className="grid grid-cols-3 gap-1.5 shrink-0">
-                <div className="text-right">
-                  <span className="block text-[10px] uppercase text-muted-foreground">R</span>
-                  <span className="block text-xs font-medium tabular-nums text-green-600 dark:text-green-500">
-                    {formatBRL(income)}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="block text-[10px] uppercase text-muted-foreground">D</span>
-                  <span className="block text-xs font-medium tabular-nums text-red-600 dark:text-red-400">
-                    {formatBRL(expenses)}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="block text-[10px] uppercase text-muted-foreground">S</span>
-                  <span
-                    className={cn(
-                      'block text-xs font-bold tabular-nums',
-                      balance >= 0
-                        ? 'text-green-600 dark:text-green-500'
-                        : 'text-red-600 dark:text-red-400',
-                    )}
-                  >
-                    {formatBRL(balance)}
-                  </span>
+                <div className="mt-1 grid grid-cols-3 gap-2">
+                  <div className="min-w-0">
+                    <span className="block whitespace-nowrap text-xs text-muted-foreground">
+                      Rec.
+                    </span>
+                    <span className="block truncate text-xs font-medium tabular-nums text-green-600 dark:text-green-500">
+                      {formatBRL(income)}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block whitespace-nowrap text-xs text-muted-foreground">
+                      Desp.
+                    </span>
+                    <span className="block truncate text-xs font-medium tabular-nums text-red-600 dark:text-red-400">
+                      {formatBRL(expenses)}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block whitespace-nowrap text-xs text-muted-foreground">
+                      Saldo
+                    </span>
+                    <span
+                      className={cn(
+                        'block truncate text-xs font-bold tabular-nums',
+                        balance >= 0
+                          ? 'text-green-600 dark:text-green-500'
+                          : 'text-red-600 dark:text-red-400',
+                      )}
+                    >
+                      {formatBRL(balance)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </button>
@@ -126,14 +133,13 @@ export function MemberBreakdown({
         <thead>
           <tr className="text-xs font-semibold uppercase border-b text-muted-foreground">
             <th className="text-left px-2 pb-1.5 font-semibold whitespace-nowrap">Membro</th>
-            <th className="text-right px-2 pb-1.5 font-semibold whitespace-nowrap">Rec.</th>
-            <th className="text-right px-2 pb-1.5 font-semibold whitespace-nowrap">Desp.</th>
+            <th className="text-right px-2 pb-1.5 font-semibold whitespace-nowrap">Receitas</th>
+            <th className="text-right px-2 pb-1.5 font-semibold whitespace-nowrap">Despesas</th>
             <th className="text-right px-2 pb-1.5 font-semibold whitespace-nowrap">Saldo</th>
           </tr>
         </thead>
         <tbody>
           {rows.map(({ m, income, expenses, balance }) => {
-            const { first, rest } = splitName(m.display_name)
             return (
               <tr
                 key={m.id}
@@ -149,12 +155,9 @@ export function MemberBreakdown({
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <span className="block text-sm font-medium leading-tight">{first}</span>
-                      {rest ? (
-                        <span className="block text-xs text-muted-foreground leading-tight">
-                          {rest}
-                        </span>
-                      ) : null}
+                      <span className="block whitespace-normal text-sm font-medium leading-tight">
+                        {m.display_name}
+                      </span>
                     </div>
                   </div>
                 </td>
