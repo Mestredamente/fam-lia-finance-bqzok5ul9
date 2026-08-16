@@ -55,9 +55,17 @@ export default function MonthlyEvolution() {
     const now = new Date()
     const start = new Date(now.getFullYear(), now.getMonth() - months + 1, 1)
     const startDate = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-01`
-    const endDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    const endDate = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-01`
     try {
-      setTransactions(await getTransactionsByFamilyAndDateRange(family.id, startDate, endDate))
+      const result = await getTransactionsByFamilyAndDateRange(family.id, startDate, endDate)
+      console.log('[MonthlyEvolution] loadData', {
+        startDate,
+        endDate,
+        familyId: family.id,
+        count: result.length,
+      })
+      setTransactions(result)
     } catch {
       setTransactions([])
     } finally {
