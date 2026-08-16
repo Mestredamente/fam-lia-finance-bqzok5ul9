@@ -15,7 +15,10 @@
     "format:check": "oxfmt --check",
     "preview": "vite preview",
     "test": "echo \"there are no tests for this project\" && exit 0",
-    "test:watch": "echo \"there are no tests for this project\" && exit 0"
+    "test:watch": "echo \"there are no tests for this project\" && exit 0",
+    "icons": "node scripts/generate-icons.mjs",
+    "prebuild": "node scripts/generate-icons.mjs",
+    "prebuild:dev": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
