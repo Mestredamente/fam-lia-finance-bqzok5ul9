@@ -39,7 +39,7 @@ import { InviteCodeDialog } from '@/components/InviteCodeDialog'
 import { UnifiedHealthCard } from '@/components/UnifiedHealthCard'
 import { TransactionFormSheet } from '@/components/TransactionFormSheet'
 import { ScenarioComparator } from '@/components/ScenarioComparator'
-import { exportToCSV, exportToPDF } from '@/lib/export-utils'
+import { exportToCSV } from '@/lib/export-utils'
 import { DashboardInstallBanner } from '@/components/DashboardInstallBanner'
 import { MemberRecord } from '@/types/finance'
 import { getActiveMembersByFamilyId } from '@/services/members'
@@ -340,13 +340,6 @@ export default function Dashboard() {
     setShowScenarioModal(true)
   }
   const handleExportCSV = () => exportToCSV(monthTransactions, month, year)
-  const handleExportPDF = () => {
-    setExporting(true)
-    setTimeout(() => {
-      exportToPDF(monthTransactions, month, year)
-      setExporting(false)
-    }, 200)
-  }
 
   const handleExportFullPdf = async () => {
     if (!family) return
@@ -560,7 +553,7 @@ export default function Dashboard() {
                       <FileSpreadsheet className="h-4 w-4" />
                       CSV
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExportPDF} disabled={exporting}>
+                    <DropdownMenuItem onClick={handleExportFullPdf} disabled={exporting}>
                       {exporting ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (

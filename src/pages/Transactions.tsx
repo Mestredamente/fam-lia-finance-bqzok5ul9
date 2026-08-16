@@ -206,7 +206,13 @@ export default function Transactions() {
               <span className="hidden sm:inline">Importar</span>
             </Button>
           )}
-          <ExportButton transactions={filtered} month={month} year={year} />
+          <ExportButton
+            transactions={filtered}
+            month={month}
+            year={year}
+            familyName={family.name}
+            members={members}
+          />
           <Button
             variant="secondary"
             onClick={() => generateMonthlyPDF(filtered, month, year)}

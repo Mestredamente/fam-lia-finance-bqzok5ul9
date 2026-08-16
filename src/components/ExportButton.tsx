@@ -7,28 +7,65 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
-import { exportToCSV, exportToPDF } from '@/lib/export-utils'
-import type { TransactionRecord } from '@/types/finance'
+import { exportToCSV } from '@/lib/export-utils'
+import { generateDashboardPdf } from '@/components/DashboardPdfExport'
+import { toast } from '@/hooks/use-toast'
+import type { MemberRecord, TransactionRecord } from '@/types/finance'
 
 interface Props {
   transactions: TransactionRecord[]
   month: number
   year: number
+  familyName: string
+  members: MemberRecord[]
+  memberSummaries?: Record<string, { totalReceitas: number; totalDespesas: number; saldo: number }>
+  futureInstallments?: TransactionRecord[]
 }
 
-export function ExportButton({ transactions, month, year }: Props) {
+export function ExportButton({
+  transactions,
+  month,
+  year,
+  familyName,
+  members,
+  memberSummaries,
+  futureInstallments,
+}: Props) {
   const [exporting, setExporting] = useState(false)
 
   const handleCSV = () => {
     exportToCSV(transactions, month, year)
   }
 
-  const handlePDF = () => {
+  const handlePDF = async () => {
     setExporting(true)
-    setTimeout(() => {
-      exportToPDF(transactions, month, year)
+    try {
+      // No capture container available on the Transactions page, so charts
+      // (donut + heatmap) are skipped — generateDashboardPdf falls back to a
+      // full-width category list and text-only emotional patterns.
+      const ok = await generateDashboardPdf(
+        {
+          familyName,
+          month,
+          year,
+          transactions,
+          members,
+          memberSummaries: memberSummaries ?? {},
+          futureInstallments: futureInstallments ?? [],
+        },
+        null,
+      )
+      if (!ok) throw new Error('Falha ao gerar PDF')
+      toast({ title: 'PDF gerado', description: 'O relatório foi baixado com sucesso.' })
+    } catch {
+      toast({
+        title: 'Erro ao gerar PDF',
+        description: 'Não foi possível gerar o relatório. Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
       setExporting(false)
-    }, 200)
+    }
   }
 
   return (
@@ -52,8 +89,12 @@ export function ExportButton({ transactions, month, year }: Props) {
           <FileSpreadsheet className="h-4 w-4 mr-2" />
           CSV
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={handlePDF}>
-          <FileText className="h-4 w-4 mr-2" />
+        <DropdownMenuItem onClick={handlePDF} disabled={exporting}>
+          {exporting ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <FileText className="h-4 w-4 mr-2" />
+          )}
           PDF
         </DropdownMenuItem>
       </DropdownMenuContent>
