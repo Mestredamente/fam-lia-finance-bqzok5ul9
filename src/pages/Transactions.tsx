@@ -11,6 +11,7 @@ import {
   Trash2,
   Eraser,
   Loader2,
+  CloudOff,
 } from 'lucide-react'
 import {
   Select,
@@ -396,6 +397,15 @@ export default function Transactions() {
                             </div>
                           )}
                         </div>
+                        {t.id.startsWith('pending-') && (
+                          <Badge
+                            className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-0 gap-1 shrink-0"
+                            title="Pendente de sincronização"
+                          >
+                            <CloudOff className="h-3 w-3" />
+                            <span className="hidden sm:inline">Pendente</span>
+                          </Badge>
+                        )}
                         <div className="flex items-center gap-1 shrink-0">
                           {t.emotion && EMOTION_META[t.emotion] && (
                             <span

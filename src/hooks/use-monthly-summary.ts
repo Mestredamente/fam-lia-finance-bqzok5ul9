@@ -5,7 +5,14 @@ import {
   getTransactionsCountOutsideRange,
 } from '@/services/transactions'
 import { getPeriodRange, type PeriodType } from '@/lib/period-utils'
+import { getCachedTransactions } from '@/lib/transaction-cache'
 import type { TransactionRecord } from '@/types/finance'
+
+const SUMMARY_CACHE_PREFIX = 'ff_summary_cache_v1:'
+
+function summaryCacheKey(familyId: string, year: number, month: number, period: PeriodType) {
+  return `${SUMMARY_CACHE_PREFIX}${familyId}:${year}:${month}:${period}`
+}
 
 export interface MemberSummary {
   totalReceitas: number
@@ -47,6 +54,12 @@ export function useMonthlySummary(
       const range = getPeriodRange(period, year, month)
       const data = await getTransactionsByFamilyAndPeriod(familyId, range.startDate, range.endDate)
       setTransactions(data)
+      // Mirror the fetched transactions for offline resilience.
+      try {
+        localStorage.setItem(summaryCacheKey(familyId, year, month, period), JSON.stringify(data))
+      } catch {
+        /* storage full — best effort */
+      }
 
       if (period === 'tudo' || !range.startDate || !range.endDate) {
         setOtherMonthsCount(0)
@@ -63,7 +76,30 @@ export function useMonthlySummary(
         }
       }
     } catch {
-      setError('Erro ao carregar resumo. Tente novamente.')
+      // Offline / network error: fall back to the last cached payload so the
+      // dashboard keeps showing data instead of going blank.
+      try {
+        const raw = localStorage.getItem(summaryCacheKey(familyId, year, month, period))
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (Array.isArray(parsed)) {
+            setTransactions(parsed as TransactionRecord[])
+            setError(null)
+            setOtherMonthsCount(0)
+            return
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+      // Last resort: try the per-month transaction cache.
+      const fallback = getCachedTransactions(familyId, year, month)
+      if (fallback.length > 0) {
+        setTransactions(fallback)
+        setError(null)
+      } else {
+        setError('Erro ao carregar resumo. Tente novamente.')
+      }
     } finally {
       setLoading(false)
     }
@@ -76,6 +112,19 @@ export function useMonthlySummary(
   useRealtime('transactions', () => {
     loadData()
   })
+
+  // Reload fresh data when offline writes have been synced or when connectivity
+  // returns, so the dashboard stops showing the cached/offline snapshot.
+  useEffect(() => {
+    const onSynced = () => loadData()
+    const onOnline = () => loadData()
+    window.addEventListener('ff-offline-synced', onSynced)
+    window.addEventListener('online', onOnline)
+    return () => {
+      window.removeEventListener('ff-offline-synced', onSynced)
+      window.removeEventListener('online', onOnline)
+    }
+  }, [loadData])
 
   const summary = useMemo<MonthlySummary>(() => {
     const totalReceitas = transactions

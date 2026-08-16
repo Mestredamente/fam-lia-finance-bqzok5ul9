@@ -13,6 +13,7 @@ import { useCategorizationRules } from '@/hooks/use-categorization-rules'
 import { useAnnouncer } from '@/hooks/use-announcer'
 import { findMatchingCategory } from '@/lib/auto-categorize'
 import { createTransaction, updateTransaction } from '@/services/transactions'
+import { useOfflineQueue } from '@/hooks/use-offline-queue'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
@@ -94,6 +95,7 @@ export function TransactionFormSheet({
   const { rules } = useCategorizationRules(familyId)
   const { announce } = useAnnouncer()
   const userTouchedCategory = useRef(false)
+  const { isOnline, enqueueTransaction } = useOfflineQueue()
 
   useEffect(() => {
     if (editingTransaction || userTouchedCategory.current) return
@@ -169,10 +171,24 @@ export function TransactionFormSheet({
         await updateTransaction(editingTransaction.id, data)
         toast({ title: 'Transação atualizada' })
         announce('Transação atualizada')
+      } else if (!isOnline) {
+        // Offline: persist to the local queue for later sync.
+        enqueueTransaction(data)
+        announce('Transação salva offline')
       } else {
-        await createTransaction(data)
-        toast({ title: 'Transação adicionada' })
-        announce('Transação criada')
+        try {
+          await createTransaction(data)
+          toast({ title: 'Transação adicionada' })
+          announce('Transação criada')
+        } catch (err) {
+          // Network failed mid-save (connection dropped): enqueue so it isn't lost.
+          if (!navigator.onLine) {
+            enqueueTransaction(data)
+            announce('Transação salva offline')
+          } else {
+            throw err
+          }
+        }
       }
       onOpenChange(false)
       onSaved?.()

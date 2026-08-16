@@ -1,7 +1,8 @@
-import { Home, List, User, LayoutDashboard, Plus } from 'lucide-react'
+import { Home, List, User, LayoutDashboard, Plus, CloudOff } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { usePendingInvoicesCount } from '@/hooks/use-pending-invoices-count'
+import { useOnlineStatus } from '@/hooks/use-online-status'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -12,6 +13,7 @@ import { Menu } from 'lucide-react'
 export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const { user, family } = useAuth()
   const navigate = useNavigate()
+  const isOnline = useOnlineStatus()
 
   return (
     <header
@@ -49,6 +51,15 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
         )}
       </div>
       <div className="flex items-center gap-1 sm:gap-2">
+        {!isOnline && (
+          <Badge
+            className="bg-amber-500 text-white hover:bg-amber-500 border-0 gap-1"
+            aria-label="Você está offline"
+          >
+            <CloudOff className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Offline</span>
+          </Badge>
+        )}
         <ThemeToggle />
         <NotificationCenter />
         {user && (

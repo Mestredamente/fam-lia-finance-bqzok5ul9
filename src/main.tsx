@@ -12,8 +12,13 @@ if (splash) {
   setTimeout(() => splash.remove(), 300)
 }
 
-if ('serviceWorker' in navigator) {
+// Register the service worker only in production builds so it never interferes
+// with HMR / dev tooling. Logs success or failure for easier PWA debugging.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {})
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((reg) => console.info('[SW] registrado com sucesso', reg.scope))
+      .catch((err) => console.error('[SW] falha ao registrar', err))
   })
 }
