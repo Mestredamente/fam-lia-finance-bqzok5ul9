@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatBRL, cn } from '@/lib/utils'
 import { useTransactions } from '@/hooks/use-transactions'
+import { EmotionalTemporalAnalysis } from '@/components/EmotionalTemporalAnalysis'
 import type { TransactionEmotion } from '@/types/finance'
 
 interface EmotionMeta {
@@ -216,6 +217,9 @@ export function EmotionalSpendingCard({ familyId, year, month, loading }: Props)
             <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">{insight}</p>
           </div>
         </div>
+
+        {/* d) Padrões Temporais (heatmap + período do dia + insights) */}
+        <EmotionalTemporalAnalysis transactions={transactions} />
       </CardContent>
     </Card>
   )
