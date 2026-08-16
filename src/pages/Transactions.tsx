@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronLeft,
@@ -25,6 +25,7 @@ import {
 import { useAuth } from '@/hooks/use-auth'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useTransactions } from '@/hooks/use-transactions'
+import { useBudgets } from '@/hooks/use-budgets'
 import { getActiveMembersByFamilyId } from '@/services/members'
 import { deleteTransaction, cleanupOrphanTransactions } from '@/services/transactions'
 import { deleteFutureInstallments } from '@/services/future-installments'
@@ -124,7 +125,29 @@ export default function Transactions() {
     year,
     month,
   )
+  const { budgets } = useBudgets(family?.id)
   const { recurring, refetch: refetchRecurring } = useRecurringTransactions(family?.id)
+
+  // Map of category_id → progress percentage for budgets that reached ≥80%,
+  // used to surface a small alert dot next to the category name on expense rows.
+  const alertByCategory = useMemo(() => {
+    const map: Record<string, { pct: number; exceeded: boolean }> = {}
+    for (const b of budgets) {
+      const spent = transactions
+        .filter(
+          (t) =>
+            t.type === 'expense' &&
+            t.category_id === b.category_id &&
+            (!b.member_id || t.owner_id === b.member_id),
+        )
+        .reduce((s, t) => s + t.amount, 0)
+      const pct = b.monthly_limit > 0 ? (spent / b.monthly_limit) * 100 : 0
+      if (pct >= 80) {
+        map[b.category_id] = { pct, exceeded: spent >= b.monthly_limit }
+      }
+    }
+    return map
+  }, [budgets, transactions])
 
   useEffect(() => {
     if (family)
@@ -410,6 +433,24 @@ export default function Transactions() {
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             {cat?.name || 'Sem categoria'}
+                            {t.type === 'expense' && cat && alertByCategory[cat.id] && (
+                              <span
+                                className={cn(
+                                  'inline-block w-1.5 h-1.5 rounded-full ml-1 align-middle',
+                                  alertByCategory[cat.id].exceeded ? 'bg-red-500' : 'bg-orange-500',
+                                )}
+                                title={
+                                  alertByCategory[cat.id].exceeded
+                                    ? `Orçamento estourado: ${Math.round(alertByCategory[cat.id].pct)}%`
+                                    : `Orçamento em alerta: ${Math.round(alertByCategory[cat.id].pct)}%`
+                                }
+                                aria-label={
+                                  alertByCategory[cat.id].exceeded
+                                    ? `Orçamento estourado: ${Math.round(alertByCategory[cat.id].pct)}%`
+                                    : `Orçamento em alerta: ${Math.round(alertByCategory[cat.id].pct)}%`
+                                }
+                              />
+                            )}
                             {(() => {
                               const txTime = t.transaction_date.split('T')[1]?.split(' ')[0]
                               if (!txTime) return ''

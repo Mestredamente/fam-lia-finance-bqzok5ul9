@@ -54,6 +54,7 @@ import { PatrimonyCard } from '@/components/PatrimonyCard'
 import { SubscriptionsCard } from '@/components/SubscriptionsCard'
 import { AiInsightsCard } from '@/components/AiInsightsCard'
 import { CustomizableCard } from '@/components/CustomizableCard'
+import { BudgetAlertBanner } from '@/components/BudgetAlertBanner'
 import { useDashboardLayout, CARD_TITLES, type DashboardCardId } from '@/hooks/use-dashboard-layout'
 import { MobileMonthPicker } from '@/components/MobileMonthPicker'
 import { FabMenu, ExportBottomSheet, type FabMenuAction } from '@/components/FabMenu'
@@ -599,6 +600,8 @@ export default function Dashboard() {
           </Button>
         </div>
       )}
+
+      <BudgetAlertBanner familyId={family.id} year={year} month={month} />
 
       {orderedCards}
 

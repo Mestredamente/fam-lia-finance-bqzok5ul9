@@ -36,13 +36,33 @@ export function useBudgetAlerts(familyId: string | undefined, enabled: boolean =
           )
           .reduce((sum, t) => sum + t.amount, 0)
 
-        if (spent > budget.monthly_limit) {
+        const pct = budget.monthly_limit > 0 ? Math.round((spent / budget.monthly_limit) * 100) : 0
+        const cat = budget.expand?.category_id
+        const catName = cat?.name || 'Categoria'
+
+        // Alert threshold: ≥100% (excedido)
+        if (spent >= budget.monthly_limit) {
           const key = `budget_exceeded_${budget.id}_${getTodayKey()}`
           if (!hasNotificationBeenSent(key)) {
-            const cat = budget.expand?.category_id
             addNotification({
               title: 'Orçamento excedido!',
-              description: `${cat?.name || 'Categoria'}: ${formatBRL(spent)} de ${formatBRL(budget.monthly_limit)}`,
+              description: `${catName}: ${formatBRL(spent)} de ${formatBRL(budget.monthly_limit)}`,
+              iconColor: cat?.color,
+            })
+            markNotificationSent(key)
+          }
+          return
+        }
+
+        // Alert threshold: ≥80% (quase no limite)
+        if (pct >= 80) {
+          const key = `budget_alert_${budget.id}_${getTodayKey()}`
+          if (!hasNotificationBeenSent(key)) {
+            addNotification({
+              title: 'Orçamento quase no limite',
+              description: `${catName}: ${formatBRL(spent)} de ${formatBRL(
+                budget.monthly_limit,
+              )} (${pct}%)`,
               iconColor: cat?.color,
             })
             markNotificationSent(key)

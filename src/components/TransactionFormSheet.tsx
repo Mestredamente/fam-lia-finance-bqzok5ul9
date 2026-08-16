@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Loader2, Clock } from 'lucide-react'
+import { Loader2, Clock, AlertTriangle } from 'lucide-react'
 import { z } from 'zod'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
@@ -12,12 +12,18 @@ import { useCategories } from '@/hooks/use-categories'
 import { useCategorizationRules } from '@/hooks/use-categorization-rules'
 import { useAnnouncer } from '@/hooks/use-announcer'
 import { findMatchingCategory } from '@/lib/auto-categorize'
-import { createTransaction, updateTransaction } from '@/services/transactions'
+import {
+  createTransaction,
+  updateTransaction,
+  getTransactionsByFamilyAndMonth,
+} from '@/services/transactions'
+import { getBudgetsByFamilyId } from '@/services/budgets'
 import { useOfflineQueue } from '@/hooks/use-offline-queue'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
-import { cn } from '@/lib/utils'
+import { cn, formatBRL } from '@/lib/utils'
 import type { TransactionRecord, TransactionEmotion } from '@/types/finance'
+import type { BudgetRecord } from '@/types/budgets'
 
 const EMOTIONS: { value: TransactionEmotion; emoji: string; label: string }[] = [
   { value: 'happy', emoji: '😊', label: 'Feliz' },
@@ -97,6 +103,24 @@ export function TransactionFormSheet({
   const userTouchedCategory = useRef(false)
   const { isOnline, enqueueTransaction } = useOfflineQueue()
 
+  // Budget cache — loaded once (per family) and reused for the inline warning.
+  // Avoids refetching the budgets API on every category selection.
+  const budgetsRef = useRef<BudgetRecord[] | null>(null)
+  const [budgetsState, setBudgetsState] = useState<BudgetRecord[] | null>(null)
+  useEffect(() => {
+    if (!familyId || !open) return
+    if (budgetsRef.current) {
+      setBudgetsState(budgetsRef.current)
+      return
+    }
+    getBudgetsByFamilyId(familyId)
+      .then((b) => {
+        budgetsRef.current = b
+        setBudgetsState(b)
+      })
+      .catch(() => setBudgetsState(null))
+  }, [familyId, open])
+
   useEffect(() => {
     if (editingTransaction || userTouchedCategory.current) return
     if (!description.trim() || rules.length === 0) return
@@ -134,6 +158,112 @@ export function TransactionFormSheet({
       userTouchedCategory.current = false
     }
   }, [open, editingTransaction, defaultIsFixed])
+
+  // Inline budget warning for the currently selected category.
+  // Computes spent / limit for the month of the selected transaction date,
+  // using the budget cache + a fresh transactions fetch (cached in a ref so
+  // switching categories doesn't re-fetch once loaded for a given month).
+  const [inlineWarning, setInlineWarning] = useState<{
+    pct: number
+    spent: number
+    limit: number
+    remaining: number
+    exceeded: boolean
+  } | null>(null)
+
+  const transactionsCacheRef = useRef<{ key: string; data: TransactionRecord[] } | null>(null)
+
+  useEffect(() => {
+    if (!open || !categoryId || type !== 'expense' || !budgetsState) {
+      setInlineWarning(null)
+      return
+    }
+    const budget = budgetsState.find((b) => b.category_id === categoryId)
+    if (!budget) {
+      setInlineWarning(null)
+      return
+    }
+    const txDate = new Date(`${date}T${time || '12:00'}:00`)
+    const y = txDate.getFullYear()
+    const m = txDate.getMonth()
+    const key = `${familyId}_${y}_${m}`
+    const compute = (txs: TransactionRecord[]) => {
+      const spent = txs
+        .filter(
+          (t) =>
+            t.type === 'expense' &&
+            t.category_id === budget.category_id &&
+            (!budget.member_id || t.owner_id === budget.member_id),
+        )
+        .reduce((s, t) => s + t.amount, 0)
+      const pct = budget.monthly_limit > 0 ? (spent / budget.monthly_limit) * 100 : 0
+      if (pct >= 80) {
+        setInlineWarning({
+          pct,
+          spent,
+          limit: budget.monthly_limit,
+          remaining: budget.monthly_limit - spent,
+          exceeded: spent >= budget.monthly_limit,
+        })
+      } else {
+        setInlineWarning(null)
+      }
+    }
+    if (transactionsCacheRef.current && transactionsCacheRef.current.key === key) {
+      compute(transactionsCacheRef.current.data)
+    } else {
+      getTransactionsByFamilyAndMonth(familyId, y, m)
+        .then((txs) => {
+          transactionsCacheRef.current = { key, data: txs }
+          compute(txs)
+        })
+        .catch(() => setInlineWarning(null))
+    }
+  }, [open, categoryId, type, budgetsState, date, time, familyId])
+
+  // Post-save budget toast: re-checks the category's budget after the
+  // transaction is persisted and surfaces a toast if it crossed ≥80%.
+  const checkBudgetAfterSave = async () => {
+    if (!isOnline || !categoryId || type !== 'expense') return
+    try {
+      const budgets = budgetsRef.current || (await getBudgetsByFamilyId(familyId))
+      budgetsRef.current = budgets
+      const budget = budgets.find((b) => b.category_id === categoryId)
+      if (!budget) return
+      const txDate = new Date(`${date}T${time || '12:00'}:00`)
+      const txs = await getTransactionsByFamilyAndMonth(
+        familyId,
+        txDate.getFullYear(),
+        txDate.getMonth(),
+      )
+      const spent = txs
+        .filter(
+          (t) =>
+            t.type === 'expense' &&
+            t.category_id === budget.category_id &&
+            (!budget.member_id || t.owner_id === budget.member_id),
+        )
+        .reduce((s, t) => s + t.amount, 0)
+      const pct = budget.monthly_limit > 0 ? Math.round((spent / budget.monthly_limit) * 100) : 0
+      const catName = budget.expand?.category_id?.name || 'Categoria'
+      if (spent >= budget.monthly_limit) {
+        toast({
+          variant: 'destructive',
+          title: 'Orçamento estourado!',
+          description: `${catName}: ${formatBRL(spent)} de ${formatBRL(budget.monthly_limit)}`,
+        })
+      } else if (pct >= 80) {
+        toast({
+          title: `Categoria atingiu ${pct}% do orçamento`,
+          description: `Restam ${formatBRL(budget.monthly_limit - spent)} de ${formatBRL(
+            budget.monthly_limit,
+          )}`,
+        })
+      }
+    } catch {
+      // noop — never block the save flow
+    }
+  }
 
   const handleSave = async () => {
     const result = schema.safeParse({
@@ -192,6 +322,8 @@ export function TransactionFormSheet({
       }
       onOpenChange(false)
       onSaved?.()
+      // Give the realtime sync a moment to settle before re-checking budgets.
+      setTimeout(checkBudgetAfterSave, 500)
     } catch (err) {
       toast({ variant: 'destructive', title: 'Erro', description: getPortugueseError(err) })
       announce('Erro: ' + getPortugueseError(err), 'assertive')
@@ -309,6 +441,30 @@ export function TransactionFormSheet({
               <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
                 {errors.category_id}
               </p>
+            )}
+            {inlineWarning && (
+              <div
+                role="status"
+                className={cn(
+                  'mt-2 flex items-start gap-2 rounded-lg p-2.5 text-xs',
+                  inlineWarning.exceeded
+                    ? 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300'
+                    : 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 text-amber-700 dark:text-amber-300',
+                )}
+              >
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>
+                  {inlineWarning.exceeded
+                    ? `🚫 Esta categoria ESTOUROU o orçamento! ${formatBRL(
+                        inlineWarning.spent,
+                      )} de ${formatBRL(inlineWarning.limit)}.`
+                    : `⚠️ Esta categoria está em ${Math.round(
+                        inlineWarning.pct,
+                      )}% do orçamento (${formatBRL(inlineWarning.spent)} de ${formatBRL(
+                        inlineWarning.limit,
+                      )}). Restam ${formatBRL(Math.max(inlineWarning.remaining, 0))}.`}
+                </span>
+              </div>
             )}
           </div>
           <div>

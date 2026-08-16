@@ -22,7 +22,8 @@ import { getActiveMembersByFamilyId } from '@/services/members'
 import { getTransactionsByFamilyAndMonth } from '@/services/transactions'
 import { deleteBudget } from '@/services/budgets'
 import { getCategoryIcon } from '@/lib/category-icons'
-import { formatBRL } from '@/lib/utils'
+import { getBudgetStatus } from '@/lib/budget-utils'
+import { formatBRL, cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import type { TransactionRecord, MemberRecord } from '@/types/finance'
 import type { BudgetRecord } from '@/types/budgets'
@@ -123,12 +124,43 @@ export default function Budgets() {
           {progress.map(({ budget, spent, pct }) => {
             const cat = budget.expand?.category_id
             const Icon = getCategoryIcon(cat?.icon || 'wallet')
-            const color = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-yellow-500' : 'bg-emerald-500'
+            const status = getBudgetStatus(pct)
+            const color =
+              pct >= 100
+                ? 'bg-red-500'
+                : pct >= 80
+                  ? 'bg-orange-500'
+                  : pct >= 60
+                    ? 'bg-yellow-500'
+                    : 'bg-emerald-500'
+            const exceeded = spent > budget.monthly_limit
+            const badgeClass = {
+              ok: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border-0',
+              attention:
+                'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 border-0',
+              alert:
+                'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 border-0',
+              exceeded: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border-0',
+            }[status.tone]
+            const remainingText = exceeded
+              ? `Excedido em ${formatBRL(spent - budget.monthly_limit)}`
+              : `Restam ${formatBRL(budget.monthly_limit - spent)}`
             return (
-              <Card key={budget.id} className="border border-gray-100 shadow-subtle rounded-2xl">
+              <Card
+                key={budget.id}
+                className={cn(
+                  'border shadow-subtle rounded-2xl',
+                  status.tone === 'exceeded'
+                    ? 'border-red-200 dark:border-red-900/50'
+                    : status.tone === 'alert'
+                      ? 'border-orange-200 dark:border-orange-900/50'
+                      : 'border-gray-100',
+                )}
+              >
                 <CardContent className="p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
+                      {' '}
                       <div
                         className="w-10 h-10 rounded-lg flex items-center justify-center"
                         style={{ backgroundColor: (cat?.color || '#999') + '20' }}
@@ -139,14 +171,18 @@ export default function Budgets() {
                         <h3 className="font-bold text-sm text-gray-900 dark:text-foreground">
                           {cat?.name || 'Sem categoria'}
                         </h3>
-                        {budget.expand?.member_id && (
-                          <Badge variant="outline" className="text-xs mt-0.5">
-                            {budget.expand.member_id.display_name}
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <Badge className={cn('text-xs', badgeClass)}>{status.label}</Badge>
+                          {budget.expand?.member_id && (
+                            <Badge variant="outline" className="text-xs">
+                              {budget.expand.member_id.display_name}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
+                      {' '}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -174,6 +210,18 @@ export default function Budgets() {
                     </span>
                     <span className="font-medium text-gray-700 dark:text-gray-300">
                       Limite: {formatBRL(budget.monthly_limit)}
+                    </span>
+                    <span
+                      className={cn(
+                        'font-medium',
+                        exceeded
+                          ? 'text-red-600 dark:text-red-400'
+                          : status.tone === 'alert'
+                            ? 'text-orange-600 dark:text-orange-400'
+                            : 'text-gray-700 dark:text-gray-300',
+                      )}
+                    >
+                      {remainingText}
                     </span>
                   </div>
                   <div className="w-full bg-gray-100 dark:bg-gray-800 h-2.5 rounded-full overflow-hidden">
