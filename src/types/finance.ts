@@ -171,6 +171,7 @@ export type TransactionSource =
   | 'invoice_import'
   | 'recurring_debt'
   | 'future_installment'
+  | 'recurring'
 
 export interface CategoryRecord {
   id: string
@@ -210,6 +211,7 @@ export interface TransactionRecord {
   installment_total?: number | null
   parent_transaction_id?: string | null
   debt_id?: string | null
+  recurring_id?: string | null
   emotion?: TransactionEmotion | null
   emotion_note?: string | null
   created: string
@@ -218,6 +220,45 @@ export interface TransactionRecord {
     family_id?: FamilyRecord
     owner_id?: MemberRecord
     category_id?: CategoryRecord
+    recurring_id?: RecurringTransaction
+  }
+}
+
+export type RecurringFrequency = 'monthly' | 'weekly' | 'yearly'
+
+export type RecurringType = 'receita' | 'despesa'
+
+export type RecurringEmotion =
+  | 'feliz'
+  | 'necessario'
+  | 'neutro'
+  | 'arrependido'
+  | 'impulsivo'
+  | 'ansioso'
+
+export interface RecurringTransaction {
+  id: string
+  family_id: string
+  member_id: string
+  description: string
+  amount: number
+  type: RecurringType
+  category_id?: string | null
+  emotion?: RecurringEmotion | null
+  frequency: RecurringFrequency
+  day_of_month: number
+  card_id?: string | null
+  shared: boolean
+  active: boolean
+  start_date: string
+  end_date?: string | null
+  created: string
+  updated: string
+  expand?: {
+    family_id?: FamilyRecord
+    member_id?: MemberRecord
+    category_id?: CategoryRecord
+    card_id?: CreditCardRecord
   }
 }
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-16T06:00:22.065Z",
+  "generatedAt": "2026-08-16T06:10:19.253Z",
   "collections": [
     {
       "name": "users",
@@ -582,13 +582,6 @@
           "system": false
         },
         {
-          "name": "source",
-          "type": "select",
-          "required": false,
-          "system": false,
-          "selectValues": ["manual", "invoice_import", "recurring_debt", "future_installment"]
-        },
-        {
           "name": "is_installment",
           "type": "bool",
           "required": false,
@@ -632,13 +625,34 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "recurring_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "recurring_transactions"
+        },
+        {
+          "name": "source",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "manual",
+            "invoice_import",
+            "recurring_debt",
+            "future_installment",
+            "recurring"
+          ]
         }
       ],
       "indexes": [
         "CREATE INDEX idx_transactions_family_id ON transactions (family_id)",
         "CREATE INDEX idx_transactions_owner_id ON transactions (owner_id)",
         "CREATE INDEX idx_transactions_category_id ON transactions (category_id)",
-        "CREATE INDEX `idx_transactions_transaction_date` ON `transactions` (transaction_date)"
+        "CREATE INDEX `idx_transactions_transaction_date` ON `transactions` (transaction_date)",
+        "CREATE INDEX `idx_transactions_recurring_id` ON `transactions` (recurring_id)"
       ]
     },
     {
@@ -1769,6 +1783,129 @@
       "indexes": [
         "CREATE INDEX idx_budgets_family_id ON budgets (family_id)",
         "CREATE INDEX idx_budgets_category_id ON budgets (category_id)"
+      ]
+    },
+    {
+      "name": "recurring_transactions",
+      "type": "base",
+      "apiRules": {
+        "list": "member_id.user_id = @request.auth.id || (shared = true && @collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id) || family_id.created_by = @request.auth.id",
+        "view": "member_id.user_id = @request.auth.id || (shared = true && @collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id) || family_id.created_by = @request.auth.id",
+        "create": "family_id.created_by = @request.auth.id || member_id.user_id = @request.auth.id",
+        "update": "family_id.created_by = @request.auth.id || member_id.user_id = @request.auth.id",
+        "delete": "family_id.created_by = @request.auth.id || member_id.user_id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "family_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "families"
+        },
+        {
+          "name": "member_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "members"
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["receita", "despesa"]
+        },
+        {
+          "name": "category_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "categories"
+        },
+        {
+          "name": "emotion",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["feliz", "necessario", "neutro", "arrependido", "impulsivo", "ansioso"]
+        },
+        {
+          "name": "frequency",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["monthly", "weekly", "yearly"]
+        },
+        {
+          "name": "day_of_month",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "card_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "credit_cards"
+        },
+        {
+          "name": "shared",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "start_date",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "end_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_recurring_transactions_family_id ON recurring_transactions (family_id)",
+        "CREATE INDEX idx_recurring_transactions_member_id ON recurring_transactions (member_id)",
+        "CREATE INDEX idx_recurring_transactions_active ON recurring_transactions (active)"
       ]
     }
   ]

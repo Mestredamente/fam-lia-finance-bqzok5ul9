@@ -6,6 +6,7 @@ import {
   Wallet,
   Calendar,
   AlertCircle,
+  Repeat,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -20,6 +21,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useTheme } from '@/hooks/use-theme'
 import { useFutureInstallments } from '@/hooks/use-future-installments'
 import { useDebts } from '@/hooks/use-debts'
+import { useRecurringTransactions } from '@/hooks/use-recurring-transactions'
 import { getActiveMembersByFamilyId } from '@/services/members'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -57,6 +59,7 @@ export default function Projections() {
   const { family } = useAuth()
   const { installments, loading: installmentsLoading } = useFutureInstallments(family?.id)
   const { debts, loading: debtsLoading } = useDebts(family?.id)
+  const { recurring, loading: recurringLoading } = useRecurringTransactions(family?.id)
   const [filter, setFilter] = useState<'all' | 'card' | 'debt' | 'investment'>('all')
   const [monthlyIncome, setMonthlyIncome] = useState(0)
 
@@ -125,9 +128,13 @@ export default function Projections() {
     0,
   )
 
-  const monthlyCommitment = monthlyIncome > 0 ? (totalFuture / monthlyIncome) * 100 : null
+  // Recorrentes ativas: soma mensal comprometida (somente despesas, para projeção).
+  const activeRecurringExpenses = recurring.filter((r) => r.active && r.type === 'despesa')
+  const recurringMonthly = activeRecurringExpenses.reduce((s, r) => s + r.amount, 0)
+  const activeRecurringIncome = recurring.filter((r) => r.active && r.type === 'receita')
+  const recurringMonthlyIncome = activeRecurringIncome.reduce((s, r) => s + r.amount, 0)
 
-  const loading = installmentsLoading || debtsLoading
+  const loading = installmentsLoading || debtsLoading || recurringLoading
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -410,18 +417,18 @@ export default function Projections() {
           <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white dark:bg-card">
             <CardContent className="p-5 space-y-1">
               <div className="flex items-center gap-2">
-                <Wallet className="h-4 w-4 text-indigo-600" />
+                <Repeat className="h-4 w-4 text-indigo-600" />
                 <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                  Comprometimento mensal
+                  Recorrentes mensais (despesas)
                 </span>
               </div>
               <p className="text-xl font-extrabold text-indigo-700">
-                {monthlyCommitment !== null ? `${monthlyCommitment.toFixed(1)}%` : '—'}
+                {formatBRL(recurringMonthly)}
               </p>
               <p className="text-[11px] text-gray-400">
-                {monthlyCommitment !== null
-                  ? 'Percentual da renda mensal da família.'
-                  : 'Renda mensal não informada.'}
+                {activeRecurringExpenses.length}{' '}
+                {activeRecurringExpenses.length === 1 ? 'conta fixa ativa' : 'contas fixas ativas'}{' '}
+                · receitas: {formatBRL(recurringMonthlyIncome)}
               </p>
             </CardContent>
           </Card>

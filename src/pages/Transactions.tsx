@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   ChevronLeft,
   ChevronRight,
@@ -12,6 +13,7 @@ import {
   Eraser,
   Loader2,
   CloudOff,
+  Repeat,
 } from 'lucide-react'
 import {
   Select,
@@ -84,6 +86,7 @@ function groupByDay(items: TransactionRecord[]) {
 }
 
 export default function Transactions() {
+  const navigate = useNavigate()
   const { family, member } = useAuth()
   const perms = usePermissions()
   const canDeleteTransactions = perms.canDeleteTransactions()
@@ -380,7 +383,7 @@ export default function Transactions() {
                               return ` · ${txTime.slice(0, 5)}`
                             })()}
                           </p>
-                          {(t.is_shared || t.is_fixed) && (
+                          {(t.is_shared || t.is_fixed || t.source === 'recurring') && (
                             <div className="flex gap-1 mt-1">
                               {t.is_shared && (
                                 <Badge variant="outline" className="text-xs py-0 px-1 gap-0.5">
@@ -392,6 +395,20 @@ export default function Transactions() {
                                 <Badge variant="outline" className="text-xs py-0 px-1 gap-0.5">
                                   <Calendar className="h-2.5 w-2.5" />
                                   Fixa
+                                </Badge>
+                              )}
+                              {t.source === 'recurring' && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs py-0 px-1 gap-0.5 border-sky-200 text-sky-600 bg-sky-50 cursor-pointer hover:bg-sky-100"
+                                  title="Gerada automaticamente. Clique para editar a recorrência."
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    navigate('/recorrentes')
+                                  }}
+                                >
+                                  <Repeat className="h-2.5 w-2.5" />
+                                  Recorrente
                                 </Badge>
                               )}
                             </div>

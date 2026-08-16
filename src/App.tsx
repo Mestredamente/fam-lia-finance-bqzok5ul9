@@ -38,6 +38,7 @@ const MonthlyEvolution = lazy(() => import('@/pages/MonthlyEvolution'))
 const Challenges = lazy(() => import('@/pages/Challenges'))
 const Casa = lazy(() => import('@/pages/Casa'))
 const DiagnosticInvoice = lazy(() => import('@/pages/DiagnosticInvoice'))
+const RecurringTransactions = lazy(() => import('@/pages/RecurringTransactions'))
 
 function NavigationGuard() {
   const location = useLocation()
@@ -246,6 +247,12 @@ function AppInner() {
                       <Route
                         path="/diagnostic-invoice"
                         element={<ProtectedRoute>{withSuspense(DiagnosticInvoice)}</ProtectedRoute>}
+                      />
+                      <Route
+                        path="/recorrentes"
+                        element={
+                          <ProtectedRoute>{withSuspense(RecurringTransactions)}</ProtectedRoute>
+                        }
                       />
                     </Route>
                   </Route>

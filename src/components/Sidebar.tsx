@@ -17,6 +17,7 @@ import {
   PiggyBank,
   Users,
   CalendarClock,
+  Repeat,
   type LucideIcon,
 } from 'lucide-react'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -48,6 +49,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Finanças',
     items: [
       { label: 'Transações', path: '/transacoes', icon: List },
+      { label: 'Recorrentes', path: '/recorrentes', icon: Repeat },
       { label: 'Cartões', path: '/cards', icon: CreditCard },
       { label: 'Orçamentos', path: '/orcamentos', icon: Wallet, perm: 'canViewBudgets' },
     ],
