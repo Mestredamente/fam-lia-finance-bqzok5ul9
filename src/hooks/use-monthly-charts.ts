@@ -94,5 +94,43 @@ export function useMonthlyCharts(familyId: string | undefined, year: number, mon
     return result
   }, [transactions, year, month])
 
-  return { expensesByCategory, monthlyComparison, loading }
+  // Per-month breakdown used for month-over-month category comparisons.
+  // Each entry maps category name → { value, count } for that month. The
+  // array follows the same ordering as monthlyComparison: index 0 = 11
+  // months ago, last index = current month.
+  const monthlyBreakdown = useMemo(() => {
+    const result: {
+      incomeCount: number
+      expenseCount: number
+      categories: Record<string, number>
+    }[] = []
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(year, month - i, 1)
+      const m = d.getMonth()
+      const y = d.getFullYear()
+      const startDate = `${y}-${pad(m)}-01`
+      const endM = m === 11 ? 0 : m + 1
+      const endY = m === 11 ? y + 1 : y
+      const endDate = `${endY}-${pad(endM)}-01`
+      const monthTx = transactions.filter(
+        (t) => t.transaction_date >= startDate && t.transaction_date < endDate,
+      )
+      const categories: Record<string, number> = {}
+      let incomeCount = 0
+      let expenseCount = 0
+      for (const t of monthTx) {
+        if (t.type === 'expense') {
+          const catName = t.expand?.category_id?.name || 'Sem categoria'
+          categories[catName] = (categories[catName] || 0) + t.amount
+          expenseCount++
+        } else if (t.type === 'income') {
+          incomeCount++
+        }
+      }
+      result.push({ incomeCount, expenseCount, categories })
+    }
+    return result
+  }, [transactions, year, month])
+
+  return { expensesByCategory, monthlyComparison, monthlyBreakdown, loading }
 }

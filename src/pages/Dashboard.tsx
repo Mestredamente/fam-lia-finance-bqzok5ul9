@@ -48,6 +48,8 @@ import { ComprometimentoFuturoCard } from '@/components/ComprometimentoFuturoCar
 import { UpcomingTasksSection } from '@/components/UpcomingTasksSection'
 import { EmotionalSpendingCard } from '@/components/EmotionalSpendingCard'
 import { ExpensesByCategoryCard } from '@/components/ExpensesByCategoryCard'
+import { MonthlyComparisonCard } from '@/components/MonthlyComparisonCard'
+import { useMonthComparison } from '@/hooks/use-month-comparison'
 import { MemberViewCard } from '@/components/MemberViewCard'
 import { FixedBillsCard } from '@/components/FixedBillsCard'
 import { PatrimonyCard } from '@/components/PatrimonyCard'
@@ -127,6 +129,10 @@ export default function Dashboard() {
     otherMonthsCount,
   } = useMonthlySummary(family?.id, year, month, period)
 
+  // Dados do mês anterior para indicadores de comparação (reutiliza os 12
+  // meses já buscados por useMonthlyCharts internamente — sem nova chamada).
+  const { prevMonth, hasComparison } = useMonthComparison(family?.id, year, month)
+
   const loadMembers = useCallback(async () => {
     if (!family) return
     try {
@@ -191,6 +197,11 @@ export default function Dashboard() {
                 year > new Date().getFullYear() ||
                 (year === new Date().getFullYear() && month > new Date().getMonth())
               }
+              prevReceitas={prevMonth?.income}
+              prevDespesas={prevMonth?.expenses}
+              prevSaldo={prevMonth?.saldo}
+              prevMonthLabel={prevMonth?.label}
+              hasComparison={hasComparison}
             />
           )
         case 'expensesByCategory':
@@ -202,6 +213,8 @@ export default function Dashboard() {
               loading={loading}
             />
           )
+        case 'monthlyComparison':
+          return <MonthlyComparisonCard familyId={family.id} year={year} month={month} />
         case 'memberView':
           return (
             <MemberViewCard
@@ -262,6 +275,8 @@ export default function Dashboard() {
       member?.id,
       editMode,
       handleEmotionInsightsLoaded,
+      prevMonth,
+      hasComparison,
     ],
   )
 

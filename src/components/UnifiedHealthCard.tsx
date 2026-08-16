@@ -6,6 +6,12 @@ import { Button } from '@/components/ui/button'
 import { AnimatedCounter } from '@/components/AnimatedCounter'
 import { useFinancialScore } from '@/hooks/use-financial-score'
 import { formatBRL, getProgressBarColor, cn } from '@/lib/utils'
+import {
+  getVariation,
+  getVariationColor,
+  formatVariation,
+  buildVariationTooltip,
+} from '@/lib/comparison-utils'
 
 interface Props {
   familyId: string
@@ -17,6 +23,36 @@ interface Props {
   error: string | null
   onRetry: () => void
   isFutureMonth?: boolean
+  prevReceitas?: number
+  prevDespesas?: number
+  prevSaldo?: number
+  prevMonthLabel?: string
+  hasComparison?: boolean
+}
+
+/** Pequeno indicador de variação mês-a-mês usado nos 3 cards de resumo. */
+function VariationBadge({
+  current,
+  previous,
+  context,
+  label,
+}: {
+  current: number
+  previous: number
+  context: 'income' | 'expense' | 'balance'
+  label?: string
+}) {
+  const variation = getVariation(current, previous)
+  const color = getVariationColor(variation.direction, context)
+  const text = formatVariation(variation)
+  const tooltip = buildVariationTooltip(previous, current, formatBRL)
+  const fullTitle = label ? `${tooltip} vs ${label}` : tooltip
+  return (
+    <span title={fullTitle} className={cn('text-[10px] font-semibold whitespace-nowrap', color)}>
+      {text}
+      {label && variation.direction !== 'stable' && !variation.isNew ? ` vs ${label}` : ''}
+    </span>
+  )
 }
 
 export function UnifiedHealthCard({
@@ -29,6 +65,11 @@ export function UnifiedHealthCard({
   error,
   onRetry,
   isFutureMonth = false,
+  prevReceitas,
+  prevDespesas,
+  prevSaldo,
+  prevMonthLabel,
+  hasComparison = false,
 }: Props) {
   const [expanded, setExpanded] = useState(false)
   const {
@@ -111,30 +152,60 @@ export function UnifiedHealthCard({
               <span className="text-xs font-medium text-gray-500">
                 {isFutureMonth ? 'Receitas previstas' : 'Receitas'}
               </span>
-              <span className="text-lg font-extrabold text-[#166534]">
-                <AnimatedCounter value={totalReceitas} format={formatBRL} />
-              </span>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-lg font-extrabold text-[#166534]">
+                  <AnimatedCounter value={totalReceitas} format={formatBRL} />
+                </span>
+                {hasComparison && prevReceitas != null && (
+                  <VariationBadge
+                    current={totalReceitas}
+                    previous={prevReceitas}
+                    context="income"
+                    label={prevMonthLabel}
+                  />
+                )}
+              </div>
             </div>
             <div className="flex items-center justify-between border-t border-gray-100 pt-2">
               <span className="text-xs font-medium text-gray-500">
                 {isFutureMonth ? 'Despesas previstas' : 'Despesas'}
               </span>
-              <span className="text-lg font-extrabold text-red-600">
-                <AnimatedCounter value={totalDespesas} format={formatBRL} />
-              </span>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-lg font-extrabold text-red-600">
+                  <AnimatedCounter value={totalDespesas} format={formatBRL} />
+                </span>
+                {hasComparison && prevDespesas != null && (
+                  <VariationBadge
+                    current={totalDespesas}
+                    previous={prevDespesas}
+                    context="expense"
+                    label={prevMonthLabel}
+                  />
+                )}
+              </div>
             </div>
             <div className="flex items-center justify-between border-t border-gray-100 pt-2">
               <span className="text-xs font-medium text-gray-500">
                 {isFutureMonth ? 'Saldo projetado' : 'Saldo'}
               </span>
-              <span
-                className={cn(
-                  'text-lg font-extrabold',
-                  saldo >= 0 ? 'text-blue-700' : 'text-red-600',
+              <div className="flex items-baseline gap-1.5">
+                <span
+                  className={cn(
+                    'text-lg font-extrabold',
+                    saldo >= 0 ? 'text-blue-700' : 'text-red-600',
+                  )}
+                >
+                  <AnimatedCounter value={saldo} format={formatBRL} />
+                </span>
+                {hasComparison && prevSaldo != null && (
+                  <VariationBadge
+                    current={saldo}
+                    previous={prevSaldo}
+                    context="balance"
+                    label={prevMonthLabel}
+                  />
                 )}
-              >
-                <AnimatedCounter value={saldo} format={formatBRL} />
-              </span>
+              </div>
             </div>
           </div>
 
@@ -146,6 +217,14 @@ export function UnifiedHealthCard({
               <span className="text-xl font-extrabold text-[#166534]">
                 <AnimatedCounter value={totalReceitas} format={formatBRL} />
               </span>
+              {hasComparison && prevReceitas != null && (
+                <VariationBadge
+                  current={totalReceitas}
+                  previous={prevReceitas}
+                  context="income"
+                  label={prevMonthLabel}
+                />
+              )}
             </div>
             <div className="text-center">
               <span className="text-xs font-medium text-gray-500 block">
@@ -154,6 +233,14 @@ export function UnifiedHealthCard({
               <span className="text-xl font-extrabold text-red-600">
                 <AnimatedCounter value={totalDespesas} format={formatBRL} />
               </span>
+              {hasComparison && prevDespesas != null && (
+                <VariationBadge
+                  current={totalDespesas}
+                  previous={prevDespesas}
+                  context="expense"
+                  label={prevMonthLabel}
+                />
+              )}
             </div>
             <div className="text-center">
               <span className="text-xs font-medium text-gray-500 block">
@@ -167,6 +254,14 @@ export function UnifiedHealthCard({
               >
                 <AnimatedCounter value={saldo} format={formatBRL} />
               </span>
+              {hasComparison && prevSaldo != null && (
+                <VariationBadge
+                  current={saldo}
+                  previous={prevSaldo}
+                  context="balance"
+                  label={prevMonthLabel}
+                />
+              )}
             </div>
           </div>
         </div>

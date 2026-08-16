@@ -9,6 +9,7 @@ export interface DashboardCardConfig {
 export type DashboardCardId =
   | 'summary'
   | 'expensesByCategory'
+  | 'monthlyComparison'
   | 'memberView'
   | 'futureCommitment'
   | 'fixedBills'
@@ -23,6 +24,7 @@ const STORAGE_KEY = 'dashboard_layout'
 export const DEFAULT_CARD_ORDER: DashboardCardId[] = [
   'summary',
   'expensesByCategory',
+  'monthlyComparison',
   'memberView',
   'futureCommitment',
   'fixedBills',
@@ -36,6 +38,7 @@ export const DEFAULT_CARD_ORDER: DashboardCardId[] = [
 export const CARD_TITLES: Record<DashboardCardId, string> = {
   summary: 'Resumo Financeiro',
   expensesByCategory: 'Despesas por Categoria',
+  monthlyComparison: 'Comparação Mensal',
   memberView: 'Visão por Membro',
   futureCommitment: 'Comprometimento Futuro',
   fixedBills: 'Contas Fixas',
