@@ -1,11 +1,53 @@
 import { useMemo } from 'react'
-import { Brain } from 'lucide-react'
+import { Brain, Lightbulb, AlertTriangle, BookOpen, Sparkles } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatBRL, cn } from '@/lib/utils'
 import { useTransactions } from '@/hooks/use-transactions'
+import { useAuth } from '@/hooks/use-auth'
+import { useEmotionalInsights } from '@/hooks/use-emotional-insights'
 import { EmotionalTemporalAnalysis } from '@/components/EmotionalTemporalAnalysis'
-import type { TransactionEmotion } from '@/types/finance'
+import type { EmotionalInsightsContext } from '@/services/ai-advisor'
+import type { AIInsight, TransactionEmotion } from '@/types/finance'
+
+/** Map internal emotion values to the Portuguese keys the AI prompt expects. */
+const EMOTION_KEY: Record<TransactionEmotion, string> = {
+  happy: 'feliz',
+  necessary: 'necessario',
+  neutral: 'neutro',
+  regret: 'arrependido',
+  impulsive: 'impulsivo',
+}
+
+const WEEKDAYS_LONG = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
+
+type TimeOfDay = 'manha' | 'tarde' | 'noite' | 'madrugada'
+
+function periodOf(hour: number): TimeOfDay {
+  if (hour >= 6 && hour < 12) return 'manha'
+  if (hour >= 12 && hour < 18) return 'tarde'
+  if (hour >= 18 && hour < 24) return 'noite'
+  return 'madrugada'
+}
+
+const PERIOD_LABEL: Record<TimeOfDay, string> = {
+  manha: 'manhã',
+  tarde: 'tarde',
+  noite: 'noite',
+  madrugada: 'madrugada',
+}
+
+const INSIGHT_ICON: Record<AIInsight['tipo'], typeof Brain> = {
+  alerta: AlertTriangle,
+  oportunidade: Lightbulb,
+  educacao: BookOpen,
+  comportamento: Brain,
+}
+
+/** weekday index 0=Seg..6=Dom from a JS Date */
+function weekdayIndex(jsDay: number): number {
+  return (jsDay + 6) % 7
+}
 
 interface EmotionMeta {
   value: TransactionEmotion
@@ -39,6 +81,8 @@ interface Props {
 
 export function EmotionalSpendingCard({ familyId, year, month, loading }: Props) {
   const { transactions, loading: txLoading } = useTransactions(familyId, year, month)
+  const { member } = useAuth()
+  const memberId = member?.id
 
   const analysis = useMemo(() => {
     const byEmotion = new Map<TransactionEmotion, number>()
@@ -89,6 +133,213 @@ export function EmotionalSpendingCard({ familyId, year, month, loading }: Props)
     return { byEmotion, ranked, totalSpending }
   }, [transactions])
 
+  // ---- Build the EmotionalInsightsContext for the AI ----
+  // Aggregates temporal data (weekday/period) alongside the emotion breakdown.
+  const aiContext = useMemo<EmotionalInsightsContext | null>(() => {
+    const breakdown: EmotionalInsightsContext['breakdown'] = {}
+    let totalEmotionalSpending = 0
+    let totalTxWithEmotion = 0
+
+    // per-emotion totals + top category (reuse analysis.ranked where possible)
+    for (const r of analysis.ranked) {
+      const key = EMOTION_KEY[r.value]
+      breakdown[key] = {
+        total: r.total,
+        count: 0, // filled below
+        top_category: r.topCat?.name || null,
+      }
+      totalEmotionalSpending += r.total
+    }
+
+    // weekday x period aggregation for temporal insights
+    const byWeekday = new Map<TransactionEmotion, number[]>()
+    const byPeriod = new Map<TimeOfDay, Map<TransactionEmotion, number>>()
+    let meaningfulTimeCount = 0
+    let totalTxWithTime = 0
+    let hasHeatmapData = false
+    let noLateNight = true
+
+    for (const e of Object.keys(EMOTION_KEY) as TransactionEmotion[]) {
+      byWeekday.set(e, Array(7).fill(0))
+    }
+
+    for (const tx of transactions) {
+      const emotion = tx.emotion
+      if (!emotion) continue
+      if (tx.type === 'income') continue
+      if (tx.amount <= 0) continue
+      totalTxWithEmotion++
+      // increment count in breakdown
+      const key = EMOTION_KEY[emotion]
+      if (breakdown[key]) breakdown[key].count += 1
+      else
+        breakdown[key] = {
+          total: tx.amount,
+          count: 1,
+          top_category: tx.expand?.category_id?.name || null,
+        }
+
+      const dateStr = tx.transaction_date
+      if (!dateStr) continue
+      const d = new Date(dateStr)
+      if (Number.isNaN(d.getTime())) continue
+
+      const wd = weekdayIndex(d.getDay())
+      const hour = d.getHours()
+      const min = d.getMinutes()
+      const sec = d.getSeconds()
+      const isDefaultTime = hour === 12 && min === 0 && sec === 0
+      totalTxWithTime++
+      if (!isDefaultTime) meaningfulTimeCount++
+
+      const wdArr = byWeekday.get(emotion)
+      if (wdArr) {
+        wdArr[wd] += tx.amount
+        hasHeatmapData = true
+      }
+
+      const period = periodOf(hour)
+      if (period === 'madrugada' && !isDefaultTime) noLateNight = false
+      let pMap = byPeriod.get(period)
+      if (!pMap) {
+        pMap = new Map()
+        byPeriod.set(period, pMap)
+      }
+      pMap.set(emotion, (pMap.get(emotion) || 0) + tx.amount)
+    }
+
+    const timeAvailable = meaningfulTimeCount > 0
+
+    // dominant emotion
+    const dominant = analysis.ranked[0] || null
+    const dominantPct =
+      dominant && analysis.totalSpending > 0 ? dominant.total / analysis.totalSpending : 0
+
+    // peak: emotion x period with the highest total (only when timeAvailable)
+    let peak: EmotionalInsightsContext['temporal']['peak'] = null
+    if (timeAvailable) {
+      let bestTotal = -1
+      let bestEmotion: TransactionEmotion | null = null
+      let bestPeriod: TimeOfDay | null = null
+      for (const [period, pMap] of byPeriod) {
+        for (const [emotion, total] of pMap) {
+          if (total > bestTotal) {
+            bestTotal = total
+            bestEmotion = emotion
+            bestPeriod = period
+          }
+        }
+      }
+      if (bestEmotion && bestPeriod && bestTotal > 0) {
+        // best weekday for that emotion
+        const wdArr = byWeekday.get(bestEmotion)!
+        let bestWd = 0
+        let bestWdTotal = -1
+        wdArr.forEach((v, i) => {
+          if (v > bestWdTotal) {
+            bestWdTotal = v
+            bestWd = i
+          }
+        })
+        peak = {
+          emotion: EMOTION_KEY[bestEmotion],
+          weekday: WEEKDAYS_LONG[bestWd],
+          period: PERIOD_LABEL[bestPeriod],
+          total: bestTotal,
+        }
+      }
+    }
+
+    // concentration: period represents >=40% of an emotion's spending
+    let concentration: EmotionalInsightsContext['temporal']['concentration'] = null
+    if (timeAvailable) {
+      for (const e of Object.keys(EMOTION_KEY) as TransactionEmotion[]) {
+        let eTotal = 0
+        for (const pMap of byPeriod.values()) eTotal += pMap.get(e) || 0
+        if (eTotal <= 0) continue
+        for (const [period, pMap] of byPeriod) {
+          const total = pMap.get(e) || 0
+          if (total <= 0) continue
+          const pct = total / eTotal
+          if (pct >= 0.4 && total >= 50 && (!concentration || pct > concentration.pct)) {
+            concentration = {
+              emotion: EMOTION_KEY[e],
+              period: PERIOD_LABEL[period],
+              pct: Math.round(pct * 100),
+              total,
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      month,
+      year,
+      total_transactions_with_emotion: totalTxWithEmotion,
+      total_emotional_spending: totalEmotionalSpending,
+      breakdown,
+      dominant_emotion: dominant ? EMOTION_KEY[dominant.value] : null,
+      dominant_pct: Math.round(dominantPct * 100),
+      is_dominant: dominantPct > 0.5,
+      temporal: {
+        time_available: timeAvailable,
+        peak,
+        concentration,
+        no_late_night_spending: noLateNight,
+        heatmap_has_data: hasHeatmapData,
+      },
+    }
+  }, [analysis, transactions, month, year])
+
+  const hasEmotionData = analysis.ranked.length > 0
+  const hasEnoughData = aiContext ? aiContext.total_transactions_with_emotion >= 5 : false
+
+  // Static fallback insight (same rules as before, kept as fallback)
+  const staticFallbackInsight = useMemo(() => {
+    if (!hasEmotionData) {
+      return ['Comece a marcar suas emoções nas transações para ver padrões aqui.']
+    }
+    const dominant = analysis.ranked[0]
+    const dominantPct = analysis.totalSpending > 0 ? dominant.total / analysis.totalSpending : 0
+    const isDominant = dominantPct > 0.5
+    if (isDominant) {
+      const pct = Math.round(dominantPct * 100)
+      const topCatName = dominant.topCat?.name || '—'
+      switch (dominant.value) {
+        case 'necessary':
+          return [`${pct}% dos seus gastos este mês foram necessários. Bom controle!`]
+        case 'impulsive':
+          return [
+            `Você gastou ${formatBRL(dominant.total)} em compras impulsivas. Considere esperar 24h antes de comprar online.`,
+          ]
+        case 'regret':
+          return [
+            `Compras com arrependimento somam ${formatBRL(dominant.total)}. Sua principal categoria de arrependimento é ${topCatName}.`,
+          ]
+        case 'happy':
+          return [
+            `${pct}% dos seus gastos trouxeram felicidade. Sua principal categoria de alegria é ${topCatName}.`,
+          ]
+        default:
+          return [
+            `Sua emoção dominante este mês foi ${dominant.label.toLowerCase()}, com ${formatBRL(dominant.total)} (${pct}% do total).`,
+          ]
+      }
+    }
+    return [
+      `Sua emoção com maior gasto foi ${dominant.label.toLowerCase()} (${formatBRL(dominant.total)}), mas nenhuma emoção domina mais de 50% dos seus gastos — bom equilíbrio.`,
+    ]
+  }, [analysis, hasEmotionData])
+
+  const { aiInsights, loading: aiLoading } = useEmotionalInsights(
+    familyId,
+    memberId,
+    aiContext,
+    staticFallbackInsight,
+    hasEnoughData,
+  )
+
   const isLoading = loading || txLoading
 
   if (isLoading) {
@@ -109,36 +360,6 @@ export function EmotionalSpendingCard({ familyId, year, month, loading }: Props)
 
   const hasData = analysis.ranked.length > 0
   const maxValue = analysis.ranked.length ? Math.max(...analysis.ranked.map((r) => r.total)) : 1
-
-  const dominant = analysis.ranked[0]
-  const dominantPct = analysis.totalSpending > 0 ? dominant.total / analysis.totalSpending : 0
-  const isDominant = dominantPct > 0.5
-
-  let insight: string
-  if (!hasData) {
-    insight = 'Comece a marcar suas emoções nas transações para ver padrões aqui.'
-  } else if (isDominant) {
-    const pct = Math.round(dominantPct * 100)
-    const topCatName = dominant.topCat?.name || '—'
-    switch (dominant.value) {
-      case 'necessary':
-        insight = `${pct}% dos seus gastos este mês foram necessários. Bom controle!`
-        break
-      case 'impulsive':
-        insight = `Você gastou ${formatBRL(dominant.total)} em compras impulsivas. Considere esperar 24h antes de comprar online.`
-        break
-      case 'regret':
-        insight = `Compras com arrependimento somam ${formatBRL(dominant.total)}. Sua principal categoria de arrependimento é ${topCatName}.`
-        break
-      case 'happy':
-        insight = `${pct}% dos seus gastos trouxeram felicidade. Sua principal categoria de alegria é ${topCatName}.`
-        break
-      default:
-        insight = `Sua emoção dominante este mês foi ${dominant.label.toLowerCase()}, com ${formatBRL(dominant.total)} (${pct}% do total).`
-    }
-  } else {
-    insight = `Sua emoção com maior gasto foi ${dominant.label.toLowerCase()} (${formatBRL(dominant.total)}), mas nenhuma emoção domina mais de 50% dos seus gastos — bom equilíbrio.`
-  }
 
   return (
     <Card className="rounded-xl shadow-sm">
@@ -210,16 +431,62 @@ export function EmotionalSpendingCard({ familyId, year, month, loading }: Props)
           </div>
         )}
 
-        {/* c) Insight */}
-        <div className="mt-4 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-lg">
-          <div className="flex items-start gap-2">
-            <Brain className="h-4 w-4 text-[#166534] dark:text-emerald-400 shrink-0 mt-0.5" />
-            <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">{insight}</p>
-          </div>
+        {/* c) Insight — IA (Gemini) com fallback estático */}
+        <div className="mt-4 space-y-2">
+          {aiLoading ? (
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-lg space-y-2">
+              <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider">
+                  Gerando insights com IA...
+                </span>
+              </div>
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-4/5" />
+              <Skeleton className="h-3 w-3/5" />
+            </div>
+          ) : aiInsights.length > 0 ? (
+            <div className="space-y-1.5">
+              <h3 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <Sparkles className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                Insights da IA
+              </h3>
+              {aiInsights.map((ins, i) => {
+                const Icon = INSIGHT_ICON[ins.tipo] || Brain
+                return (
+                  <div
+                    key={i}
+                    className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-lg"
+                  >
+                    <div className="flex items-start gap-2">
+                      <Icon className="h-4 w-4 text-[#166534] dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-900 dark:text-foreground leading-snug">
+                          {ins.titulo}
+                        </p>
+                        <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed mt-0.5">
+                          {ins.descricao}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-lg">
+              <div className="flex items-start gap-2">
+                <Brain className="h-4 w-4 text-[#166534] dark:text-emerald-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+                  {staticFallbackInsight[0]}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* d) Padrões Temporais (heatmap + período do dia + insights) */}
-        <EmotionalTemporalAnalysis transactions={transactions} />
+        <EmotionalTemporalAnalysis transactions={transactions} aiInsights={aiInsights} />
       </CardContent>
     </Card>
   )

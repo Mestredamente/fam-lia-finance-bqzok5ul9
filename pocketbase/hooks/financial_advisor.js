@@ -15,8 +15,10 @@ routerAdd(
     if (!familyId || !memberId || !reqType) {
       return e.json(400, { error: 'Parâmetros obrigatórios ausentes.' })
     }
-    if (reqType !== 'chat' && reqType !== 'insights') {
-      return e.json(400, { error: 'Tipo inválido. Use "chat" ou "insights".' })
+    if (reqType !== 'chat' && reqType !== 'insights' && reqType !== 'emotional_insights') {
+      return e.json(400, {
+        error: 'Tipo inválido. Use "chat", "insights" ou "emotional_insights".',
+      })
     }
 
     var family = null
@@ -24,6 +26,82 @@ routerAdd(
       family = $app.findRecordById('families', familyId)
     } catch (_) {
       return e.json(404, { error: 'Família não encontrada.' })
+    }
+
+    // ---- emotional_insights: context comes pre-aggregated from the frontend ----
+    // Does NOT need the full family financial snapshot. Falls back to an empty
+    // insights array on any AI failure so the frontend can use static fallback.
+    if (reqType === 'emotional_insights') {
+      var emoContext = body.context || null
+      if (!emoContext || typeof emoContext !== 'object') {
+        return e.json(200, { success: true, insights: [] })
+      }
+
+      var emoPrompt =
+        'Você é um consultor financeiro comportamental especializado em psicologia do consumo. Analise os padrões emocionais de gasto desta família no mês e gere EXATAMENTE 3 insights. Diretrizes:\n\nContexto (dados agregados enviados pelo frontend em JSON):\n' +
+        JSON.stringify(emoContext) +
+        '\n\nREGRAS:\n' +
+        "1. CADA insight deve ser um objeto com: titulo (5-8 palavras), descricao (1-2 frases, máx 150 caracteres), tipo ('alerta' | 'oportunidade' | 'educacao' | 'comportamento')\n" +
+        '2. O insight DEVE ser específico aos dados fornecidos — NUNCA genérico\n' +
+        "3. Tom: empático, não-julgador, motivacional. Use 'você' e verbos no presente.\n" +
+        '4. Foque em PADRÕES e RECOMENDAÇÕES PRÁTICAS\n' +
+        '5. Se um dado não estiver no contexto, NÃO o invente\n' +
+        '6. Se não houver dados suficientes (menos de 5 transações), gere apenas 1 insight genérico incentivando o registro de emoções\n\n' +
+        'Exemplos de bons insights:\n' +
+        '- "Suas noites de sexta têm o dobro de gastos — R$ 520 em delivery. Que tal um jantar especial em casa uma vez por mês? Sua carteira e seu paladar agradecem."\n' +
+        '- "Metade dos seus gastos impulsivos acontece à tarde. Tente esperar 30 minutos antes de finalizar compras online nesse período."\n\n' +
+        'Responda APENAS com o JSON array: [{"titulo":"...","descricao":"...","tipo":"..."}, ...]'
+
+      var emoMessages = [
+        { role: 'system', content: emoPrompt },
+        { role: 'user', content: 'Gere os insights com base no contexto fornecido.' },
+      ]
+
+      var emoResult = null
+      var emoError = null
+      try {
+        emoResult = $ai.chat({ model: 'fast', messages: emoMessages })
+      } catch (err) {
+        emoError = err
+      }
+
+      if (emoError || !emoResult || !emoResult.choices || !emoResult.choices[0]) {
+        return e.json(200, { success: true, insights: [] })
+      }
+
+      var emoContent = emoResult.choices[0].message.content
+      var emoJsonStr = emoContent
+      var emoCbMatch = emoContent.match(/```(?:json)?\s*([\s\S]*?)```/)
+      if (emoCbMatch) {
+        emoJsonStr = emoCbMatch[1]
+      } else {
+        var emoArrS = emoContent.indexOf('[')
+        var emoArrE = emoContent.lastIndexOf(']')
+        if (emoArrS !== -1 && emoArrE !== -1)
+          emoJsonStr = emoContent.substring(emoArrS, emoArrE + 1)
+      }
+
+      try {
+        var emoInsights = JSON.parse(emoJsonStr)
+        if (!Array.isArray(emoInsights)) emoInsights = []
+        // Normalize: ensure prioridade + acao_recomendada defaults so the
+        // response matches the AIInsight shape used by type:'insights'.
+        for (var ei = 0; ei < emoInsights.length; ei++) {
+          if (!emoInsights[ei].prioridade) emoInsights[ei].prioridade = 'media'
+          if (!emoInsights[ei].acao_recomendada) emoInsights[ei].acao_recomendada = ''
+          if (
+            emoInsights[ei].tipo !== 'alerta' &&
+            emoInsights[ei].tipo !== 'oportunidade' &&
+            emoInsights[ei].tipo !== 'educacao' &&
+            emoInsights[ei].tipo !== 'comportamento'
+          ) {
+            emoInsights[ei].tipo = 'comportamento'
+          }
+        }
+        return e.json(200, { success: true, insights: emoInsights })
+      } catch (_) {
+        return e.json(200, { success: true, insights: [] })
+      }
     }
 
     function fmtBRL(v) {

@@ -3,7 +3,12 @@ import { PieChart, Pie, Cell } from 'recharts'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import { formatBRL, getMonthName } from '@/lib/utils'
-import type { MemberRecord, TransactionRecord, TransactionEmotion } from '@/types/finance'
+import type {
+  AIInsight,
+  MemberRecord,
+  TransactionRecord,
+  TransactionEmotion,
+} from '@/types/finance'
 
 const PAGE_W = 210 // A4 width in mm
 const PAGE_H = 297
@@ -58,6 +63,8 @@ export interface DashboardPdfData {
   members: MemberRecord[]
   memberSummaries: Record<string, { totalReceitas: number; totalDespesas: number; saldo: number }>
   futureInstallments: TransactionRecord[]
+  /** Insights emocionais gerados pela IA (opcional). Se ausente, usa fallback estático. */
+  emotionInsights?: AIInsight[]
 }
 
 function sanitizeFileName(name: string): string {
@@ -484,8 +491,16 @@ export async function generateDashboardPdf(
   data: DashboardPdfData,
   captureContainer: HTMLDivElement | null,
 ): Promise<boolean> {
-  const { familyName, month, year, transactions, members, memberSummaries, futureInstallments } =
-    data
+  const {
+    familyName,
+    month,
+    year,
+    transactions,
+    members,
+    memberSummaries,
+    futureInstallments,
+    emotionInsights,
+  } = data
 
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
   pdf.setFont('helvetica')
@@ -747,23 +762,49 @@ export async function generateDashboardPdf(
       y += imgH + 6
     }
 
-    // Insights
-    const insights = buildEmotionInsights(agg)
-    if (insights.length > 0) {
-      ensureSpace(8 + insights.length * 6)
+    // Insights — IA (emotionInsights) se disponível, senão fallback estático
+    const useAiInsights = emotionInsights && emotionInsights.length > 0
+    const staticInsights = buildEmotionInsights(agg)
+    if (useAiInsights || staticInsights.length > 0) {
+      ensureSpace(8 + (useAiInsights ? emotionInsights!.length : staticInsights.length) * 8)
       pdf.setTextColor(COLORS.primary)
       pdf.setFontSize(9)
       pdf.setFont('helvetica', 'bold')
-      pdf.text('Insights automáticos', MARGIN, y)
+      pdf.text(useAiInsights ? 'Insights da IA' : 'Insights automáticos', MARGIN, y)
       y += 5
       pdf.setFont('helvetica', 'normal')
       pdf.setTextColor(COLORS.text)
-      for (const ins of insights) {
-        const lines = pdf.splitTextToSize(`• ${ins}`, CONTENT_W - 4)
-        for (const line of lines) {
-          ensureSpace(5)
-          pdf.text(line, MARGIN + 2, y)
-          y += 5
+      if (useAiInsights) {
+        for (const ins of emotionInsights!) {
+          // título em negrito
+          pdf.setFont('helvetica', 'bold')
+          pdf.setFontSize(9)
+          const titleLines = pdf.splitTextToSize(`• ${ins.titulo}`, CONTENT_W - 4)
+          for (const line of titleLines) {
+            ensureSpace(5)
+            pdf.text(line, MARGIN + 2, y)
+            y += 5
+          }
+          // descrição em normal
+          pdf.setFont('helvetica', 'normal')
+          pdf.setFontSize(8)
+          const descLines = pdf.splitTextToSize(ins.descricao, CONTENT_W - 6)
+          for (const line of descLines) {
+            ensureSpace(4)
+            pdf.text(line, MARGIN + 4, y)
+            y += 4
+          }
+          y += 2
+        }
+      } else {
+        pdf.setFontSize(9)
+        for (const ins of staticInsights) {
+          const lines = pdf.splitTextToSize(`• ${ins}`, CONTENT_W - 4)
+          for (const line of lines) {
+            ensureSpace(5)
+            pdf.text(line, MARGIN + 2, y)
+            y += 5
+          }
         }
       }
       y += 4
