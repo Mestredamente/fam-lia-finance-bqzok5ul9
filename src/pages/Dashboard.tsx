@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Plus,
   Sparkles,
@@ -58,6 +58,13 @@ import { useDashboardLayout, CARD_TITLES, type DashboardCardId } from '@/hooks/u
 import { MobileMonthPicker } from '@/components/MobileMonthPicker'
 import { FabMenu, ExportBottomSheet, type FabMenuAction } from '@/components/FabMenu'
 import { useIsMobile } from '@/hooks/use-mobile'
+import {
+  PdfCaptureTargets,
+  useGeneratePdf,
+  type DashboardPdfData,
+} from '@/components/DashboardPdfExport'
+import { useFutureInstallments } from '@/hooks/use-future-installments'
+import { toast } from '@/hooks/use-toast'
 
 export default function Dashboard() {
   const { family, member } = useAuth()
@@ -79,6 +86,11 @@ export default function Dashboard() {
   const isMobile = useIsMobile()
 
   const { cards, toggleVisible, moveCard, resetLayout } = useDashboardLayout()
+
+  // Off-screen container holding the donut chart + heatmap for PDF capture.
+  const pdfCaptureRef = useRef<HTMLDivElement | null>(null)
+  const generatePdf = useGeneratePdf(pdfCaptureRef)
+  const { installments: futureInstallments } = useFutureInstallments(family?.id)
 
   // Auto-recover from a corrupted localStorage state: if too few cards are
   // visible on first load, reset to the default layout so the dashboard never
@@ -336,6 +348,35 @@ export default function Dashboard() {
     }, 200)
   }
 
+  const handleExportFullPdf = async () => {
+    if (!family) return
+    setExporting(true)
+    const data: DashboardPdfData = {
+      familyName: family.name,
+      month,
+      year,
+      transactions: monthTransactions,
+      members,
+      memberSummaries: summary.memberSummaries,
+      futureInstallments,
+    }
+    try {
+      // allow the off-screen capture targets to render before capturing
+      await new Promise((r) => setTimeout(r, 150))
+      const ok = await generatePdf(data)
+      if (!ok) throw new Error('Falha ao gerar PDF')
+      toast({ title: 'PDF gerado', description: 'O relatório foi baixado com sucesso.' })
+    } catch {
+      toast({
+        title: 'Erro ao gerar PDF',
+        description: 'Não foi possível gerar o relatório. Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const handleFabAction = (a: FabMenuAction) => {
     switch (a.type) {
       case 'transaction':
@@ -463,6 +504,21 @@ export default function Dashboard() {
               </button>
               <button
                 type="button"
+                title="Exportar PDF"
+                onClick={handleExportFullPdf}
+                disabled={exporting}
+                className="inline-flex items-center gap-1.5 h-9 px-3 py-2 text-sm rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
+              >
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">Exportar PDF</span>
+                <span className="sm:hidden">PDF</span>
+              </button>
+              <button
+                type="button"
                 title="Ver todas"
                 onClick={() => setPeriod('tudo')}
                 disabled={period === 'tudo'}
@@ -563,8 +619,21 @@ export default function Dashboard() {
         open={showExportSheet}
         onClose={() => setShowExportSheet(false)}
         onCSV={handleExportCSV}
-        onPDF={handleExportPDF}
+        onPDF={handleExportFullPdf}
         exporting={exporting}
+      />
+      {/* Off-screen capture targets for PDF export (donut chart + heatmap) */}
+      <PdfCaptureTargets
+        containerRef={pdfCaptureRef}
+        data={{
+          familyName: family.name,
+          month,
+          year,
+          transactions: monthTransactions,
+          members,
+          memberSummaries: summary.memberSummaries,
+          futureInstallments,
+        }}
       />
       <MobileMonthPicker
         open={showMonthPicker}
