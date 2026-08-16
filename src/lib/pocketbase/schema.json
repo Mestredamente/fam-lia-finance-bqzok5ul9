@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-16T04:10:51.202Z",
+  "generatedAt": "2026-08-16T04:15:26.594Z",
   "collections": [
     {
       "name": "users",
@@ -1647,11 +1647,11 @@
       "name": "categorization_rules",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "family_id.created_by = @request.auth.id || (@collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id)",
+        "view": "family_id.created_by = @request.auth.id || (@collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id)",
+        "create": "family_id.created_by = @request.auth.id || (@collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id && @collection.members.perm_edit_others ?= true)",
+        "update": "family_id.created_by = @request.auth.id || (@collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id && @collection.members.perm_manage_members ?= true)",
+        "delete": "family_id.created_by = @request.auth.id || (@collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id && @collection.members.perm_manage_members ?= true)"
       },
       "fields": [
         {
@@ -1711,11 +1711,11 @@
       "name": "budgets",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "family_id.created_by = @request.auth.id || (@collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id)",
+        "view": "family_id.created_by = @request.auth.id || (@collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id)",
+        "create": "family_id.created_by = @request.auth.id || (@collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id && @collection.members.perm_edit_others ?= true)",
+        "update": "family_id.created_by = @request.auth.id || (@collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id && @collection.members.perm_edit_others ?= true)",
+        "delete": "family_id.created_by = @request.auth.id || (@collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id && @collection.members.perm_edit_others ?= true)"
       },
       "fields": [
         {
