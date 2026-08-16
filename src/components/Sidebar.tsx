@@ -72,7 +72,6 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ]
 
-const DEFAULT_OPEN = ['Visão Geral', 'Finanças']
 const STORAGE_KEY = 'ff_sidebar_collapsed'
 
 export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -82,22 +81,29 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   const perms = usePermissions()
   const pendingCount = usePendingInvoicesCount(family?.id)
 
-  const [collapsed, setCollapsed] = useState<Set<string>>(
-    () => new Set(NAV_GROUPS.map((g) => g.label).filter((l) => !DEFAULT_OPEN.includes(l))),
-  )
-  const [isMobile, setIsMobile] = useState(false)
-  const touchStartX = useRef(0)
+  const computeInitialCollapsed = (pathname: string) => {
+    const activeGroup =
+      pathname === '/'
+        ? 'Visão Geral'
+        : (NAV_GROUPS.find((g) =>
+            g.items.some((item) => pathname === item.path || pathname.startsWith(item.path + '/')),
+          )?.label ?? 'Visão Geral')
+    return new Set(NAV_GROUPS.map((g) => g.label).filter((l) => l !== activeGroup))
+  }
 
-  useEffect(() => {
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
       try {
-        setCollapsed(new Set(JSON.parse(saved)))
+        return new Set(JSON.parse(saved))
       } catch {
         /* intentionally ignored */
       }
     }
-  }, [])
+    return computeInitialCollapsed(window.location.pathname)
+  })
+  const [isMobile, setIsMobile] = useState(false)
+  const touchStartX = useRef(0)
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1023px)')
@@ -107,10 +113,9 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     return () => mq.removeEventListener('change', handler)
   }, [])
 
-  const effectiveCollapsed = isMobile ? new Set<string>() : collapsed
+  const effectiveCollapsed = collapsed
 
   const toggleGroup = (label: string) => {
-    if (isMobile) return
     const next = new Set(collapsed)
     if (next.has(label)) next.delete(label)
     else next.add(label)
