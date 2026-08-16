@@ -41,7 +41,7 @@ import { TransactionFormSheet } from '@/components/TransactionFormSheet'
 import { ScenarioComparator } from '@/components/ScenarioComparator'
 import { exportToCSV } from '@/lib/export-utils'
 import { DashboardInstallBanner } from '@/components/DashboardInstallBanner'
-import { MemberRecord } from '@/types/finance'
+import { MemberRecord, AIInsight } from '@/types/finance'
 import { getActiveMembersByFamilyId } from '@/services/members'
 import { getMonthName } from '@/lib/utils'
 import { ComprometimentoFuturoCard } from '@/components/ComprometimentoFuturoCard'
@@ -91,6 +91,17 @@ export default function Dashboard() {
   const pdfCaptureRef = useRef<HTMLDivElement | null>(null)
   const generatePdf = useGeneratePdf(pdfCaptureRef)
   const { installments: futureInstallments } = useFutureInstallments(family?.id)
+
+  // Holds the AI-generated emotional insights surfaced by the
+  // EmotionalSpendingCard so they can be included in the PDF export. Using a
+  // ref avoids re-rendering the dashboard when insights load.
+  const emotionInsightsRef = useRef<AIInsight[]>([])
+
+  // Stable callback so EmotionalSpendingCard's effect doesn't re-fire on every
+  // render and overwrite valid insights.
+  const handleEmotionInsightsLoaded = useCallback((insights: AIInsight[]) => {
+    emotionInsightsRef.current = insights
+  }, [])
 
   // Auto-recover from a corrupted localStorage state: if too few cards are
   // visible on first load, reset to the default layout so the dashboard never
@@ -231,13 +242,26 @@ export default function Dashboard() {
               year={year}
               month={month}
               loading={loading}
+              onInsightsLoaded={handleEmotionInsightsLoaded}
             />
           )
         default:
           return null
       }
     },
-    [family, summary, loading, error, refetch, year, month, members, member?.id, editMode],
+    [
+      family,
+      summary,
+      loading,
+      error,
+      refetch,
+      year,
+      month,
+      members,
+      member?.id,
+      editMode,
+      handleEmotionInsightsLoaded,
+    ],
   )
 
   // Render each card in order, wrapping visible ones in CustomizableCard and
@@ -352,6 +376,8 @@ export default function Dashboard() {
       members,
       memberSummaries: summary.memberSummaries,
       futureInstallments,
+      emotionInsights:
+        emotionInsightsRef.current.length > 0 ? emotionInsightsRef.current : undefined,
     }
     try {
       // allow the off-screen capture targets to render before capturing

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { Brain, Lightbulb, AlertTriangle, BookOpen, Sparkles } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -77,9 +77,11 @@ interface Props {
   year: number
   month: number
   loading?: boolean
+  /** Notifies the parent whenever AI insights are loaded (non-empty only). */
+  onInsightsLoaded?: (insights: AIInsight[]) => void
 }
 
-export function EmotionalSpendingCard({ familyId, year, month, loading }: Props) {
+export function EmotionalSpendingCard({ familyId, year, month, loading, onInsightsLoaded }: Props) {
   const { transactions, loading: txLoading } = useTransactions(familyId, year, month)
   const { member } = useAuth()
   const memberId = member?.id
@@ -339,6 +341,15 @@ export function EmotionalSpendingCard({ familyId, year, month, loading }: Props)
     staticFallbackInsight,
     hasEnoughData,
   )
+
+  // Communicate AI insights back to the parent (e.g. for PDF export) whenever
+  // they change. Only called with non-empty arrays so a loading/fallback state
+  // never overwrites previously-loaded valid insights.
+  useEffect(() => {
+    if (aiInsights.length > 0 && onInsightsLoaded) {
+      onInsightsLoaded(aiInsights)
+    }
+  }, [aiInsights, onInsightsLoaded])
 
   const isLoading = loading || txLoading
 
