@@ -1,17 +1,47 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { Plus, Sparkles, Eye, SlidersHorizontal, Check } from 'lucide-react'
+import {
+  Plus,
+  Sparkles,
+  Eye,
+  SlidersHorizontal,
+  Check,
+  MoreHorizontal,
+  Download,
+  Wallet,
+  TrendingUp,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  FileSpreadsheet,
+  Loader2,
+} from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useMonthlySummary } from '@/hooks/use-monthly-summary'
-import { PeriodSelector } from '@/components/PeriodSelector'
-import { type PeriodType } from '@/lib/period-utils'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { type PeriodType, periodLabels } from '@/lib/period-utils'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { MemberDetailSheet } from '@/components/MemberDetailSheet'
 import { InviteCodeDialog } from '@/components/InviteCodeDialog'
 import { UnifiedHealthCard } from '@/components/UnifiedHealthCard'
 import { TransactionFormSheet } from '@/components/TransactionFormSheet'
 import { ScenarioComparator } from '@/components/ScenarioComparator'
-import { ExportButton } from '@/components/ExportButton'
+import { exportToCSV, exportToPDF } from '@/lib/export-utils'
 import { DashboardInstallBanner } from '@/components/DashboardInstallBanner'
 import { MemberRecord } from '@/types/finance'
 import { getActiveMembersByFamilyId } from '@/services/members'
@@ -42,6 +72,7 @@ export default function Dashboard() {
   const [scenarioTab, setScenarioTab] = useState<string | undefined>(undefined)
   const [period, setPeriod] = useState<PeriodType>('mes')
   const [editMode, setEditMode] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   const { cards, toggleVisible, moveCard, resetLayout } = useDashboardLayout()
 
@@ -274,82 +305,142 @@ export default function Dashboard() {
     setScenarioTab(scenario)
     setShowScenarioModal(true)
   }
+  const handleExportCSV = () => exportToCSV(monthTransactions, month, year)
+  const handleExportPDF = () => {
+    setExporting(true)
+    setTimeout(() => {
+      exportToPDF(monthTransactions, month, year)
+      setExporting(false)
+    }, 200)
+  }
 
   const memberSummary = selectedMember ? summary.memberSummaries[selectedMember.id] : undefined
 
   return (
     <div className="space-y-8 animate-fade-in">
       <DashboardInstallBanner />
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="space-y-3">
         <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Resumo Financeiro</h1>
-        <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
-          <PeriodSelector
-            period={period}
-            onPeriodChange={setPeriod}
-            onPrevMonth={() => setCurrentDate(new Date(year, month - 1, 1))}
-            onNextMonth={() => canGoForward() && setCurrentDate(new Date(year, month + 1, 1))}
-            nextDisabled={!canGoForward()}
-            monthLabel={`${getMonthName(month)} ${year}`}
-            year={year}
-            month={month}
-          />
-          {isFutureMonth && (
-            <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-indigo-500 text-white">
-              Projeção
-            </span>
-          )}
-          {period !== 'tudo' && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs"
-              onClick={() => setPeriod('tudo')}
+        <div className="flex items-center gap-2">
+          {/* ZONA ESQUERDA — Navegação temporal */}
+          <div className="flex-1 flex items-center gap-1 min-w-0">
+            <button
+              type="button"
+              title="Mês anterior"
+              onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
+              className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0"
             >
-              <Eye className="h-3 w-3 mr-1" />
-              Ver todas
-            </Button>
-          )}
-          <div className="flex items-center gap-2 ml-2">
-            <ExportButton transactions={monthTransactions} month={month} year={year} />
-            <Button
-              variant="outline"
-              size="sm"
-              className="min-h-[36px] min-w-[36px] px-3 py-2"
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <Select value={period} onValueChange={(v) => setPeriod(v as PeriodType)}>
+              <SelectTrigger className="h-8 w-auto min-w-[110px] text-sm rounded-lg border-0 bg-muted hover:bg-muted/80 px-3 py-1.5 shadow-none hidden sm:flex">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(periodLabels) as PeriodType[]).map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {periodLabels[p]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-sm font-medium text-foreground capitalize truncate px-1">
+              <span className="sm:hidden">{getMonthName(month)}</span>
+              <span className="hidden sm:inline">
+                {getMonthName(month)} {year}
+              </span>
+            </span>
+            {isFutureMonth && (
+              <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-500 text-white shrink-0">
+                Projeção
+              </span>
+            )}
+            <button
+              type="button"
+              title="Próximo mês"
+              onClick={() => canGoForward() && setCurrentDate(new Date(year, month + 1, 1))}
+              disabled={!canGoForward()}
+              className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors shrink-0 disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* ZONA CENTRO — Ações principais */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              title="Simular Cenários"
               onClick={() => openScenario()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors"
             >
               <Sparkles className="h-4 w-4" />
-              <span className="ml-1 sm:hidden text-xs">Cenários</span>
-              <span className="ml-1 hidden sm:inline">Simular Cenários</span>
-            </Button>
-            <Button
-              variant={editMode ? 'default' : 'outline'}
-              size="sm"
-              className="min-h-[36px] px-3 py-2"
+              <span className="hidden sm:inline">Simular Cenários</span>
+              <span className="sm:hidden">Cenários</span>
+            </button>
+            <button
+              type="button"
+              title="Personalizar"
               onClick={() => setEditMode((v) => !v)}
               aria-pressed={editMode}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors"
             >
-              {editMode ? (
-                <>
-                  <Check className="h-4 w-4" />
-                  <span className="ml-1">Concluir</span>
-                </>
-              ) : (
-                <>
-                  <SlidersHorizontal className="h-4 w-4" />
-                  <span className="ml-1 hidden sm:inline">Personalizar</span>
-                </>
-              )}
-            </Button>
-            <Link to="/orcamentos">
-              <Button variant="outline" size="sm">
-                Orçamentos
-              </Button>
-            </Link>
-            <Link to="/evolucao">
-              <Button variant="outline" size="sm">
-                Evolução
-              </Button>
-            </Link>
+              {editMode ? <Check className="h-4 w-4" /> : <SlidersHorizontal className="h-4 w-4" />}
+              <span className="hidden sm:inline">{editMode ? 'Concluir' : 'Personalizar'}</span>
+            </button>
+          </div>
+
+          {/* ZONA DIREITA — Menu overflow */}
+          <div className="flex-1 flex items-center justify-end gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  title="Mais opções"
+                  className="p-2 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Download className="h-4 w-4" />
+                    Exportar
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem onClick={handleExportCSV}>
+                      <FileSpreadsheet className="h-4 w-4" />
+                      CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportPDF} disabled={exporting}>
+                      {exporting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <FileText className="h-4 w-4" />
+                      )}
+                      PDF
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuItem onClick={() => setPeriod('tudo')} disabled={period === 'tudo'}>
+                  <Eye className="h-4 w-4" />
+                  Ver todas
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/orcamentos">
+                    <Wallet className="h-4 w-4" />
+                    Orçamentos
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/evolucao">
+                    <TrendingUp className="h-4 w-4" />
+                    Evolução
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
