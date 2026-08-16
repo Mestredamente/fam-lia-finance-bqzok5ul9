@@ -40,9 +40,9 @@ export function ExportButton({
   const handlePDF = async () => {
     setExporting(true)
     try {
-      // No capture container available on the Transactions page, so charts
-      // (donut + heatmap) are skipped — generateDashboardPdf falls back to a
-      // full-width category list and text-only emotional patterns.
+      // Generates the full multi-page PDF (pages 1–2 fall back to text-based
+      // category list / emotional patterns when no capture container is passed,
+      // and page 3+ — the transactions table — is always drawn from data).
       const ok = await generateDashboardPdf(
         {
           familyName,

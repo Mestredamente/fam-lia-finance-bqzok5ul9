@@ -873,6 +873,136 @@ export async function generateDashboardPdf(
 
   drawFooter()
 
+  // ============ PAGE 3+ — LISTA DETALHADA DE TRANSAÇÕES ============
+  // Drawn manually with jspdf (no html2canvas) so it works regardless of
+  // which page the user triggered the export from.
+  pdf.addPage()
+  y = MARGIN
+
+  const txColDate = MARGIN
+  const txColDesc = MARGIN + 28
+  const txColCat = MARGIN + 118
+  const txColVal = PAGE_W - MARGIN
+
+  // Section title
+  pdf.setFillColor(COLORS.sectionBg)
+  pdf.rect(MARGIN, y, CONTENT_W, 8, 'F')
+  pdf.setTextColor('#FFFFFF')
+  pdf.setFontSize(10)
+  pdf.setFont('helvetica', 'bold')
+  pdf.text(`Transações de ${getMonthName(month)} ${year}`, MARGIN + 3, y + 5.5)
+  y += 12
+
+  // Table header
+  pdf.setFillColor('#F9FAFB')
+  pdf.rect(MARGIN, y - 4, CONTENT_W, 7, 'F')
+  pdf.setFontSize(8)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setTextColor(COLORS.muted)
+  pdf.text('DATA', txColDate, y)
+  pdf.text('DESCRIÇÃO', txColDesc, y)
+  pdf.text('CATEGORIA', txColCat, y)
+  pdf.text('VALOR', txColVal, y, { align: 'right' })
+  y += 6
+
+  // Sort transactions by date desc
+  const sortedTx = [...transactions].sort(
+    (a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime(),
+  )
+
+  let totalExp = 0
+  let totalRec = 0
+  let rowIdx = 0
+  pdf.setFontSize(8)
+  pdf.setFont('helvetica', 'normal')
+  for (const tx of sortedTx) {
+    if (y + 6 > PAGE_H - 20) {
+      // paginate
+      drawFooter()
+      pdf.addPage()
+      y = MARGIN
+      // repeat header band
+      pdf.setFillColor(COLORS.sectionBg)
+      pdf.rect(MARGIN, y, CONTENT_W, 8, 'F')
+      pdf.setTextColor('#FFFFFF')
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(`Transações de ${getMonthName(month)} ${year} (cont.)`, MARGIN + 3, y + 5.5)
+      y += 12
+      pdf.setFillColor('#F9FAFB')
+      pdf.rect(MARGIN, y - 4, CONTENT_W, 7, 'F')
+      pdf.setFontSize(8)
+      pdf.setTextColor(COLORS.muted)
+      pdf.text('DATA', txColDate, y)
+      pdf.text('DESCRIÇÃO', txColDesc, y)
+      pdf.text('CATEGORIA', txColCat, y)
+      pdf.text('VALOR', txColVal, y, { align: 'right' })
+      y += 6
+      pdf.setFontSize(8)
+      pdf.setFont('helvetica', 'normal')
+      rowIdx = 0
+    }
+
+    if (tx.type === 'income') totalRec += tx.amount
+    else totalExp += tx.amount
+
+    // zebra striping
+    if (rowIdx % 2 === 0) {
+      pdf.setFillColor('#F9FAFB')
+      pdf.rect(MARGIN, y - 4, CONTENT_W, 6, 'F')
+    }
+
+    // date
+    const dStr = tx.transaction_date
+      ? new Date(tx.transaction_date).toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+        })
+      : '—'
+    pdf.setTextColor(COLORS.text)
+    pdf.text(dStr, txColDate, y)
+
+    // description
+    pdf.text(truncate(tx.description || '—', 48), txColDesc, y)
+
+    // category
+    const catName = tx.expand?.category_id?.name || 'Sem categoria'
+    pdf.setTextColor(COLORS.muted)
+    pdf.text(truncate(catName, 22), txColCat, y)
+
+    // value
+    const isIncome = tx.type === 'income'
+    pdf.setTextColor(isIncome ? COLORS.income : COLORS.expense)
+    pdf.setFont('helvetica', 'bold')
+    const valStr = `${isIncome ? '+' : '-'} ${formatBRL(tx.amount)}`
+    pdf.text(valStr, txColVal, y, { align: 'right' })
+    pdf.setFont('helvetica', 'normal')
+
+    y += 6
+    pdf.setDrawColor(COLORS.border)
+    pdf.setLineWidth(0.1)
+    pdf.line(MARGIN, y - 2, PAGE_W - MARGIN, y - 2)
+    rowIdx++
+  }
+
+  // Totals row
+  const totalSaldo = totalRec - totalExp
+  y += 4
+  ensureSpace(14)
+  pdf.setFillColor('#EFF6FF')
+  pdf.rect(MARGIN, y - 4, CONTENT_W, 10, 'F')
+  pdf.setFontSize(9)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setTextColor(COLORS.expense)
+  pdf.text(`Total de despesas: ${formatBRL(totalExp)}`, MARGIN + 3, y)
+  pdf.setTextColor(COLORS.income)
+  pdf.text(`Total de receitas: ${formatBRL(totalRec)}`, MARGIN + 75, y)
+  pdf.setTextColor(totalSaldo >= 0 ? COLORS.balancePos : COLORS.balanceNeg)
+  pdf.text(`Saldo: ${formatBRL(totalSaldo)}`, PAGE_W - MARGIN - 3, y, { align: 'right' })
+  y += 10
+
+  drawFooter()
+
   const fileName = `${sanitizeFileName(familyName)}_${getMonthName(month)}_${year}.pdf`
   pdf.save(fileName)
   return true
