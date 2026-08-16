@@ -154,7 +154,7 @@ export default function Casa() {
   if (!family) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-gray-500 text-sm">Carregando...</p>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">Carregando...</p>
       </div>
     )
   }
@@ -237,8 +237,10 @@ export default function Casa() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Planejador</h1>
-          <p className="text-sm text-gray-500">Tarefas e compromissos financeiros da família</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Planejador</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Tarefas e compromissos financeiros da família
+          </p>
         </div>
         <Button size="sm" onClick={openForm} className="bg-[#166534] hover:bg-[#15803D]">
           <Plus className="h-4 w-4 mr-1" /> Adicionar
@@ -304,7 +306,7 @@ export default function Casa() {
       ) : error ? (
         <Card className="border-red-200 rounded-2xl">
           <CardContent className="p-6 text-center space-y-3">
-            <p className="text-sm text-red-600">{error}</p>
+            <p className="text-sm text-danger">{error}</p>
             <Button size="sm" variant="outline" onClick={refetch}>
               Tentar novamente
             </Button>

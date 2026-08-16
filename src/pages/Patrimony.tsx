@@ -22,7 +22,7 @@ export default function Patrimony() {
   if (!family) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-gray-500 text-sm">Carregando...</p>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">Carregando...</p>
       </div>
     )
   }
@@ -36,7 +36,7 @@ export default function Patrimony() {
             'px-4 py-2 rounded-full text-sm font-medium transition-all',
             activeTab === 'investments'
               ? 'bg-[#166534] text-white'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700',
           )}
         >
           Investimentos
@@ -47,7 +47,7 @@ export default function Patrimony() {
             'px-4 py-2 rounded-full text-sm font-medium transition-all',
             activeTab === 'debts'
               ? 'bg-[#166534] text-white'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700',
           )}
         >
           Dívidas

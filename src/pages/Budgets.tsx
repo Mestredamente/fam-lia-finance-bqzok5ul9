@@ -89,7 +89,7 @@ export default function Budgets() {
   return (
     <div className="space-y-6 max-w-2xl mx-auto animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Orçamentos</h1>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Orçamentos</h1>
         <Button
           size="sm"
           onClick={() => {
@@ -114,7 +114,7 @@ export default function Budgets() {
             <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
               <Wallet className="h-6 w-6 text-[#166534]" />
             </div>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               Nenhum orçamento criado. Defina limites de gastos por categoria.
             </p>
           </CardContent>
@@ -137,7 +137,7 @@ export default function Budgets() {
                         <Icon className="h-5 w-5" style={{ color: cat?.color || '#999' }} />
                       </div>
                       <div>
-                        <h3 className="font-bold text-sm text-gray-900">
+                        <h3 className="font-bold text-sm text-gray-900 dark:text-foreground">
                           {cat?.name || 'Sem categoria'}
                         </h3>
                         {budget.expand?.member_id && (
@@ -157,7 +157,7 @@ export default function Budgets() {
                           setFormOpen(true)
                         }}
                       >
-                        <Pencil className="h-4 w-4 text-gray-500" />
+                        <Pencil className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -170,12 +170,14 @@ export default function Budgets() {
                     </div>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">{formatBRL(spent)} gastos</span>
-                    <span className="font-medium text-gray-700">
+                    <span className="text-gray-500 dark:text-gray-400">
+                      {formatBRL(spent)} gastos
+                    </span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">
                       Limite: {formatBRL(budget.monthly_limit)}
                     </span>
                   </div>
-                  <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
+                  <div className="w-full bg-gray-100 dark:bg-gray-800 h-2.5 rounded-full overflow-hidden">
                     <div
                       className={`h-full transition-all duration-500 ${color}`}
                       style={{ width: `${pct}%` }}

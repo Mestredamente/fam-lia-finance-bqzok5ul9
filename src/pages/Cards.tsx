@@ -21,7 +21,7 @@ export default function Cards() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Cartões</h1>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Cartões</h1>
         <Button
           size="sm"
           onClick={() => setShowForm(true)}
@@ -45,7 +45,7 @@ export default function Cards() {
       ) : error ? (
         <Card className="border-red-200 rounded-2xl">
           <CardContent className="p-6 text-center">
-            <p className="text-sm text-red-600 mb-2">{error}</p>
+            <p className="text-sm text-danger mb-2">{error}</p>
             <Button size="sm" variant="outline" onClick={refetch}>
               Tentar novamente
             </Button>
@@ -68,7 +68,7 @@ export default function Cards() {
             >
               <CreditCardVisual card={card} ownerName={card.expand?.owner_id?.display_name} />
               <div className="flex items-center justify-between mt-2 px-1">
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
                   {card.expand?.owner_id?.display_name || '—'}
                 </span>
                 <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
