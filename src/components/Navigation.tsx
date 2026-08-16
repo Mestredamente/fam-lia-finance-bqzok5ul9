@@ -1,4 +1,4 @@
-import { Home, List, CreditCard, User, LayoutDashboard } from 'lucide-react'
+import { Home, List, User, LayoutDashboard, Plus } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { usePendingInvoicesCount } from '@/hooks/use-pending-invoices-count'
@@ -79,16 +79,18 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   )
 }
 
-export function BottomNav() {
+export function BottomNav({ onFabClick }: { onFabClick?: () => void }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { family } = useAuth()
   const pendingCount = usePendingInvoicesCount(family?.id)
 
+  // The middle slot is now a raised central FAB; the 4 remaining tabs sit
+  // around it: Início, Transações, Casa, Perfil. "Cartões" stays available
+  // via the sidebar.
   const tabs = [
     { label: 'Início', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Transações', path: '/transacoes', icon: List },
-    { label: 'Cartões', path: '/cards', icon: CreditCard },
     { label: 'Casa', path: '/casa', icon: Home },
     { label: 'Perfil', path: '/profile', icon: User },
   ]
@@ -99,7 +101,8 @@ export function BottomNav() {
       aria-label="Navegação principal"
       className="fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-card border-t border-gray-200 dark:border-gray-700 flex items-center justify-around z-30 lg:hidden shadow-lg theme-transition"
     >
-      {tabs.map((tab) => {
+      {/* Início */}
+      {tabs.slice(0, 2).map((tab) => {
         const isCurrent =
           location.pathname === tab.path || location.pathname.startsWith(tab.path + '/')
         return (
@@ -112,11 +115,52 @@ export function BottomNav() {
             className="flex flex-col items-center justify-center w-full h-full relative"
           >
             {isCurrent && <div className="absolute top-1 w-1.5 h-1.5 rounded-full bg-[#22C55E]" />}
-            {tab.path === '/cards' && pendingCount > 0 && (
-              <span className="absolute top-0 right-[25%] bg-red-500 text-white text-xs font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1 z-10">
+            {tab.path === '/transacoes' && pendingCount > 0 && (
+              <span className="absolute top-1 right-[28%] bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1 z-10">
                 {pendingCount > 9 ? '9+' : pendingCount}
               </span>
             )}
+            <tab.icon
+              className={cn('h-5 w-5 mt-1', isCurrent ? 'text-[#166534]' : 'text-gray-400')}
+              aria-hidden="true"
+            />
+            <span
+              className={cn(
+                'text-xs font-medium mt-0.5',
+                isCurrent ? 'text-[#166534] font-bold' : 'text-gray-400',
+              )}
+            >
+              {tab.label}
+            </span>
+          </button>
+        )
+      })}
+
+      {/* Central FAB */}
+      <div className="flex flex-col items-center justify-center w-full">
+        <button
+          onClick={onFabClick}
+          aria-label="Adicionar"
+          className="-translate-y-4 w-12 h-12 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-lg ring-4 ring-white dark:ring-card transition-transform active:scale-95"
+        >
+          <Plus className="h-6 w-6" aria-hidden="true" />
+        </button>
+      </div>
+
+      {/* Casa, Perfil */}
+      {tabs.slice(2).map((tab) => {
+        const isCurrent =
+          location.pathname === tab.path || location.pathname.startsWith(tab.path + '/')
+        return (
+          <button
+            key={tab.label}
+            role="tab"
+            aria-selected={isCurrent}
+            aria-label={tab.label}
+            onClick={() => navigate(tab.path)}
+            className="flex flex-col items-center justify-center w-full h-full relative"
+          >
+            {isCurrent && <div className="absolute top-1 w-1.5 h-1.5 rounded-full bg-[#22C55E]" />}
             <tab.icon
               className={cn('h-5 w-5 mt-1', isCurrent ? 'text-[#166534]' : 'text-gray-400')}
               aria-hidden="true"

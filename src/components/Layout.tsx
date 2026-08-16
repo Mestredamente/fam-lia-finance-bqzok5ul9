@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { useState, useCallback } from 'react'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { useExpenseNotifications } from '@/hooks/use-expense-notifications'
 import { Header, BottomNav } from '@/components/Navigation'
@@ -8,10 +8,33 @@ import { LoadingScreen } from '@/components/LoadingScreen'
 import { OnboardingTour } from '@/components/OnboardingTour'
 import { PullToRefresh } from '@/components/PullToRefresh'
 
+/**
+ * The mobile central FAB (in BottomNav) opens the same expanding FAB menu the
+ * Dashboard renders. Rather than coupling BottomNav to Dashboard internals,
+ * we broadcast a window event that the Dashboard listens for — so the FAB in
+ * the bottom nav and the (desktop-only) standalone FAB share one menu.
+ */
+const FAB_OPEN_EVENT = 'ff-open-fab-menu'
+
 export default function Layout() {
   const { isAuthenticated, loading } = useAuth()
   useExpenseNotifications(isAuthenticated)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  const handleFabClick = useCallback(() => {
+    if (location.pathname.startsWith('/dashboard')) {
+      window.dispatchEvent(new CustomEvent(FAB_OPEN_EVENT))
+    } else {
+      // On non-dashboard pages the central FAB takes the user to the dashboard
+      // and opens the transaction form there.
+      navigate('/dashboard')
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('ff-open-transaction-form'))
+      }, 300)
+    }
+  }, [location.pathname, navigate])
 
   if (loading) {
     return <LoadingScreen />
@@ -48,7 +71,7 @@ export default function Layout() {
           </PullToRefresh>
         </main>
       </div>
-      <BottomNav />
+      <BottomNav onFabClick={handleFabClick} />
       <OnboardingTour />
     </div>
   )

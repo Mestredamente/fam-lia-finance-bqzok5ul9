@@ -55,6 +55,9 @@ import { SubscriptionsCard } from '@/components/SubscriptionsCard'
 import { AiInsightsCard } from '@/components/AiInsightsCard'
 import { CustomizableCard } from '@/components/CustomizableCard'
 import { useDashboardLayout, CARD_TITLES, type DashboardCardId } from '@/hooks/use-dashboard-layout'
+import { MobileMonthPicker } from '@/components/MobileMonthPicker'
+import { FabMenu, ExportBottomSheet, type FabMenuAction } from '@/components/FabMenu'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 export default function Dashboard() {
   const { family, member } = useAuth()
@@ -70,6 +73,10 @@ export default function Dashboard() {
   const [period, setPeriod] = useState<PeriodType>('mes')
   const [editMode, setEditMode] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [showMonthPicker, setShowMonthPicker] = useState(false)
+  const [showFabMenu, setShowFabMenu] = useState(false)
+  const [showExportSheet, setShowExportSheet] = useState(false)
+  const isMobile = useIsMobile()
 
   const { cards, toggleVisible, moveCard, resetLayout } = useDashboardLayout()
 
@@ -272,6 +279,24 @@ export default function Dashboard() {
     return result
   }, [cards, editMode, renderCard, toggleVisible, moveCard])
 
+  // Swipe gesture on the mobile header: left → next month, right → previous.
+  const touchStartX = React.useRef<number | null>(null)
+
+  // Mobile FAB menu actions, dispatched from the central FAB in BottomNav.
+  useEffect(() => {
+    const openFab = () => setShowFabMenu(true)
+    const openTransactionForm = () => {
+      setDefaultIsFixed(false)
+      setShowForm(true)
+    }
+    window.addEventListener('ff-open-fab-menu', openFab)
+    window.addEventListener('ff-open-transaction-form', openTransactionForm)
+    return () => {
+      window.removeEventListener('ff-open-fab-menu', openFab)
+      window.removeEventListener('ff-open-transaction-form', openTransactionForm)
+    }
+  }, [])
+
   if (!family) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -311,6 +336,39 @@ export default function Dashboard() {
     }, 200)
   }
 
+  const handleFabAction = (a: FabMenuAction) => {
+    switch (a.type) {
+      case 'transaction':
+        setDefaultIsFixed(false)
+        setShowForm(true)
+        break
+      case 'scenario':
+        openScenario()
+        break
+      case 'customize':
+        setEditMode((v) => !v)
+        break
+      case 'export':
+        setShowExportSheet(true)
+        break
+    }
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+  }
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return
+    const delta = e.changedTouches[0].clientX - touchStartX.current
+    const THRESHOLD = 50
+    if (delta <= -THRESHOLD && canGoForward()) {
+      setCurrentDate(new Date(year, month + 1, 1))
+    } else if (delta >= THRESHOLD) {
+      setCurrentDate(new Date(year, month - 1, 1))
+    }
+    touchStartX.current = null
+  }
+
   const memberSummary = selectedMember ? summary.memberSummaries[selectedMember.id] : undefined
 
   return (
@@ -319,8 +377,32 @@ export default function Dashboard() {
       <div className="space-y-3">
         <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Resumo Financeiro</h1>
         <div className="flex flex-wrap items-center gap-2">
-          {/* ZONA ESQUERDA — Navegação temporal */}
-          <div className="flex-1 flex items-center gap-1 min-w-0">
+          {/* MOBILE — minimal header: only the current month, centered & tappable.
+              Swipe left/right on this area navigates between months. */}
+          <div
+            className="flex-1 flex items-center justify-center min-w-0 sm:hidden"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
+            <button
+              type="button"
+              onClick={() => setShowMonthPicker(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-muted hover:bg-muted/80 text-foreground transition-colors"
+              aria-label="Selecionar mês"
+            >
+              <span className="text-sm font-semibold capitalize">
+                {getMonthName(month)} {year}
+              </span>
+              {isFutureMonth && (
+                <span className="px-2 py-0.5 text-[10px] rounded-full bg-indigo-500 text-white shrink-0">
+                  Projeção
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* DESKTOP (sm+) — full header with arrows, period select, actions */}
+          <div className="hidden sm:flex flex-1 flex items-center gap-1 min-w-0">
             <button
               type="button"
               title="Mês anterior"
@@ -457,15 +539,37 @@ export default function Dashboard() {
 
       {orderedCards}
 
+      {/* Standalone FAB — desktop only. On mobile the central FAB in the bottom
+          nav opens the expanding FabMenu instead. */}
       <button
         data-tour="add-transaction"
         onClick={openForm}
         aria-label="Adicionar transação"
-        className="fixed bottom-[5.5rem] right-4 lg:bottom-8 lg:right-8 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95 z-20"
+        className="hidden lg:flex fixed bottom-8 right-8 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white items-center justify-center shadow-lg transition-transform active:scale-95 z-20"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <Plus className="h-6 w-6" aria-hidden="true" />
       </button>
+
+      {/* Mobile-only expanding FAB menu + sheets */}
+      <FabMenu
+        open={showFabMenu && isMobile}
+        onClose={() => setShowFabMenu(false)}
+        onAction={handleFabAction}
+      />
+      <ExportBottomSheet
+        open={showExportSheet}
+        onClose={() => setShowExportSheet(false)}
+        onCSV={handleExportCSV}
+        onPDF={handleExportPDF}
+        exporting={exporting}
+      />
+      <MobileMonthPicker
+        open={showMonthPicker}
+        onOpenChange={setShowMonthPicker}
+        current={currentDate}
+        onSelect={(d) => setCurrentDate(d)}
+      />
 
       <MemberDetailSheet
         member={selectedMember}
