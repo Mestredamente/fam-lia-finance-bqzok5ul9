@@ -44,13 +44,22 @@ import {
 } from '@/components/ui/alert-dialog'
 import { TransactionFormSheet, EMOTION_META } from '@/components/TransactionFormSheet'
 import { TransactionDetailSheet } from '@/components/TransactionDetailSheet'
+import { RecurringTransactionFormSheet } from '@/components/RecurringTransactionFormSheet'
 import { ExportButton } from '@/components/ExportButton'
 import { BankImportSheet } from '@/components/BankImportSheet'
+import { useRecurringTransactions } from '@/hooks/use-recurring-transactions'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Label } from '@/components/ui/label'
 import { generateMonthlyPDF } from '@/lib/pdf-report'
 import { getCategoryIcon } from '@/lib/category-icons'
 import { formatBRL, cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
-import type { TransactionRecord, MemberRecord, TransactionEmotion } from '@/types/finance'
+import type {
+  TransactionRecord,
+  MemberRecord,
+  TransactionEmotion,
+  RecurringTransaction,
+} from '@/types/finance'
 
 const EMOTION_FILTERS: { value: TransactionEmotion; label: string; emoji: string }[] = [
   { value: 'happy', label: 'Feliz', emoji: '😊' },
@@ -102,6 +111,11 @@ export default function Transactions() {
   const [deleteTx, setDeleteTx] = useState<TransactionRecord | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [cleaningUp, setCleaningUp] = useState(false)
+  const [showRecurringEditDialog, setShowRecurringEditDialog] = useState(false)
+  const [recurringEditTx, setRecurringEditTx] = useState<TransactionRecord | null>(null)
+  const [recurringChoice, setRecurringChoice] = useState<'once' | 'future'>('once')
+  const [showRecurringForm, setShowRecurringForm] = useState(false)
+  const [editingRecurring, setEditingRecurring] = useState<RecurringTransaction | null>(null)
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -110,6 +124,7 @@ export default function Transactions() {
     year,
     month,
   )
+  const { recurring, refetch: refetchRecurring } = useRecurringTransactions(family?.id)
 
   useEffect(() => {
     if (family)
@@ -183,9 +198,29 @@ export default function Transactions() {
     setShowForm(true)
   }
   const openEdit = () => {
+    if (detailTx && (detailTx.recurring_id || detailTx.source === 'recurring')) {
+      setRecurringEditTx(detailTx)
+      setRecurringChoice('once')
+      setShowRecurringEditDialog(true)
+      setShowDetail(false)
+      return
+    }
     setEditingTx(detailTx)
     setShowDetail(false)
     setShowForm(true)
+  }
+
+  const handleRecurringEditChoice = () => {
+    setShowRecurringEditDialog(false)
+    if (recurringChoice === 'once') {
+      setEditingTx(recurringEditTx)
+      setShowForm(true)
+    } else {
+      const rid = recurringEditTx?.recurring_id
+      const found = rid ? recurring.find((r) => r.id === rid) || null : null
+      setEditingRecurring(found)
+      setShowRecurringForm(true)
+    }
   }
 
   if (!family)
@@ -494,6 +529,72 @@ export default function Transactions() {
         memberId={member?.id || ''}
         onImported={refetch}
       />
+
+      {showRecurringForm && (
+        <RecurringTransactionFormSheet
+          open={showRecurringForm}
+          onOpenChange={setShowRecurringForm}
+          familyId={family.id}
+          memberId={member?.id || ''}
+          editing={editingRecurring}
+          onSaved={() => {
+            refetchRecurring()
+            refetch()
+          }}
+        />
+      )}
+
+      <AlertDialog open={showRecurringEditDialog} onOpenChange={setShowRecurringEditDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Repeat className="w-5 h-5" />
+              Editar transação recorrente
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta transação foi gerada automaticamente pela recorrente "
+              {recurringEditTx?.description}". Como deseja editar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <RadioGroup
+            value={recurringChoice}
+            onValueChange={(v) => setRecurringChoice(v as 'once' | 'future')}
+            defaultValue="once"
+            className="gap-3"
+          >
+            <Label
+              htmlFor="once"
+              className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer hover:bg-accent"
+            >
+              <RadioGroupItem value="once" id="once" className="mt-0.5" />
+              <span>
+                <span className="font-medium">Aplicar apenas desta vez</span>
+                <span className="block text-xs text-muted-foreground">
+                  Edita só esta transação. A recorrente original não muda.
+                </span>
+              </span>
+            </Label>
+            <Label
+              htmlFor="future"
+              className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer hover:bg-accent"
+            >
+              <RadioGroupItem value="future" id="future" className="mt-0.5" />
+              <span>
+                <span className="font-medium">Aplicar a todas as futuras</span>
+                <span className="block text-xs text-muted-foreground">
+                  Edita a recorrente original. Próximas transações usam os novos valores.
+                </span>
+              </span>
+            </Label>
+          </RadioGroup>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRecurringEditChoice}>Continuar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
