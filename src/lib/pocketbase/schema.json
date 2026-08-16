@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-16T13:13:55.271Z",
+  "generatedAt": "2026-08-16T13:22:46.289Z",
   "collections": [
     {
       "name": "users",
@@ -1906,6 +1906,114 @@
         "CREATE INDEX idx_recurring_transactions_family_id ON recurring_transactions (family_id)",
         "CREATE INDEX idx_recurring_transactions_member_id ON recurring_transactions (member_id)",
         "CREATE INDEX idx_recurring_transactions_active ON recurring_transactions (active)"
+      ]
+    },
+    {
+      "name": "savings_goals",
+      "type": "base",
+      "apiRules": {
+        "list": "family_id.created_by = @request.auth.id || @collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id",
+        "view": "family_id.created_by = @request.auth.id || @collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id",
+        "create": "family_id.created_by = @request.auth.id || @collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id",
+        "update": "family_id.created_by = @request.auth.id || @collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id",
+        "delete": "family_id.created_by = @request.auth.id || @collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id"
+      },
+      "fields": [
+        {
+          "name": "family_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "families"
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "target_amount",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "current_amount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "deadline",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "category_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "categories"
+        },
+        {
+          "name": "color",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "icon",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["active", "completed", "paused"]
+        },
+        {
+          "name": "created_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "completed_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_savings_goals_family_id ON savings_goals (family_id)",
+        "CREATE INDEX idx_savings_goals_status ON savings_goals (status)",
+        "CREATE INDEX idx_savings_goals_deadline ON savings_goals (deadline)"
       ]
     }
   ]

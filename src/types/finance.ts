@@ -262,6 +262,31 @@ export interface RecurringTransaction {
   }
 }
 
+export type SavingsGoalStatus = 'active' | 'completed' | 'paused'
+
+export interface SavingsGoal {
+  id: string
+  family_id: string
+  title: string
+  description?: string | null
+  target_amount: number
+  current_amount: number
+  deadline?: string | null
+  category_id?: string | null
+  color?: string | null
+  icon?: string | null
+  status: SavingsGoalStatus
+  created_by?: string | null
+  completed_at?: string | null
+  created: string
+  updated: string
+  expand?: {
+    family_id?: FamilyRecord
+    category_id?: CategoryRecord
+    created_by?: AuthUser
+  }
+}
+
 export type TransactionEmotion = 'happy' | 'necessary' | 'regret' | 'impulsive' | 'neutral'
 
 export interface CreditCardRecord {

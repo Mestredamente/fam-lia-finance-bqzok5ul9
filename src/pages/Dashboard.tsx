@@ -47,6 +47,7 @@ import { getMonthName } from '@/lib/utils'
 import { ComprometimentoFuturoCard } from '@/components/ComprometimentoFuturoCard'
 import { UpcomingTasksSection } from '@/components/UpcomingTasksSection'
 import { EmotionalSpendingCard } from '@/components/EmotionalSpendingCard'
+import { SavingsGoalsCard } from '@/components/SavingsGoalsCard'
 import { ExpensesByCategoryCard } from '@/components/ExpensesByCategoryCard'
 import { MonthlyComparisonCard } from '@/components/MonthlyComparisonCard'
 import { useMonthComparison } from '@/hooks/use-month-comparison'
@@ -249,6 +250,8 @@ export default function Dashboard() {
           return <AiInsightsCard familyId={family.id} memberId={member?.id || ''} />
         case 'upcomingTasks':
           return <UpcomingTasksSection familyId={family.id} />
+        case 'savingsGoals':
+          return <SavingsGoalsCard familyId={family.id} />
         case 'emotionalSpending':
           return (
             <EmotionalSpendingCard

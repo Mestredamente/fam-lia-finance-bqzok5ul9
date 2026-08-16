@@ -18,6 +18,7 @@ import {
   Users,
   CalendarClock,
   Repeat,
+  Target,
   type LucideIcon,
 } from 'lucide-react'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -59,6 +60,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Projeções', path: '/projections', icon: CalendarClock },
       { label: 'Patrimônio', path: '/patrimonio', icon: PiggyBank, perm: 'canViewPatrimony' },
+      { label: 'Metas', path: '/metas', icon: Target },
       { label: 'Casa', path: '/casa', icon: Home },
     ],
   },
