@@ -19,8 +19,8 @@ export default function Layout() {
 
   if (!isAuthenticated) {
     return (
-      <main className="min-h-screen bg-[#F9FAFB] dark:bg-background flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-[480px]">
+      <main className="min-h-screen max-w-full overflow-x-hidden bg-[#F9FAFB] dark:bg-background flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-[480px] max-w-full">
           <Outlet />
         </div>
       </main>
@@ -28,7 +28,7 @@ export default function Layout() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] dark:bg-background flex flex-col lg:flex-row">
+    <div className="min-h-screen max-w-full overflow-x-hidden bg-[#F9FAFB] dark:bg-background flex flex-col lg:flex-row">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0">
         <Header onMenuClick={() => setIsSidebarOpen(true)} />
@@ -36,7 +36,7 @@ export default function Layout() {
           id="main-content"
           role="main"
           tabIndex={-1}
-          className="flex-1 p-3 md:p-6 lg:p-8 pb-24 lg:pb-8 max-w-[1200px] w-full mx-auto animate-fade-in outline-none theme-transition"
+          className="flex-1 p-3 md:p-6 lg:p-8 pb-24 lg:pb-8 max-w-[1200px] w-full max-w-full overflow-x-hidden mx-auto animate-fade-in outline-none theme-transition"
         >
           <PullToRefresh
             onRefresh={async () => {

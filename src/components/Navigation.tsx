@@ -16,7 +16,7 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   return (
     <header
       role="banner"
-      className="h-16 bg-white dark:bg-card border-b border-gray-200 dark:border-gray-700 px-4 lg:px-8 flex items-center justify-between sticky top-0 z-30 shadow-subtle theme-transition"
+      className="h-16 max-w-full overflow-x-hidden bg-white dark:bg-card border-b border-gray-200 dark:border-gray-700 px-4 lg:px-8 flex items-center justify-between gap-2 sticky top-0 z-30 shadow-subtle theme-transition"
     >
       <div className="flex items-center gap-3">
         {onMenuClick && (

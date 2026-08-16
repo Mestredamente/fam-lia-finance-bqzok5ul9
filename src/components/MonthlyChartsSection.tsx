@@ -92,7 +92,7 @@ export function MonthlyChartsSection({ familyId, year, month }: Props) {
         </CardContent>
       </Card>
 
-      <Card className="border border-gray-100 dark:border-gray-700 shadow-subtle rounded-2xl bg-white dark:bg-card">
+      <Card className="w-full max-w-full overflow-hidden border border-gray-100 dark:border-gray-700 shadow-subtle rounded-2xl bg-white dark:bg-card">
         <CardContent className="p-3 sm:p-5">
           <h3 className="font-bold text-sm text-gray-900 dark:text-foreground mb-4">
             Receitas x Despesas (12 meses)

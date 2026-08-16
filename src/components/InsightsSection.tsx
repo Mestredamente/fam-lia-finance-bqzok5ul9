@@ -44,7 +44,7 @@ function InsightCard({ insight }: { insight: AIInsight }) {
   return (
     <Card
       className={cn(
-        'min-w-[260px] sm:min-w-[280px] snap-start cursor-pointer transition-all border',
+        'w-full sm:min-w-[280px] snap-start cursor-pointer transition-all border',
         PRIORITY_STYLES[insight.prioridade] || 'bg-gray-50 border-gray-200',
       )}
       onClick={() => setExpanded(!expanded)}

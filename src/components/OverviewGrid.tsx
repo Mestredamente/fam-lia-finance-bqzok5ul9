@@ -104,7 +104,7 @@ export function OverviewGrid({
           </CardContent>
         </Card>
 
-        <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
+        <Card className="w-full max-w-full overflow-hidden border border-gray-100 shadow-subtle rounded-2xl bg-white">
           <CardContent className="p-5">
             <h3 className="font-bold text-sm text-gray-900 mb-3">Visão por membro</h3>
             <MemberBreakdown

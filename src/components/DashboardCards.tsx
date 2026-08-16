@@ -73,7 +73,7 @@ export function DashboardCards({ familyId, memberId, year, month, onAddFixed }: 
   const insightText = insights[0]?.titulo || insights[0]?.descricao || null
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 max-w-full">
       {/* Contas Fixas */}
       <Card
         role="button"

@@ -317,11 +317,11 @@ export default function Dashboard() {
   const memberSummary = selectedMember ? summary.memberSummaries[selectedMember.id] : undefined
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in max-w-full overflow-x-hidden">
       <DashboardInstallBanner />
       <div className="space-y-3">
         <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Resumo Financeiro</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* ZONA ESQUERDA — Navegação temporal */}
           <div className="flex-1 flex items-center gap-1 min-w-0">
             <button

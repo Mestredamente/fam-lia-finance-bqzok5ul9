@@ -33,7 +33,7 @@ export function ExpensesByCategoryCard({ familyId, year, month, loading }: Props
   }
 
   return (
-    <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
+    <Card className="w-full max-w-full border border-gray-100 shadow-subtle rounded-2xl bg-white overflow-hidden">
       <CardContent className="p-5">
         <h3 className="font-bold text-sm text-gray-900 mb-3">Despesas por Categoria</h3>
         {pieData.length > 0 ? (
