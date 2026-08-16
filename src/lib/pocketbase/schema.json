@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-16T04:05:53.335Z",
+  "generatedAt": "2026-08-16T04:10:51.202Z",
   "collections": [
     {
       "name": "users",
@@ -727,8 +727,8 @@
       "name": "invoices",
       "type": "base",
       "apiRules": {
-        "list": "family_id.created_by = @request.auth.id || owner_id.user_id = @request.auth.id",
-        "view": "family_id.created_by = @request.auth.id || owner_id.user_id = @request.auth.id",
+        "list": "family_id.created_by = @request.auth.id || owner_id.user_id = @request.auth.id || (@collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id)",
+        "view": "family_id.created_by = @request.auth.id || owner_id.user_id = @request.auth.id || (@collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id)",
         "create": "family_id.created_by = @request.auth.id || owner_id.user_id = @request.auth.id",
         "update": "family_id.created_by = @request.auth.id || owner_id.user_id = @request.auth.id",
         "delete": "family_id.created_by = @request.auth.id || owner_id.user_id = @request.auth.id"
@@ -823,11 +823,11 @@
       "name": "invoice_items",
       "type": "base",
       "apiRules": {
-        "list": "family_id.created_by = @request.auth.id",
-        "view": "family_id.created_by = @request.auth.id",
+        "list": "family_id.created_by = @request.auth.id || (@collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id)",
+        "view": "family_id.created_by = @request.auth.id || (@collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id)",
         "create": "family_id.created_by = @request.auth.id",
-        "update": "family_id.created_by = @request.auth.id || invoice_id.owner_id.user_id = @request.auth.id",
-        "delete": "family_id.created_by = @request.auth.id || invoice_id.owner_id.user_id = @request.auth.id"
+        "update": "family_id.created_by = @request.auth.id || invoice_id.owner_id.user_id = @request.auth.id || (@collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id && @collection.members.perm_edit_others ?= true)",
+        "delete": "family_id.created_by = @request.auth.id || invoice_id.owner_id.user_id = @request.auth.id || (@collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id && @collection.members.perm_delete_invoices ?= true)"
       },
       "fields": [
         {
