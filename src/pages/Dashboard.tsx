@@ -43,7 +43,18 @@ export default function Dashboard() {
   const [period, setPeriod] = useState<PeriodType>('mes')
   const [editMode, setEditMode] = useState(false)
 
-  const { cards, toggleVisible, moveCard } = useDashboardLayout()
+  const { cards, toggleVisible, moveCard, resetLayout } = useDashboardLayout()
+
+  // Auto-recover from a corrupted localStorage state: if too few cards are
+  // visible on first load, reset to the default layout so the dashboard never
+  // appears empty. Runs once on mount.
+  useEffect(() => {
+    const visibleCount = cards.filter((c) => c.visible).length
+    if (visibleCount <= 3) {
+      resetLayout()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -186,8 +197,10 @@ export default function Dashboard() {
   // skipping hidden ones entirely (unless in edit mode).
   const orderedCards = useMemo(() => {
     const result: React.ReactNode[] = []
+    let summaryRendered = false
     cards.forEach((c, idx) => {
       if (!c.visible && !editMode) return
+      if (c.id === 'summary') summaryRendered = true
       const content = renderCard(c.id)
       // The two-column row layout is used only for expensesByCategory +
       // memberView. Everything else is full-width.
@@ -207,6 +220,27 @@ export default function Dashboard() {
         </CustomizableCard>,
       )
     })
+    // Defensive fallback: the "summary" (Resumo Financeiro) card must ALWAYS be
+    // rendered. If it was missing or hidden in the stored layout, inject it at
+    // the top so the dashboard is never without its primary card.
+    if (!summaryRendered) {
+      const content = renderCard('summary')
+      result.unshift(
+        <CustomizableCard
+          key="summary"
+          id="summary"
+          visible
+          editMode={editMode}
+          isFirst
+          isLast={cards.length === 0}
+          onToggle={() => toggleVisible('summary')}
+          onMoveUp={() => moveCard('summary', 'up')}
+          onMoveDown={() => moveCard('summary', 'down')}
+        >
+          {content}
+        </CustomizableCard>,
+      )
+    }
     return result
   }, [cards, editMode, renderCard, toggleVisible, moveCard])
 
@@ -328,6 +362,14 @@ export default function Dashboard() {
             mostrar/ocultar (olho) e reordenar (setas ↑↓). O card <strong>Resumo Financeiro</strong>{' '}
             é fixo e não pode ser ocultado. Suas alterações são salvas automaticamente.
           </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="shrink-0 text-xs text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100"
+            onClick={resetLayout}
+          >
+            Restaurar padrão
+          </Button>
         </div>
       )}
 

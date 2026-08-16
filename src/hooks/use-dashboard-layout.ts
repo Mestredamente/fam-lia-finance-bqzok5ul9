@@ -62,26 +62,51 @@ function loadFromStorage(): DashboardCardConfig[] {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return buildDefault()
-    const parsed = JSON.parse(raw) as { cards?: DashboardCardConfig[] }
-    if (!parsed || !Array.isArray(parsed.cards)) return buildDefault()
+    let parsed: { cards?: DashboardCardConfig[] }
+    try {
+      parsed = JSON.parse(raw) as { cards?: DashboardCardConfig[] }
+    } catch {
+      console.warn(
+        '[useDashboardLayout] localStorage payload for "%s" is corrupted JSON — falling back to default layout.',
+        STORAGE_KEY,
+      )
+      return buildDefault()
+    }
+    if (!parsed || !Array.isArray(parsed.cards)) {
+      console.warn(
+        '[useDashboardLayout] localStorage payload for "%s" is invalid (missing "cards" array) — falling back to default layout.',
+        STORAGE_KEY,
+      )
+      return buildDefault()
+    }
 
     // Reconcile against defaults: keep known cards, append any missing ones,
     // and drop unknown ids so the layout always reflects the current app.
     const stored = parsed.cards.filter(
       (c) => c && typeof c.id === 'string' && DEFAULT_CARD_ORDER.includes(c.id),
     )
+    if (parsed.cards.length !== stored.length) {
+      console.warn(
+        '[useDashboardLayout] stored layout contained unknown/invalid card entries (%d dropped) — reconciling with defaults.',
+        parsed.cards.length - stored.length,
+      )
+    }
     const seen = new Set(stored.map((c) => c.id))
     for (const id of DEFAULT_CARD_ORDER) {
       if (!seen.has(id)) stored.push({ id, visible: true, order: stored.length })
     }
-    // Force non-hideable cards visible.
+    // Force non-hideable cards visible — summary must never be hidden.
     for (const c of stored) {
       if (NON_HIDEABLE.has(c.id)) c.visible = true
     }
     // Sort by persisted order then normalize.
     stored.sort((a, b) => a.order - b.order)
     return stored.map((c, i) => ({ ...c, order: i }))
-  } catch {
+  } catch (err) {
+    console.warn(
+      '[useDashboardLayout] unexpected error while loading layout from localStorage — falling back to default layout.',
+      err,
+    )
     return buildDefault()
   }
 }
@@ -89,18 +114,23 @@ function loadFromStorage(): DashboardCardConfig[] {
 export function useDashboardLayout() {
   const [cards, setCards] = useState<DashboardCardConfig[]>(() => loadFromStorage())
 
-  // Persist whenever layout changes.
+  // Persist whenever layout changes. Non-hideable cards (e.g. summary) are
+  // forced visible before writing so a corrupted state can never be persisted.
   useEffect(() => {
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards }))
+      const safe = cards.map((c) => (NON_HIDEABLE.has(c.id) ? { ...c, visible: true } : c))
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards: safe }))
     } catch {
       /* ignore quota / privacy errors */
     }
   }, [cards])
 
   const toggleVisible = useCallback((id: DashboardCardId) => {
+    // Non-hideable cards (summary) can never be toggled off.
     if (NON_HIDEABLE.has(id)) return
-    setCards((prev) => prev.map((c) => (c.id === id ? { ...c, visible: !c.visible } : c)))
+    setCards((prev) =>
+      prev.map((c) => (c.id === id && !NON_HIDEABLE.has(c.id) ? { ...c, visible: !c.visible } : c)),
+    )
   }, [])
 
   const moveCard = useCallback((id: DashboardCardId, direction: 'up' | 'down') => {
