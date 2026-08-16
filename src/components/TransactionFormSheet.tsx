@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Clock } from 'lucide-react'
 import { z } from 'zod'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
@@ -32,6 +32,12 @@ export const EMOTION_META: Record<TransactionEmotion, { emoji: string; label: st
   neutral: { emoji: '😐', label: 'Neutro' },
   regret: { emoji: '😬', label: 'Arrependido' },
   impulsive: { emoji: '😤', label: 'Impulsivo' },
+}
+
+/** Current local time as HH:MM, used as the default for new transactions. */
+function nowHHMM() {
+  const d = new Date()
+  return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0')
 }
 
 const schema = z
@@ -78,6 +84,7 @@ export function TransactionFormSheet({
   const [description, setDescription] = useState('')
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [time, setTime] = useState(nowHHMM)
   const [isShared, setIsShared] = useState(false)
   const [isFixed, setIsFixed] = useState(false)
   const [emotion, setEmotion] = useState<TransactionEmotion | null>(null)
@@ -103,6 +110,8 @@ export function TransactionFormSheet({
         setDescription(editingTransaction.description)
         setCategoryId(editingTransaction.category_id)
         setDate(editingTransaction.transaction_date.split(' ')[0].split('T')[0])
+        const timePart = editingTransaction.transaction_date.split('T')[1]?.split(' ')[0]
+        setTime(timePart ? timePart.slice(0, 5) : '12:00')
         setIsShared(editingTransaction.is_shared)
         setIsFixed(editingTransaction.is_fixed)
         setEmotion((editingTransaction.emotion as TransactionEmotion) || null)
@@ -113,6 +122,7 @@ export function TransactionFormSheet({
         setDescription('')
         setCategoryId(null)
         setDate(new Date().toISOString().split('T')[0])
+        setTime(nowHHMM())
         setIsShared(false)
         setIsFixed(defaultIsFixed ?? false)
         setEmotion(null)
@@ -148,7 +158,7 @@ export function TransactionFormSheet({
         amount,
         description,
         category_id: categoryId!,
-        transaction_date: new Date(date + 'T12:00:00').toISOString(),
+        transaction_date: new Date(`${date}T${time || '12:00'}:00`).toISOString(),
         is_shared: isShared,
         is_fixed: isFixed,
         source: 'manual' as const,
@@ -333,23 +343,41 @@ export function TransactionFormSheet({
             />
             <p className="text-[11px] text-gray-400 mt-0.5 text-right">{emotionNote.length}/200</p>
           </div>
-          <div>
-            <label htmlFor="tx-date" className="text-xs font-semibold text-gray-700">
-              Data
-            </label>
-            <Input
-              id="tx-date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              aria-required="true"
-              className={errors.transaction_date ? 'border-red-500' : ''}
-            />
-            {errors.transaction_date && (
-              <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
-                {errors.transaction_date}
-              </p>
-            )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="tx-date" className="text-xs font-semibold text-gray-700">
+                Data
+              </label>
+              <Input
+                id="tx-date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                aria-required="true"
+                className={errors.transaction_date ? 'border-red-500' : ''}
+              />
+              {errors.transaction_date && (
+                <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
+                  {errors.transaction_date}
+                </p>
+              )}
+            </div>
+            <div>
+              <label
+                htmlFor="tx-time"
+                className="flex items-center gap-1 text-xs font-semibold text-gray-700"
+              >
+                <Clock className="h-3 w-3" />
+                Horário
+              </label>
+              <Input
+                id="tx-time"
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                className="mt-1"
+              />
+            </div>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-700">Compartilhada com a família</span>

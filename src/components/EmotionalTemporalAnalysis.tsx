@@ -133,7 +133,7 @@ export function EmotionalTemporalAnalysis({ transactions }: Props) {
       agg.count += 1
     }
 
-    const timeAvailable = totalTxWithTime > 0 && meaningfulTimeCount / totalTxWithTime >= 0.5
+    const timeAvailable = meaningfulTimeCount > 0
 
     // global max for heatmap intensity
     let maxCell = 0

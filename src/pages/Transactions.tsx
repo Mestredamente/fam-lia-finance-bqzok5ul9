@@ -365,6 +365,13 @@ export default function Transactions() {
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             {cat?.name || 'Sem categoria'}
+                            {(() => {
+                              const txTime = t.transaction_date.split('T')[1]?.split(' ')[0]
+                              if (!txTime) return ''
+                              // skip old default fixed time 12:00:00
+                              if (txTime === '12:00:00') return ''
+                              return ` · ${txTime.slice(0, 5)}`
+                            })()}
                           </p>
                           {(t.is_shared || t.is_fixed) && (
                             <div className="flex gap-1 mt-1">
