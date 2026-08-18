@@ -73,6 +73,16 @@ export const getTransactionsByMember = (memberId: string) =>
 export const createTransaction = (data: Partial<TransactionRecord>) =>
   pb.collection('transactions').create<TransactionRecord>(data)
 
+// Verifica se já existe uma transação vinculada a um investimento (evita duplicar despesa na edição).
+export const hasTransactionForInvestment = async (investmentId: string): Promise<boolean> => {
+  try {
+    await pb.collection('transactions').getFirstListItem(`investment_id = "${investmentId}"`)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export const updateTransaction = (id: string, data: Partial<TransactionRecord>) =>
   pb.collection('transactions').update<TransactionRecord>(id, data)
 

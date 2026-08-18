@@ -12,7 +12,6 @@ export type DashboardCardId =
   | 'monthlyComparison'
   | 'memberView'
   | 'futureCommitment'
-  | 'fixedBills'
   | 'patrimony'
   | 'subscriptions'
   | 'aiInsights'
@@ -28,7 +27,6 @@ export const DEFAULT_CARD_ORDER: DashboardCardId[] = [
   'monthlyComparison',
   'memberView',
   'futureCommitment',
-  'fixedBills',
   'patrimony',
   'subscriptions',
   'aiInsights',
@@ -43,7 +41,6 @@ export const CARD_TITLES: Record<DashboardCardId, string> = {
   monthlyComparison: 'Comparação Mensal',
   memberView: 'Visão por Membro',
   futureCommitment: 'Comprometimento Futuro',
-  fixedBills: 'Contas Fixas',
   patrimony: 'Patrimônio',
   subscriptions: 'Assinaturas',
   aiInsights: 'Insights IA',

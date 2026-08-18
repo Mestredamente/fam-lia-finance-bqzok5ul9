@@ -52,7 +52,6 @@ import { ExpensesByCategoryCard } from '@/components/ExpensesByCategoryCard'
 import { MonthlyComparisonCard } from '@/components/MonthlyComparisonCard'
 import { useMonthComparison } from '@/hooks/use-month-comparison'
 import { MemberViewCard } from '@/components/MemberViewCard'
-import { FixedBillsCard } from '@/components/FixedBillsCard'
 import { PatrimonyCard } from '@/components/PatrimonyCard'
 import { SubscriptionsCard } from '@/components/SubscriptionsCard'
 import { AiInsightsCard } from '@/components/AiInsightsCard'
@@ -230,18 +229,6 @@ export default function Dashboard() {
           )
         case 'futureCommitment':
           return <ComprometimentoFuturoCard familyId={family.id} forceRender={editMode} />
-        case 'fixedBills':
-          return (
-            <FixedBillsCard
-              familyId={family.id}
-              year={year}
-              month={month}
-              onAddFixed={() => {
-                setDefaultIsFixed(true)
-                setShowForm(true)
-              }}
-            />
-          )
         case 'patrimony':
           return <PatrimonyCard familyId={family.id} />
         case 'subscriptions':

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-18T04:04:15.504Z",
+  "generatedAt": "2026-08-18T05:07:30.325Z",
   "collections": [
     {
       "name": "users",
@@ -1150,6 +1150,18 @@
           "required": false,
           "system": false,
           "collectionRef": "categories"
+        },
+        {
+          "name": "installment_due_day",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "installment_start_date",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

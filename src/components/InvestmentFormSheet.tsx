@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { createInvestment, updateInvestment } from '@/services/investments'
-import { createTransaction } from '@/services/transactions'
+import { createTransaction, hasTransactionForInvestment } from '@/services/transactions'
 import { createRecurringTransaction } from '@/services/recurring-transactions'
 import { useCategories } from '@/hooks/use-categories'
 import { investmentTypeMeta, interestTypeLabels } from '@/lib/patrimony-icons'
@@ -140,6 +140,14 @@ export function InvestmentFormSheet({
 
   const isAssetType = ASSET_TYPES.includes(type)
 
+  // "Valor investido" calculado automaticamente quando Parcelado=ON
+  const computedAmountInvested = useMemo(() => {
+    if (!parcelado) return amountInvested
+    const totalParcelas = installmentsTotal * installmentValue
+    const entrada = isAssetType && downPayment > 0 ? downPayment : 0
+    return entrada + totalParcelas
+  }, [parcelado, amountInvested, installmentsTotal, installmentValue, downPayment, isAssetType])
+
   useEffect(() => {
     if (open) {
       if (editingInvestment) {
@@ -167,11 +175,17 @@ export function InvestmentFormSheet({
           editingInvestment.installments_total ? String(editingInvestment.installments_total) : '',
         )
         setInstallmentValue(editingInvestment.installment_value || 0)
-        setInstallmentDueDay(editingInvestment.contribution_day || new Date().getDate())
+        setInstallmentDueDay(
+          editingInvestment.installment_due_day ||
+            editingInvestment.contribution_day ||
+            new Date().getDate(),
+        )
         setInstallmentStartDate(
-          editingInvestment.contribution_start_date
-            ? editingInvestment.contribution_start_date.split(' ')[0].split('T')[0]
-            : todayISO(),
+          editingInvestment.installment_start_date
+            ? editingInvestment.installment_start_date.split(' ')[0].split('T')[0]
+            : editingInvestment.contribution_start_date
+              ? editingInvestment.contribution_start_date.split(' ')[0].split('T')[0]
+              : todayISO(),
         )
         setRecurringContribution(!!editingInvestment.has_recurring_contribution)
         setContributionAmount(editingInvestment.contribution_amount || 0)
@@ -187,9 +201,9 @@ export function InvestmentFormSheet({
             ? editingInvestment.contribution_end_date.split(' ')[0].split('T')[0]
             : '',
         )
-        // Edição: toggle OFF por padrão (não recriar despesa)
-        setGenerateExpense(false)
-        setExpenseCategory('')
+        // Edição: carrega o valor atual do toggle do investimento
+        setGenerateExpense(!!editingInvestment.generate_expense)
+        setExpenseCategory(editingInvestment.expense_category_id || '')
       } else {
         setType('cdb')
         setName('')
@@ -273,11 +287,12 @@ export function InvestmentFormSheet({
   }, [noEndDate, contributionStartDate, contributionEndDate])
 
   const handleSave = async () => {
+    const effectiveAmountInvested = parcelado ? computedAmountInvested : amountInvested
     const result = schema.safeParse({
       type,
       name,
       institution,
-      amount_invested: amountInvested,
+      amount_invested: effectiveAmountInvested,
       current_value: currentValue,
       interest_rate: interestRate ? Number(interestRate) : undefined,
       interest_type: interestType || undefined,
@@ -322,7 +337,7 @@ export function InvestmentFormSheet({
         type,
         name,
         institution,
-        amount_invested: amountInvested,
+        amount_invested: effectiveAmountInvested,
         current_value: currentValue,
         interest_rate: interestRate ? Number(interestRate) : null,
         interest_type: interestType || null,
@@ -334,6 +349,10 @@ export function InvestmentFormSheet({
         installment_value: parcelado ? installmentValue : 0,
         installments_total: parcelado ? installmentsTotal : 0,
         installments_paid: parcelado ? 1 : 0,
+        installment_due_day: parcelado ? installmentDueDay : 0,
+        installment_start_date: parcelado
+          ? new Date(installmentStartDate + 'T12:00:00').toISOString()
+          : null,
         frequency: parcelado || recurringContribution ? 'monthly' : null,
         has_recurring_contribution: recurringContribution,
         contribution_amount: recurringContribution ? contributionAmount : 0,
@@ -358,88 +377,101 @@ export function InvestmentFormSheet({
         createdId = created.id
       }
 
-      // Geração de despesa no fluxo de caixa (somente para novo investimento)
+      // Geração de despesa no fluxo de caixa.
+      // - Novo investimento: cria a transação (e recorrência, se aplicável).
+      // - Edição: só cria a transação se o toggle estiver ON E ainda não
+      //   existir transação vinculada a este investimento (evita duplicar).
       let createdTransaction = false
       let createdRecurring = false
-      if (generateExpense && !editingInvestment && createdId) {
-        const txDate = new Date(installmentStartDate + 'T12:00:00').toISOString()
-        if (parcelado) {
-          // Parcelado: transação com amount = installment_value
-          await createTransaction({
-            family_id: familyId,
-            owner_id: ownerId,
-            category_id: expenseCategory,
-            type: 'expense',
-            amount: installmentValue,
-            description: `Aporte: ${name} (parcela 1/${installmentsTotal})`,
-            transaction_date: txDate,
-            is_shared: false,
-            is_fixed: false,
-            source: 'investment',
-            investment_id: createdId,
-            status: 'pending',
-            is_installment: true,
-            installment_current: 1,
-            installment_total: installmentsTotal,
-          })
-          createdTransaction = true
-        } else if (recurringContribution) {
-          // Aporte mensal: transação + recorrente com amount = contribution_amount
-          await createTransaction({
-            family_id: familyId,
-            owner_id: ownerId,
-            category_id: expenseCategory,
-            type: 'expense',
-            amount: contributionAmount,
-            description: `Aporte: ${name}`,
-            transaction_date: new Date(contributionStartDate + 'T12:00:00').toISOString(),
-            is_shared: false,
-            is_fixed: false,
-            source: 'investment',
-            investment_id: createdId,
-            status: 'pending',
-          })
-          createdTransaction = true
-          await createRecurringTransaction({
-            family_id: familyId,
-            member_id: ownerId,
-            description: `Aporte: ${name}`,
-            amount: contributionAmount,
-            type: 'despesa',
-            category_id: expenseCategory,
-            frequency: 'monthly',
-            day_of_month: contributionDay,
-            start_date: contributionStartDate,
-            end_date:
-              !noEndDate && contributionEndDate
-                ? new Date(contributionEndDate + 'T12:00:00').toISOString()
-                : null,
-            shared: false,
-            active: true,
-          })
-          createdRecurring = true
-        } else {
-          // Comportamento atual: transação com amount = amount_invested
-          await createTransaction({
-            family_id: familyId,
-            owner_id: ownerId,
-            category_id: expenseCategory,
-            type: 'expense',
-            amount: amountInvested,
-            description: `Aporte: ${name}`,
-            transaction_date: txDate,
-            is_shared: false,
-            is_fixed: false,
-            source: 'investment',
-            investment_id: createdId,
-            status: 'pending',
-          })
-          createdTransaction = true
+      if (generateExpense && createdId) {
+        const shouldCreate = !editingInvestment || !(await hasTransactionForInvestment(createdId))
+        if (shouldCreate) {
+          const txDate = new Date(installmentStartDate + 'T12:00:00').toISOString()
+          if (parcelado) {
+            // Parcelado: transação com amount = installment_value
+            await createTransaction({
+              family_id: familyId,
+              owner_id: ownerId,
+              category_id: expenseCategory,
+              type: 'expense',
+              amount: installmentValue,
+              description: `Parcela 1/${installmentsTotal}: ${name}`,
+              transaction_date: txDate,
+              is_shared: false,
+              is_fixed: true,
+              source: 'investment',
+              investment_id: createdId,
+              status: 'pending',
+              is_installment: true,
+              installment_current: 1,
+              installment_total: installmentsTotal,
+            })
+            createdTransaction = true
+          } else if (recurringContribution) {
+            // Aporte mensal: transação + recorrente com amount = contribution_amount
+            await createTransaction({
+              family_id: familyId,
+              owner_id: ownerId,
+              category_id: expenseCategory,
+              type: 'expense',
+              amount: contributionAmount,
+              description: `Aporte: ${name}`,
+              transaction_date: new Date(contributionStartDate + 'T12:00:00').toISOString(),
+              is_shared: false,
+              is_fixed: false,
+              source: 'investment',
+              investment_id: createdId,
+              status: 'pending',
+            })
+            createdTransaction = true
+            // Recorrência só é criada para novos investimentos (evita duplicar na edição).
+            if (!editingInvestment) {
+              await createRecurringTransaction({
+                family_id: familyId,
+                member_id: ownerId,
+                description: `Aporte: ${name}`,
+                amount: contributionAmount,
+                type: 'despesa',
+                category_id: expenseCategory,
+                frequency: 'monthly',
+                day_of_month: contributionDay,
+                start_date: contributionStartDate,
+                end_date:
+                  !noEndDate && contributionEndDate
+                    ? new Date(contributionEndDate + 'T12:00:00').toISOString()
+                    : null,
+                shared: false,
+                active: true,
+              })
+              createdRecurring = true
+            }
+          } else {
+            // Comportamento atual: transação com amount = amount_invested
+            await createTransaction({
+              family_id: familyId,
+              owner_id: ownerId,
+              category_id: expenseCategory,
+              type: 'expense',
+              amount: effectiveAmountInvested,
+              description: `Aporte: ${name}`,
+              transaction_date: txDate,
+              is_shared: false,
+              is_fixed: false,
+              source: 'investment',
+              investment_id: createdId,
+              status: 'pending',
+            })
+            createdTransaction = true
+          }
         }
       }
 
       if (editingInvestment) {
-        toast({ title: 'Investimento atualizado' })
+        toast({
+          title: createdTransaction
+            ? 'Investimento atualizado e despesa registrada'
+            : 'Investimento atualizado',
+        })
       } else if (createdRecurring) {
         toast({ title: 'Investimento cadastrado com aporte mensal' })
       } else if (createdTransaction) {
@@ -461,6 +493,9 @@ export function InvestmentFormSheet({
     (typeof investmentTypeMeta)[InvestmentType],
   ][]
 
+  const saveDisabled =
+    saving || !name || !institution || computedAmountInvested <= 0 || currentValue <= 0
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-2xl">
@@ -468,6 +503,7 @@ export function InvestmentFormSheet({
           <SheetTitle>{editingInvestment ? 'Editar Investimento' : 'Novo Investimento'}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 mt-4">
+          {/* 1. Tipo */}
           <div>
             <Label className="text-xs font-semibold text-gray-700">Tipo</Label>
             <div className="grid grid-cols-4 gap-2 mt-1">
@@ -490,6 +526,8 @@ export function InvestmentFormSheet({
               })}
             </div>
           </div>
+
+          {/* 2. Nome */}
           <div>
             <Label className="text-xs font-semibold text-gray-700">Nome</Label>
             <Input
@@ -500,6 +538,8 @@ export function InvestmentFormSheet({
             />
             {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
           </div>
+
+          {/* 3. Instituição */}
           <div>
             <Label className="text-xs font-semibold text-gray-700">Instituição</Label>
             <Input
@@ -512,25 +552,52 @@ export function InvestmentFormSheet({
               <p className="text-xs text-red-500 mt-1">{errors.institution}</p>
             )}
           </div>
+
+          {/* 4. Valor investido (calculado se parcelado) */}
           <div>
-            <Label className="text-xs font-semibold text-gray-700">Valor investido</Label>
-            <CurrencyInput
-              value={amountInvested}
-              onChange={(v) => {
-                setAmountInvested(v)
-                if (!editingInvestment && currentValue === 0) setCurrentValue(v)
-              }}
-              error={errors.amount_invested}
-            />
+            <Label className="text-xs font-semibold text-gray-700">
+              {parcelado ? 'Valor total (calculado)' : 'Valor investido'}
+            </Label>
+            {parcelado ? (
+              <div className="relative flex items-center">
+                <Input
+                  type="text"
+                  readOnly
+                  value={formatBRL(computedAmountInvested)}
+                  className="pl-9 font-semibold text-gray-900 bg-gray-50"
+                />
+              </div>
+            ) : (
+              <CurrencyInput
+                value={amountInvested}
+                onChange={(v) => {
+                  setAmountInvested(v)
+                  if (!editingInvestment && currentValue === 0) setCurrentValue(v)
+                }}
+                error={errors.amount_invested}
+              />
+            )}
+            {parcelado && (
+              <p className="text-xs text-gray-500 mt-1">Entrada + (parcela × total de parcelas)</p>
+            )}
+            {errors.amount_invested && (
+              <p className="text-xs text-red-500 mt-1">{errors.amount_invested}</p>
+            )}
           </div>
+
+          {/* 5. Valor atual */}
           <div>
             <Label className="text-xs font-semibold text-gray-700">Valor atual</Label>
             <CurrencyInput
               value={currentValue}
               onChange={setCurrentValue}
               error={errors.current_value}
+              emptyOnZero
+              placeholder="R$ 0,00"
             />
           </div>
+
+          {/* 6. Taxa + Indexador */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs font-semibold text-gray-700">Taxa (opcional)</Label>
@@ -561,6 +628,8 @@ export function InvestmentFormSheet({
               </Select>
             </div>
           </div>
+
+          {/* 7. Vencimento */}
           <div>
             <Label className="text-xs font-semibold text-gray-700">Vencimento (opcional)</Label>
             <Input
@@ -569,28 +638,18 @@ export function InvestmentFormSheet({
               onChange={(e) => setMaturityDate(e.target.value)}
             />
           </div>
-          <div>
-            <Label className="text-xs font-semibold text-gray-700">Observações</Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              maxLength={500}
-            />
-          </div>
 
-          {/* a) Valor de entrada (somente imovel/terreno/veiculo) */}
-          {isAssetType && (
-            <div>
-              <Label className="text-xs font-semibold text-gray-700">
-                Valor de entrada (opcional)
-              </Label>
-              <CurrencyInput value={downPayment} onChange={setDownPayment} />
-            </div>
-          )}
-
-          {/* b) Toggle Parcelado */}
+          {/* 8. Seção Parcelamento */}
           <div className="space-y-3 p-3 border border-gray-200 rounded-xl bg-gray-50/60">
+            {isAssetType && (
+              <div>
+                <Label className="text-xs font-semibold text-gray-700">
+                  Valor de entrada (opcional)
+                </Label>
+                <CurrencyInput value={downPayment} onChange={setDownPayment} />
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-gray-800">Parcelado</p>
               <Switch checked={parcelado} onCheckedChange={handleParceladoChange} />
@@ -678,7 +737,7 @@ export function InvestmentFormSheet({
             )}
           </div>
 
-          {/* c) Toggle Aporte mensal recorrente (somente se Parcelado OFF) */}
+          {/* 9. Seção Aporte mensal */}
           {!parcelado && (
             <div className="space-y-3 p-3 border border-gray-200 rounded-xl bg-gray-50/60">
               <div className="flex items-center justify-between">
@@ -757,53 +816,64 @@ export function InvestmentFormSheet({
             </div>
           )}
 
-          {/* d) Geração de despesa no fluxo de caixa */}
-          {!editingInvestment && (
-            <div className="space-y-3 p-3 border border-gray-200 rounded-xl bg-gray-50/60">
-              <div className="flex items-center justify-between">
-                <div className="pr-2">
-                  <p className="text-sm font-semibold text-gray-800">
-                    Gerar despesa no fluxo de caixa
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {parcelado
+          {/* 10. Seção Fluxo de caixa */}
+          <div className="space-y-3 p-3 border border-gray-200 rounded-xl bg-gray-50/60">
+            <div className="flex items-center justify-between">
+              <div className="pr-2">
+                <p className="text-sm font-semibold text-gray-800">
+                  Gerar despesa no fluxo de caixa
+                </p>
+                <p className="text-xs text-gray-500">
+                  {editingInvestment
+                    ? 'Atualize a configuração de geração de despesa.'
+                    : parcelado
                       ? 'Registra a 1ª parcela como despesa no mês atual.'
                       : recurringContribution
                         ? 'Registra o 1º aporte e cria recorrência mensal.'
                         : 'Registra o aporte como despesa no mês atual.'}
-                  </p>
-                </div>
-                <Switch checked={generateExpense} onCheckedChange={setGenerateExpense} />
+                </p>
               </div>
-
-              {generateExpense && (
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-xs font-semibold text-gray-700">Categoria</Label>
-                    <Select value={expenseCategory} onValueChange={setExpenseCategory}>
-                      <SelectTrigger className={errors.expenseCategory ? 'border-red-500' : ''}>
-                        <SelectValue placeholder="Selecione uma categoria" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {expenseCategories.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.expenseCategory && (
-                      <p className="text-xs text-red-500 mt-1">{errors.expenseCategory}</p>
-                    )}
-                  </div>
-                </div>
-              )}
+              <Switch checked={generateExpense} onCheckedChange={setGenerateExpense} />
             </div>
-          )}
+
+            {generateExpense && (
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs font-semibold text-gray-700">Categoria</Label>
+                  <Select value={expenseCategory} onValueChange={setExpenseCategory}>
+                    <SelectTrigger className={errors.expenseCategory ? 'border-red-500' : ''}>
+                      <SelectValue placeholder="Selecione uma categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {expenseCategories.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.expenseCategory && (
+                    <p className="text-xs text-red-500 mt-1">{errors.expenseCategory}</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 11. Observações */}
+          <div>
+            <Label className="text-xs font-semibold text-gray-700">Observações</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              maxLength={500}
+            />
+          </div>
 
           <Button
             onClick={handleSave}
-            disabled={saving || !name || !institution || amountInvested <= 0 || currentValue <= 0}
+            disabled={saveDisabled}
             className="w-full bg-[#166534] hover:bg-[#15803D]"
           >
             {saving ? (

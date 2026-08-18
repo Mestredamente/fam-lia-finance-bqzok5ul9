@@ -16,6 +16,7 @@ import {
   Layers,
   CalendarDays,
   Landmark,
+  TrendingUp,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -612,6 +613,7 @@ export default function Transactions() {
                           {(t.is_shared ||
                             t.is_fixed ||
                             t.source === 'recurring' ||
+                            t.source === 'investment' ||
                             t.recurring_id ||
                             t.is_installment) && (
                             <div className="flex gap-1 mt-1">
@@ -649,6 +651,16 @@ export default function Transactions() {
                                 >
                                   <Repeat className="h-2.5 w-2.5" />
                                   Recorrente
+                                </Badge>
+                              )}
+                              {t.source === 'investment' && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs py-0 px-1 gap-0.5 border-emerald-200 text-emerald-700 bg-emerald-50"
+                                  title="Parcela de investimento"
+                                >
+                                  <TrendingUp className="h-2.5 w-2.5" />
+                                  Investimento
                                 </Badge>
                               )}
                             </div>

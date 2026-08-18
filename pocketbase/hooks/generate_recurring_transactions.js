@@ -244,6 +244,105 @@ cronAdd('generate_recurring_transactions', '0 0 * * *', () => {
       }
     }
 
+    // === NOVO: processar investimentos parcelados ===
+    // Gera a transação da parcela mensal de investimentos ativos parcelados,
+    // no dia de vencimento (installment_due_day), respeitando installment_start_date.
+    var investments = []
+    try {
+      investments = $app.findRecordsByFilter(
+        'investments',
+        'is_active = true && installments_total > 1 && installments_paid < installments_total && installment_due_day = ' +
+          d,
+        'created',
+        500,
+        0,
+      )
+    } catch (_) {
+      investments = []
+    }
+
+    var investmentCreatedCount = 0
+
+    for (var k = 0; k < investments.length; k++) {
+      var inv = investments[k]
+      var invId = inv.id
+      var invName = inv.getString('name')
+      var invInstallmentValue = inv.get('installment_value') || 0
+      var invInstallmentsTotal = inv.get('installments_total') || 0
+      var invInstallmentsPaid = inv.get('installments_paid') || 0
+      var invCategoryId = inv.getString('expense_category_id') || ''
+      var invFamilyId = inv.getString('family_id')
+      var invOwnerId = inv.getString('owner_id')
+
+      // Não gerar antes do início do parcelamento
+      var invStartStr = inv.getString('installment_start_date')
+      if (invStartStr) {
+        var invStartDate = new Date(invStartStr)
+        if (invStartDate.getTime() > now.getTime()) continue
+      }
+
+      // Verificar se já existe transação no mês atual com este investment_id
+      var existingInv = []
+      try {
+        existingInv = $app.findRecordsByFilter(
+          'transactions',
+          'investment_id = "' +
+            invId +
+            '" && transaction_date >= "' +
+            todayStr.substring(0, 8) +
+            '01" && transaction_date < "' +
+            endOfMonthStr +
+            '"',
+          'created',
+          1,
+          0,
+        )
+      } catch (_) {}
+
+      if (existingInv.length > 0) continue
+
+      var invNextPaid = invInstallmentsPaid + 1
+      var tx3 = new Record(txCol)
+      tx3.set('family_id', invFamilyId)
+      tx3.set('owner_id', invOwnerId)
+      if (invCategoryId) tx3.set('category_id', invCategoryId)
+      tx3.set('type', 'expense')
+      tx3.set('amount', invInstallmentValue)
+      tx3.set('description', 'Parcela ' + invNextPaid + '/' + invInstallmentsTotal + ': ' + invName)
+      tx3.set('transaction_date', todayStr)
+      tx3.set('source', 'investment')
+      tx3.set('investment_id', invId)
+      tx3.set('status', 'pending')
+      tx3.set('is_shared', false)
+      tx3.set('is_fixed', true)
+
+      try {
+        $app.save(tx3)
+        investmentCreatedCount++
+
+        inv.set('installments_paid', invNextPaid)
+        if (invInstallmentsTotal > 0 && invNextPaid >= invInstallmentsTotal) {
+          inv.set('is_active', false)
+        }
+        $app.save(inv)
+
+        $app
+          .logger()
+          .info(
+            'INVESTMENT: criada parcela ' +
+              invNextPaid +
+              '/' +
+              invInstallmentsTotal +
+              ' para ' +
+              invName,
+          )
+      } catch (saveErr3) {
+        $app
+          .logger()
+          .error('INVESTMENT: erro ao criar parcela para ' + invName, 'error', String(saveErr3))
+      }
+    }
+
     $app
       .logger()
       .info('RECURRING: recorrentes processadas', 'created', String(recurringCreatedCount))
@@ -255,6 +354,8 @@ cronAdd('generate_recurring_transactions', '0 0 * * *', () => {
         String(createdCount),
         'recurring_created',
         String(recurringCreatedCount),
+        'investment_created',
+        String(investmentCreatedCount),
       )
   } catch (err) {
     $app.logger().error('RECURRING: erro geral', 'error', String(err))

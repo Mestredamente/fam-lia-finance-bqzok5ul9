@@ -422,6 +422,8 @@ export interface InvestmentRecord {
   contribution_end_date?: string | null
   generate_expense?: boolean
   expense_category_id?: string | null
+  installment_due_day?: number | null
+  installment_start_date?: string | null
   created: string
   updated: string
   expand?: {

@@ -3,7 +3,6 @@ import { useAuth } from '@/hooks/use-auth'
 import { getActiveMembersByFamilyId } from '@/services/members'
 import { InvestmentList } from '@/components/InvestmentList'
 import { DebtList } from '@/components/DebtList'
-import { FixedBillsPatrimony } from '@/components/FixedBillsPatrimony'
 import { cn } from '@/lib/utils'
 import type { MemberRecord } from '@/types/finance'
 
@@ -60,8 +59,6 @@ export default function Patrimony() {
       ) : (
         <DebtList familyId={family.id} members={members} />
       )}
-
-      <FixedBillsPatrimony familyId={family.id} />
     </div>
   )
 }
