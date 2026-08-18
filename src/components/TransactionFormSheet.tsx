@@ -1,11 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
-import { Loader2, Clock, AlertTriangle } from 'lucide-react'
+import { Loader2, Clock, AlertTriangle, Info } from 'lucide-react'
 import { z } from 'zod'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { CurrencyInput } from '@/components/CurrencyInput'
 import { CategoryPicker } from '@/components/CategoryPicker'
 import { useCategories } from '@/hooks/use-categories'
@@ -17,14 +25,40 @@ import {
   updateTransaction,
   getTransactionsByFamilyAndMonth,
 } from '@/services/transactions'
+import { createRecurringTransaction } from '@/services/recurring-transactions'
 import { getBudgetsByFamilyId } from '@/services/budgets'
 import { useOfflineQueue } from '@/hooks/use-offline-queue'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
 import { cn, formatBRL } from '@/lib/utils'
 import { getDebtsByFamilyId } from '@/services/debts'
-import type { TransactionRecord, TransactionEmotion, DebtRecord } from '@/types/finance'
+import type {
+  TransactionRecord,
+  TransactionEmotion,
+  DebtRecord,
+  RecurringType,
+  RecurringFrequency,
+  RecurringEmotion,
+} from '@/types/finance'
 import type { BudgetRecord } from '@/types/budgets'
+
+/** Map a transaction emotion (EN enum) to the recurring emotion (PT enum). */
+function mapEmotionToRecurring(e: TransactionEmotion | null): RecurringEmotion | null {
+  if (!e) return null
+  const map: Record<TransactionEmotion, RecurringEmotion> = {
+    happy: 'feliz',
+    necessary: 'necessario',
+    neutral: 'neutro',
+    regret: 'arrependido',
+    impulsive: 'impulsivo',
+  }
+  return map[e] ?? null
+}
+
+/** Map a transaction type to the recurring type (despesa/receita). */
+function mapTypeToRecurring(t: TransactionRecord['type']): RecurringType {
+  return t === 'income' ? 'receita' : 'despesa'
+}
 
 const EMOTIONS: { value: TransactionEmotion; emoji: string; label: string }[] = [
   { value: 'happy', emoji: '😊', label: 'Feliz' },
@@ -103,6 +137,12 @@ export function TransactionFormSheet({
   const [activeDebts, setActiveDebts] = useState<DebtRecord[]>([])
   const [emotion, setEmotion] = useState<TransactionEmotion | null>(null)
   const [emotionNote, setEmotionNote] = useState('')
+  // Recurring toggle + fields — only visible/usable when creating a NEW transaction.
+  const [isRecurring, setIsRecurring] = useState(false)
+  const [frequency, setFrequency] = useState<RecurringFrequency>('monthly')
+  const [dayOfMonth, setDayOfMonth] = useState<number>(1)
+  const [recurringStartDate, setRecurringStartDate] = useState('')
+  const [recurringEndDate, setRecurringEndDate] = useState('')
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const { rules } = useCategorizationRules(familyId)
@@ -156,12 +196,19 @@ export function TransactionFormSheet({
         setDebtId(editingTransaction.debt_id ?? null)
         setEmotion((editingTransaction.emotion as TransactionEmotion) || null)
         setEmotionNote(editingTransaction.emotion_note || '')
+        // When editing, the recurring toggle is never shown (no recurring creation).
+        setIsRecurring(false)
+        setFrequency('monthly')
+        setDayOfMonth(1)
+        setRecurringStartDate('')
+        setRecurringEndDate('')
       } else {
         setType('expense')
         setAmount(0)
         setDescription('')
         setCategoryId(null)
-        setDate(new Date().toISOString().split('T')[0])
+        const todayISO = new Date().toISOString().split('T')[0]
+        setDate(todayISO)
         setTime(nowHHMM())
         setIsShared(false)
         setIsFixed(defaultIsFixed ?? false)
@@ -172,6 +219,12 @@ export function TransactionFormSheet({
         setDebtId(null)
         setEmotion(null)
         setEmotionNote('')
+        // New transaction: default recurring fields from today's date.
+        setIsRecurring(false)
+        setFrequency('monthly')
+        setDayOfMonth(new Date().getDate())
+        setRecurringStartDate(todayISO)
+        setRecurringEndDate('')
       }
       setErrors({})
       userTouchedCategory.current = false
@@ -187,6 +240,15 @@ export function TransactionFormSheet({
       setPurchaseDate('')
     }
   }, [type])
+
+  // When the transaction date changes and Recorrente is ON (new transaction),
+  // keep dayOfMonth + recurringStartDate in sync with the chosen date.
+  useEffect(() => {
+    if (editingTransaction || !isRecurring || !date) return
+    const day = new Date(date + 'T12:00:00').getDate()
+    setDayOfMonth(day)
+    setRecurringStartDate(date)
+  }, [date, isRecurring, editingTransaction])
 
   // Load active debts when the form is open in debt_payment mode.
   useEffect(() => {
@@ -331,6 +393,35 @@ export function TransactionFormSheet({
     }
     setSaving(true)
     try {
+      // ── Recorrente: save to recurring_transactions instead of transactions.
+      // Only when creating (never when editing) and toggle is ON.
+      if (!editingTransaction && isRecurring) {
+        await createRecurringTransaction({
+          family_id: familyId,
+          member_id: ownerId,
+          description: description.trim(),
+          amount,
+          type: mapTypeToRecurring(type),
+          category_id: categoryId || null,
+          card_id: null,
+          emotion: mapEmotionToRecurring(emotion),
+          frequency,
+          day_of_month: frequency === 'monthly' ? dayOfMonth : 1,
+          start_date: recurringStartDate || date,
+          end_date: recurringEndDate || null,
+          active: true,
+          shared: isShared,
+        })
+        toast({
+          title: 'Recorrente criada!',
+          description: 'As transações serão geradas automaticamente.',
+        })
+        announce('Recorrente criada')
+        onOpenChange(false)
+        onSaved?.()
+        return
+      }
+
       const supportsInstallment = type === 'expense' || type === 'investment'
       const data = {
         family_id: familyId,
@@ -719,6 +810,122 @@ export function TransactionFormSheet({
             <span className="text-sm font-medium text-gray-700">Conta fixa mensal</span>
             <Switch checked={isFixed} onCheckedChange={setIsFixed} />
           </div>
+          {/* Recorrente — only shown when creating a NEW transaction. */}
+          {editingTransaction &&
+            (editingTransaction.recurring_id || editingTransaction.source === 'recurring') && (
+              <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 p-3 text-xs text-amber-700 dark:text-amber-300">
+                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>
+                  Esta transação foi gerada por uma recorrente. Para alterar a recorrência, edite-a
+                  na página de Recorrentes.
+                </span>
+              </div>
+            )}
+          {!editingTransaction && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                  🔁 Recorrente
+                </span>
+                <Switch checked={isRecurring} onCheckedChange={setIsRecurring} />
+              </div>
+              {isRecurring && (
+                <div className="space-y-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 p-3 border border-emerald-100 dark:border-emerald-900/40">
+                  <div>
+                    <Label
+                      htmlFor="tx-frequency"
+                      className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                    >
+                      Frequência
+                    </Label>
+                    <Select
+                      value={frequency}
+                      onValueChange={(v) => setFrequency(v as RecurringFrequency)}
+                    >
+                      <SelectTrigger id="tx-frequency" className="mt-1">
+                        <SelectValue placeholder="Frequência" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Mensal</SelectItem>
+                        <SelectItem value="weekly">Semanal</SelectItem>
+                        <SelectItem value="yearly">Anual</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {frequency === 'monthly' && (
+                    <div>
+                      <Label
+                        htmlFor="tx-day-of-month"
+                        className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                      >
+                        Dia do mês
+                      </Label>
+                      <Input
+                        id="tx-day-of-month"
+                        type="number"
+                        min={1}
+                        max={31}
+                        value={dayOfMonth}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value, 10)
+                          setDayOfMonth(Number.isNaN(v) ? 1 : Math.min(31, Math.max(1, v)))
+                        }}
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <Label
+                      htmlFor="tx-recurring-start"
+                      className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                    >
+                      Início
+                    </Label>
+                    <Input
+                      id="tx-recurring-start"
+                      type="date"
+                      value={recurringStartDate}
+                      onChange={(e) => setRecurringStartDate(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <Label
+                        htmlFor="tx-recurring-end"
+                        className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                      >
+                        Fim (opcional)
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Label
+                          htmlFor="tx-no-end"
+                          className="text-[11px] text-gray-500 dark:text-gray-400 cursor-pointer"
+                        >
+                          Sem data de fim
+                        </Label>
+                        <Switch
+                          id="tx-no-end"
+                          checked={!recurringEndDate}
+                          onCheckedChange={(checked) => {
+                            if (checked) setRecurringEndDate('')
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <Input
+                      id="tx-recurring-end"
+                      type="date"
+                      value={recurringEndDate}
+                      onChange={(e) => setRecurringEndDate(e.target.value)}
+                      disabled={!recurringEndDate}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           <Button
             onClick={handleSave}
             disabled={saving || amount <= 0 || !description || !categoryId}

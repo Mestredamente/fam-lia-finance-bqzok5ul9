@@ -14,7 +14,10 @@ import {
   Loader2,
   CloudOff,
   Repeat,
+  Layers,
+  CalendarDays,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -103,6 +106,9 @@ export default function Transactions() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [memberFilter, setMemberFilter] = useState('all')
   const [emotionFilter, setEmotionFilter] = useState<TransactionEmotion | 'all'>('all')
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'once' | 'recurring' | 'installment'>(
+    'all',
+  )
   const [members, setMembers] = useState<MemberRecord[]>([])
   const [showForm, setShowForm] = useState(false)
   const [showImport, setShowImport] = useState(false)
@@ -159,6 +165,13 @@ export default function Transactions() {
   const filtered = transactions.filter((t) => {
     if (memberFilter !== 'all' && t.owner_id !== memberFilter) return false
     if (emotionFilter !== 'all' && t.emotion !== emotionFilter) return false
+    if (sourceFilter === 'once') {
+      if (t.recurring_id || t.is_installment) return false
+    } else if (sourceFilter === 'recurring') {
+      if (!t.recurring_id) return false
+    } else if (sourceFilter === 'installment') {
+      if (!t.is_installment) return false
+    }
     return true
   })
   const grouped = groupByDay(filtered)
@@ -320,6 +333,36 @@ export default function Transactions() {
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
+          {(
+            [
+              { value: 'all', label: 'Todas', icon: CalendarDays },
+              { value: 'once', label: 'Avulsas', icon: Receipt },
+              { value: 'recurring', label: 'Recorrentes', icon: Repeat },
+              { value: 'installment', label: 'Parceladas', icon: Layers },
+            ] as {
+              value: 'all' | 'once' | 'recurring' | 'installment'
+              label: string
+              icon: LucideIcon
+            }[]
+          ).map((f) => (
+            <Button
+              key={f.value}
+              variant={sourceFilter === f.value ? 'default' : 'secondary'}
+              onClick={() => setSourceFilter(f.value)}
+              className={cn(
+                'h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground',
+                sourceFilter === f.value && 'bg-[#166534] hover:bg-[#15803D] text-white',
+              )}
+            >
+              <f.icon className="h-4 w-4" />
+              <span className="hidden sm:inline">{f.label}</span>
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
           <Button
             variant={memberFilter === 'all' ? 'default' : 'secondary'}
             onClick={() => setMemberFilter('all')}
@@ -459,7 +502,11 @@ export default function Transactions() {
                               return ` · ${txTime.slice(0, 5)}`
                             })()}
                           </p>
-                          {(t.is_shared || t.is_fixed || t.source === 'recurring') && (
+                          {(t.is_shared ||
+                            t.is_fixed ||
+                            t.source === 'recurring' ||
+                            t.recurring_id ||
+                            t.is_installment) && (
                             <div className="flex gap-1 mt-1">
                               {t.is_shared && (
                                 <Badge variant="outline" className="text-xs py-0 px-1 gap-0.5">
@@ -473,7 +520,17 @@ export default function Transactions() {
                                   Fixa
                                 </Badge>
                               )}
-                              {t.source === 'recurring' && (
+                              {t.is_installment && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs py-0 px-1 gap-0.5 border-violet-200 text-violet-600 bg-violet-50"
+                                  title="Parcelada"
+                                >
+                                  <Layers className="h-2.5 w-2.5" />
+                                  Parcelada
+                                </Badge>
+                              )}
+                              {(t.source === 'recurring' || t.recurring_id) && (
                                 <Badge
                                   variant="outline"
                                   className="text-xs py-0 px-1 gap-0.5 border-sky-200 text-sky-600 bg-sky-50 cursor-pointer hover:bg-sky-100"
