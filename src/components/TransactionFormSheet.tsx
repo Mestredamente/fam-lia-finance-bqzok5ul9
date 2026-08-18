@@ -22,7 +22,8 @@ import { useOfflineQueue } from '@/hooks/use-offline-queue'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
 import { cn, formatBRL } from '@/lib/utils'
-import type { TransactionRecord, TransactionEmotion } from '@/types/finance'
+import { getDebtsByFamilyId } from '@/services/debts'
+import type { TransactionRecord, TransactionEmotion, DebtRecord } from '@/types/finance'
 import type { BudgetRecord } from '@/types/budgets'
 
 const EMOTIONS: { value: TransactionEmotion; emoji: string; label: string }[] = [
@@ -49,7 +50,7 @@ function nowHHMM() {
 
 const schema = z
   .object({
-    type: z.enum(['expense', 'income', 'investment']),
+    type: z.enum(['expense', 'income', 'investment', 'debt_payment']),
     amount: z.number().positive('Valor deve ser maior que zero').max(99999999.99),
     description: z.string().min(2, 'Descrição muito curta').max(100, 'Descrição muito longa'),
     category_id: z.string().min(1, 'Selecione uma categoria'),
@@ -86,7 +87,7 @@ export function TransactionFormSheet({
   defaultIsFixed,
 }: Props) {
   const { categories } = useCategories(familyId)
-  const [type, setType] = useState<'expense' | 'income' | 'investment'>('expense')
+  const [type, setType] = useState<'expense' | 'income' | 'investment' | 'debt_payment'>('expense')
   const [amount, setAmount] = useState(0)
   const [description, setDescription] = useState('')
   const [categoryId, setCategoryId] = useState<string | null>(null)
@@ -94,6 +95,12 @@ export function TransactionFormSheet({
   const [time, setTime] = useState(nowHHMM)
   const [isShared, setIsShared] = useState(false)
   const [isFixed, setIsFixed] = useState(false)
+  const [isInstallment, setIsInstallment] = useState(false)
+  const [installmentTotal, setInstallmentTotal] = useState(1)
+  const [installmentCurrent, setInstallmentCurrent] = useState(1)
+  const [purchaseDate, setPurchaseDate] = useState('')
+  const [debtId, setDebtId] = useState<string | null>(null)
+  const [activeDebts, setActiveDebts] = useState<DebtRecord[]>([])
   const [emotion, setEmotion] = useState<TransactionEmotion | null>(null)
   const [emotionNote, setEmotionNote] = useState('')
   const [saving, setSaving] = useState(false)
@@ -131,7 +138,7 @@ export function TransactionFormSheet({
   useEffect(() => {
     if (open) {
       if (editingTransaction) {
-        setType(editingTransaction.type as 'expense' | 'income' | 'investment')
+        setType(editingTransaction.type as 'expense' | 'income' | 'investment' | 'debt_payment')
         setAmount(editingTransaction.amount)
         setDescription(editingTransaction.description)
         setCategoryId(editingTransaction.category_id)
@@ -140,6 +147,13 @@ export function TransactionFormSheet({
         setTime(timePart ? timePart.slice(0, 5) : '12:00')
         setIsShared(editingTransaction.is_shared)
         setIsFixed(editingTransaction.is_fixed)
+        setIsInstallment(!!editingTransaction.is_installment)
+        setInstallmentTotal(editingTransaction.installment_total ?? 1)
+        setInstallmentCurrent(editingTransaction.installment_current ?? 1)
+        setPurchaseDate(
+          editingTransaction.purchase_date ? editingTransaction.purchase_date.split('T')[0] : '',
+        )
+        setDebtId(editingTransaction.debt_id ?? null)
         setEmotion((editingTransaction.emotion as TransactionEmotion) || null)
         setEmotionNote(editingTransaction.emotion_note || '')
       } else {
@@ -151,6 +165,11 @@ export function TransactionFormSheet({
         setTime(nowHHMM())
         setIsShared(false)
         setIsFixed(defaultIsFixed ?? false)
+        setIsInstallment(false)
+        setInstallmentTotal(1)
+        setInstallmentCurrent(1)
+        setPurchaseDate('')
+        setDebtId(null)
         setEmotion(null)
         setEmotionNote('')
       }
@@ -158,6 +177,35 @@ export function TransactionFormSheet({
       userTouchedCategory.current = false
     }
   }, [open, editingTransaction, defaultIsFixed])
+
+  // Reset installment fields when switching to a type that doesn't support them.
+  useEffect(() => {
+    if (type !== 'expense' && type !== 'investment') {
+      setIsInstallment(false)
+      setInstallmentTotal(1)
+      setInstallmentCurrent(1)
+      setPurchaseDate('')
+    }
+  }, [type])
+
+  // Load active debts when the form is open in debt_payment mode.
+  useEffect(() => {
+    if (!open || type !== 'debt_payment') {
+      setActiveDebts([])
+      return
+    }
+    let cancelled = false
+    getDebtsByFamilyId(familyId)
+      .then((debts) => {
+        if (!cancelled) setActiveDebts(debts)
+      })
+      .catch(() => {
+        if (!cancelled) setActiveDebts([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open, type, familyId])
 
   // Inline budget warning for the currently selected category.
   // Computes spent / limit for the month of the selected transaction date,
@@ -283,6 +331,7 @@ export function TransactionFormSheet({
     }
     setSaving(true)
     try {
+      const supportsInstallment = type === 'expense' || type === 'investment'
       const data = {
         family_id: familyId,
         owner_id: ownerId,
@@ -296,6 +345,11 @@ export function TransactionFormSheet({
         source: 'manual' as const,
         emotion: emotion || null,
         emotion_note: emotionNote || null,
+        is_installment: supportsInstallment ? isInstallment : false,
+        installment_current: supportsInstallment && isInstallment ? installmentCurrent : null,
+        installment_total: supportsInstallment && isInstallment ? installmentTotal : null,
+        purchase_date: purchaseDate || null,
+        debt_id: type === 'debt_payment' ? debtId : null,
       }
       if (editingTransaction) {
         await updateTransaction(editingTransaction.id, data)
@@ -354,6 +408,13 @@ export function TransactionFormSheet({
       bg: 'bg-blue-50',
       border: 'border-blue-500',
     },
+    {
+      value: 'debt_payment' as const,
+      label: 'Dívida',
+      color: 'text-purple-600',
+      bg: 'bg-purple-50',
+      border: 'border-purple-500',
+    },
   ]
 
   return (
@@ -363,7 +424,7 @@ export function TransactionFormSheet({
           <SheetTitle>{editingTransaction ? 'Editar Transação' : 'Nova Transação'}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 mt-4">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             {types.map((t) => (
               <button
                 key={t.value}
@@ -425,7 +486,6 @@ export function TransactionFormSheet({
             </label>
             <div className="mt-1">
               <CategoryPicker
-                id="tx-category"
                 categories={categories}
                 selectedId={categoryId}
                 onSelect={(id) => {
@@ -433,7 +493,9 @@ export function TransactionFormSheet({
                   setCategoryId(id)
                 }}
                 familyId={familyId}
-                type={type}
+                type={
+                  type === 'debt_payment' ? 'debt' : (type as 'expense' | 'income' | 'investment')
+                }
                 aria-required="true"
               />
             </div>
@@ -515,6 +577,104 @@ export function TransactionFormSheet({
             />
             <p className="text-[11px] text-gray-400 mt-0.5 text-right">{emotionNote.length}/200</p>
           </div>
+          {/* Parcelamento — só para expense e investment */}
+          {(type === 'expense' || type === 'investment') && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                  Parcelado
+                </span>
+                <Switch checked={isInstallment} onCheckedChange={setIsInstallment} />
+              </div>
+              {isInstallment && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label
+                      htmlFor="tx-installment-total"
+                      className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                    >
+                      Total de parcelas
+                    </label>
+                    <Input
+                      id="tx-installment-total"
+                      type="number"
+                      min={2}
+                      max={120}
+                      value={installmentTotal}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10)
+                        setInstallmentTotal(Number.isNaN(v) ? 1 : Math.min(120, Math.max(1, v)))
+                      }}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="tx-installment-current"
+                      className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                    >
+                      Parcela atual
+                    </label>
+                    <Input
+                      id="tx-installment-current"
+                      type="number"
+                      min={1}
+                      max={installmentTotal}
+                      value={installmentCurrent}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10)
+                        setInstallmentCurrent(
+                          Number.isNaN(v) ? 1 : Math.min(installmentTotal, Math.max(1, v)),
+                        )
+                      }}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label
+                      htmlFor="tx-purchase-date"
+                      className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                    >
+                      Data da compra (opcional)
+                    </label>
+                    <Input
+                      id="tx-purchase-date"
+                      type="date"
+                      value={purchaseDate}
+                      onChange={(e) => setPurchaseDate(e.target.value)}
+                      placeholder="Mesma da transação"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {/* Dívida vinculada — só para debt_payment */}
+          {type === 'debt_payment' && (
+            <div>
+              <label
+                htmlFor="tx-debt"
+                className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+              >
+                Dívida vinculada
+              </label>
+              <select
+                id="tx-debt"
+                value={debtId || ''}
+                onChange={(e) => setDebtId(e.target.value || null)}
+                className="mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 text-sm"
+              >
+                <option value="">Nenhuma (pagamento avulso)</option>
+                {activeDebts.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.description} — {formatBRL(d.installment_value)}/mês (restam{' '}
+                    {d.installments_remaining})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="tx-date" className="text-xs font-semibold text-gray-700">
