@@ -20,10 +20,62 @@ import { debtFormTypes } from '@/lib/patrimony-icons'
 import { useCategories } from '@/hooks/use-categories'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
-import { cn } from '@/lib/utils'
+import { cn, formatBRL } from '@/lib/utils'
 import type { DebtRecord, DebtType } from '@/types/finance'
 
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
+
+// Helper para inputs numéricos controlados como texto (sem travar no zero)
+function sanitizeInt(raw: string): string {
+  if (raw === '') return ''
+  const digits = raw.replace(/\D/g, '')
+  if (digits === '') return ''
+  const n = parseInt(digits, 10)
+  if (isNaN(n)) return ''
+  return String(n)
+}
+
+// Helper para decimais (juros)
+function sanitizeDecimal(raw: string): string {
+  if (raw === '') return ''
+  let s = raw.replace(/[^\d.,]/g, '')
+  if (s === '') return ''
+  // troca vírgula por ponto
+  s = s.replace(',', '.')
+  // mantém só o último ponto
+  const parts = s.split('.')
+  if (parts.length > 2) {
+    s = parts.slice(0, -1).join('') + '.' + parts[parts.length - 1]
+  }
+  return s
+}
+
+// Calcula data de fim: start_date + installments_total meses (mesmo dia)
+function calcEndDate(startDateStr: string, total: number): string | null {
+  if (!startDateStr || !total || total <= 0) return null
+  const d = new Date(startDateStr + 'T12:00:00')
+  if (isNaN(d.getTime())) return null
+  const day = d.getDate()
+  const month = d.getMonth()
+  const year = d.getFullYear()
+  const totalMonth = month + total
+  const endYear = year + Math.floor(totalMonth / 12)
+  const endMonth = totalMonth % 12
+  const lastDay = new Date(endYear, endMonth + 1, 0).getDate()
+  const endDay = Math.min(day, lastDay)
+  const end = new Date(endYear, endMonth, endDay, 12, 0, 0)
+  return end.toISOString().split('T')[0]
+}
+
+function formatDateDDMMYYYY(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso + 'T12:00:00')
+  if (isNaN(d.getTime())) return ''
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = d.getFullYear()
+  return `${dd}/${mm}/${yyyy}`
+}
 
 const schema = z
   .object({
@@ -76,6 +128,10 @@ export function DebtFormSheet({
   const [dueDay, setDueDay] = useState(1)
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
   const [notes, setNotes] = useState('')
+  // strings controladas para inputs numéricos (evita bug do zero travado)
+  const [installmentsTotalStr, setInstallmentsTotalStr] = useState('1')
+  const [installmentsPaidStr, setInstallmentsPaidStr] = useState('0')
+  const [interestRateStr, setInterestRateStr] = useState('')
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -97,8 +153,11 @@ export function DebtFormSheet({
         setRemainingAmount(editingDebt.remaining_amount)
         setInstallmentValue(editingDebt.installment_value)
         setInstallmentsTotal(editingDebt.installments_total)
+        setInstallmentsTotalStr(String(editingDebt.installments_total))
         setInstallmentsPaid(editingDebt.installments_paid)
+        setInstallmentsPaidStr(String(editingDebt.installments_paid))
         setInterestRate(String(editingDebt.interest_rate))
+        setInterestRateStr(String(editingDebt.interest_rate))
         setDueDay(editingDebt.due_day)
         setStartDate(editingDebt.start_date.split(' ')[0].split('T')[0])
         setNotes(editingDebt.notes || '')
@@ -111,8 +170,11 @@ export function DebtFormSheet({
         setRemainingAmount(0)
         setInstallmentValue(0)
         setInstallmentsTotal(1)
+        setInstallmentsTotalStr('1')
         setInstallmentsPaid(0)
+        setInstallmentsPaidStr('0')
         setInterestRate('')
+        setInterestRateStr('')
         setDueDay(1)
         setStartDate(new Date().toISOString().split('T')[0])
         setNotes('')
@@ -134,6 +196,36 @@ export function DebtFormSheet({
       expenseCategories.find((c) => c.name.toLowerCase() === 'dívidas')
     if (found) setExpenseCategory(found.id)
   }, [generateExpense, expenseCategory, expenseCategories])
+
+  // Handlers para inputs numéricos controlados (texto + inputMode numeric)
+  const handleInstallmentsTotalChange = (raw: string) => {
+    const s = sanitizeInt(raw)
+    setInstallmentsTotalStr(s)
+    setInstallmentsTotal(s === '' ? 0 : parseInt(s, 10))
+  }
+  const handleInstallmentsPaidChange = (raw: string) => {
+    const s = sanitizeInt(raw)
+    setInstallmentsPaidStr(s)
+    setInstallmentsPaid(s === '' ? 0 : parseInt(s, 10))
+  }
+  const handleInterestRateChange = (raw: string) => {
+    const s = sanitizeDecimal(raw)
+    setInterestRateStr(s)
+    setInterestRate(s)
+  }
+
+  // Cálculo automático de data de fim (mesmo dia, +installments_total meses)
+  const endDateStr = useMemo(
+    () => calcEndDate(startDate, installmentsTotal),
+    [startDate, installmentsTotal],
+  )
+  // Resumo automático de total
+  const totalSummary = useMemo(() => {
+    if (installmentsTotal > 0 && installmentValue > 0) {
+      return installmentsTotal * installmentValue
+    }
+    return 0
+  }, [installmentsTotal, installmentValue])
 
   const handleSave = async () => {
     const result = schema.safeParse({
@@ -177,6 +269,7 @@ export function DebtFormSheet({
         auto_create_transaction: generateExpense,
         category_id: generateExpense && expenseCategory ? expenseCategory : null,
         frequency: 'monthly' as const,
+        end_date: endDateStr ? new Date(endDateStr + 'T12:00:00').toISOString() : null,
       }
       if (editingDebt) {
         await updateDebt(editingDebt.id, data)
@@ -265,32 +358,41 @@ export function DebtFormSheet({
             <div>
               <Label className="text-xs font-semibold text-gray-700">Total de parcelas</Label>
               <Input
-                type="number"
-                min={1}
-                value={installmentsTotal}
-                onChange={(e) => setInstallmentsTotal(Number(e.target.value))}
+                type="text"
+                inputMode="numeric"
+                value={installmentsTotalStr}
+                onChange={(e) => handleInstallmentsTotalChange(e.target.value)}
+                placeholder="Ex: 24"
                 className={errors.installments_total ? 'border-red-500' : ''}
               />
+              {errors.installments_total && (
+                <p className="text-xs text-red-500 mt-1">{errors.installments_total}</p>
+              )}
             </div>
             <div>
               <Label className="text-xs font-semibold text-gray-700">Parcelas pagas</Label>
               <Input
-                type="number"
-                min={0}
-                value={installmentsPaid}
-                onChange={(e) => setInstallmentsPaid(Number(e.target.value))}
+                type="text"
+                inputMode="numeric"
+                value={installmentsPaidStr}
+                onChange={(e) => handleInstallmentsPaidChange(e.target.value)}
+                placeholder="Ex: 0"
                 className={errors.installments_paid ? 'border-red-500' : ''}
               />
+              {errors.installments_paid && (
+                <p className="text-xs text-red-500 mt-1">{errors.installments_paid}</p>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs font-semibold text-gray-700">Juros a.m. (%)</Label>
               <Input
-                type="number"
-                step="0.01"
-                value={interestRate}
-                onChange={(e) => setInterestRate(e.target.value)}
+                type="text"
+                inputMode="decimal"
+                value={interestRateStr}
+                onChange={(e) => handleInterestRateChange(e.target.value)}
+                placeholder="Ex: 1.5"
                 className={errors.interest_rate ? 'border-red-500' : ''}
               />
               {errors.interest_rate && (
@@ -323,6 +425,26 @@ export function DebtFormSheet({
             />
             {errors.start_date && <p className="text-xs text-red-500 mt-1">{errors.start_date}</p>}
           </div>
+
+          {/* Cálculo automático de término */}
+          {endDateStr && (
+            <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2">
+              <p className="text-xs font-medium text-blue-800">
+                Término estimado: {formatDateDDMMYYYY(endDateStr)}
+              </p>
+            </div>
+          )}
+
+          {/* Resumo automático */}
+          {installmentsTotal > 0 && installmentValue > 0 && (
+            <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2">
+              <p className="text-sm font-semibold text-emerald-800">
+                {installmentsTotal}x de {formatBRL(installmentValue)} = {formatBRL(totalSummary)}{' '}
+                total
+              </p>
+            </div>
+          )}
+
           <div>
             <Label className="text-xs font-semibold text-gray-700">Observações</Label>
             <Textarea

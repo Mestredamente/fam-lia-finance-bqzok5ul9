@@ -384,6 +384,9 @@ export type InvestmentType =
   | 'poupanca'
   | 'renda_fixa'
   | 'cripto'
+  | 'imovel'
+  | 'terreno'
+  | 'veiculo'
   | 'outro'
 
 export type InterestType = 'cdi' | 'fixed' | 'ipca' | 'prefixed'
@@ -407,6 +410,18 @@ export interface InvestmentRecord {
   status?: 'active' | 'paid_off' | 'overdue'
   frequency?: 'monthly' | 'yearly' | 'weekly'
   auto_create_transaction?: boolean
+  // Extensão 0058
+  down_payment?: number | null
+  installment_value?: number | null
+  installments_total?: number | null
+  installments_paid?: number | null
+  has_recurring_contribution?: boolean
+  contribution_amount?: number | null
+  contribution_day?: number | null
+  contribution_start_date?: string | null
+  contribution_end_date?: string | null
+  generate_expense?: boolean
+  expense_category_id?: string | null
   created: string
   updated: string
   expand?: {

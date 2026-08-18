@@ -8,6 +8,7 @@ import {
   CircleDollarSign,
   Home,
   Car,
+  Map,
   HandCoins,
   CreditCard,
   FileText,
@@ -29,6 +30,9 @@ export const investmentTypeMeta: Record<InvestmentType, TypeMeta> = {
   poupanca: { label: 'Poupança', icon: PiggyBank, color: '#EC4899' },
   renda_fixa: { label: 'Renda Fixa', icon: Coins, color: '#14B8A6' },
   cripto: { label: 'Cripto', icon: Bitcoin, color: '#F97316' },
+  imovel: { label: 'Imóvel', icon: Home, color: '#DC2626' },
+  terreno: { label: 'Terreno', icon: Map, color: '#16A34A' },
+  veiculo: { label: 'Veículo', icon: Car, color: '#2563EB' },
   outro: { label: 'Outro', icon: CircleDollarSign, color: '#6B7280' },
 }
 
