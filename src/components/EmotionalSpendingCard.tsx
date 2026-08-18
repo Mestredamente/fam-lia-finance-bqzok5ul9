@@ -17,6 +17,9 @@ const EMOTION_KEY: Record<TransactionEmotion, string> = {
   neutral: 'neutro',
   regret: 'arrependido',
   impulsive: 'impulsivo',
+  grateful: 'grato',
+  surprised: 'surpreso',
+  anxious: 'ansioso',
 }
 
 const WEEKDAYS_LONG = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo']
@@ -70,6 +73,9 @@ const EMOTION_LABEL: Record<TransactionEmotion, string> = {
   neutral: 'neutralidade',
   regret: 'arrependimento',
   impulsive: 'impulso',
+  grateful: 'gratidão',
+  surprised: 'surpresa',
+  anxious: 'ansiedade',
 }
 
 interface Props {

@@ -290,7 +290,15 @@ export interface SavingsGoal {
   }
 }
 
-export type TransactionEmotion = 'happy' | 'necessary' | 'regret' | 'impulsive' | 'neutral'
+export type TransactionEmotion =
+  | 'happy'
+  | 'necessary'
+  | 'regret'
+  | 'impulsive'
+  | 'neutral'
+  | 'grateful'
+  | 'surprised'
+  | 'anxious'
 
 export interface CreditCardRecord {
   id: string

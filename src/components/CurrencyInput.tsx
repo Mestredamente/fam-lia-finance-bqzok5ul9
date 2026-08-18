@@ -10,6 +10,7 @@ interface CurrencyInputProps {
   /** When true, a value of 0 renders as an empty string (shows placeholder). */
   emptyOnZero?: boolean
   placeholder?: string
+  id?: string
 }
 
 export function CurrencyInput({
@@ -19,6 +20,7 @@ export function CurrencyInput({
   error,
   emptyOnZero,
   placeholder,
+  id,
 }: CurrencyInputProps) {
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
@@ -37,6 +39,7 @@ export function CurrencyInput({
       <div className="relative flex items-center">
         <DollarSign className="absolute left-3 h-4 w-4 text-gray-400" />
         <Input
+          id={id}
           type="text"
           value={displayValue}
           placeholder={placeholder}

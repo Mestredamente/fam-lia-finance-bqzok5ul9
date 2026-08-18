@@ -15,6 +15,9 @@ interface CategoryPickerProps {
   onSelect: (id: string) => void
   familyId: string
   type: CategoryType
+  /** Optional list of frequently-used category ids. When provided (and no
+   *  search is active), those categories are sorted to the top of the grid. */
+  frequentIds?: string[]
 }
 
 export function CategoryPicker({
@@ -23,15 +26,37 @@ export function CategoryPicker({
   onSelect,
   familyId,
   type,
+  frequentIds,
 }: CategoryPickerProps) {
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [color, setColor] = useState(PREDEFINED_COLORS[0])
   const [icon, setIcon] = useState(PREDEFINED_ICONS[0])
   const [loading, setLoading] = useState(false)
+  const [search, setSearch] = useState('')
   const { user } = useAuth()
 
   const filtered = categories.filter((c) => c.type === type)
+
+  const visible = (() => {
+    const q = search.trim().toLowerCase()
+    let list = filtered
+    if (q) {
+      list = filtered.filter((cat) => cat.name.toLowerCase().includes(q))
+    } else if (frequentIds && frequentIds.length > 0) {
+      // Sort frequent categories first, then keep original order for the rest.
+      const order = new Map(frequentIds.map((id, i) => [id, i]))
+      list = [...filtered].sort((a, b) => {
+        const ai = order.has(a.id) ? order.get(a.id)! : Number.MAX_SAFE_INTEGER
+        const bi = order.has(b.id) ? order.get(b.id)! : Number.MAX_SAFE_INTEGER
+        return ai - bi
+      })
+    } else {
+      // No frequency info and no search: sort alphabetically.
+      list = [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+    }
+    return list
+  })()
 
   const handleCreate = async () => {
     if (!name.trim()) return
@@ -122,42 +147,50 @@ export function CategoryPicker({
   }
 
   return (
-    <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
-      {filtered.map((cat) => {
-        const Icon = getCategoryIcon(cat.icon)
-        return (
-          <button
-            key={cat.id}
-            type="button"
-            onClick={() => onSelect(cat.id)}
-            className={cn(
-              'flex flex-col items-center gap-1 p-2 rounded-xl border transition-all',
-              selectedId === cat.id
-                ? 'border-[#22C55E] bg-emerald-50'
-                : 'border-gray-200 bg-white hover:bg-gray-50',
-            )}
-          >
-            <div
-              className="w-9 h-9 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: cat.color + '20' }}
+    <div>
+      {filtered.length > 8 && (
+        <Input
+          placeholder="Buscar categoria..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="mb-2"
+        />
+      )}
+      <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
+        {visible.map((cat) => {
+          const Icon = getCategoryIcon(cat.icon)
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => onSelect(cat.id)}
+              className={cn(
+                'flex flex-col items-center gap-1 p-2 rounded-xl border transition-all',
+                selectedId === cat.id
+                  ? 'border-[#22C55E] bg-emerald-50'
+                  : 'border-gray-200 bg-white hover:bg-gray-50',
+              )}
             >
-              <Icon className="h-4 w-4" style={{ color: cat.color }} />
-            </div>
-            <span className="text-[10px] font-medium text-gray-600 text-center leading-tight truncate w-full">
-              {cat.name}
-            </span>
-          </button>
-        )
-      })}
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: cat.color + '20' }}
+              >
+                <Icon className="h-4 w-4" style={{ color: cat.color }} />
+              </div>
+              <span className="text-[10px] font-medium text-gray-600 text-center leading-tight truncate w-full">
+                {cat.name}
+              </span>
+            </button>
+          )
+        })}
+      </div>
       <button
         type="button"
         onClick={() => setShowForm(true)}
-        className="flex flex-col items-center gap-1 p-2 rounded-xl border border-dashed border-gray-300 bg-white hover:bg-gray-50 transition-all"
+        className="mt-2 w-full py-2 rounded-lg border border-dashed border-blue-300 bg-blue-50/50 hover:bg-blue-50 text-blue-600 text-sm font-medium flex items-center justify-center gap-1 transition-all"
       >
-        <div className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-100">
-          <Plus className="h-4 w-4 text-gray-500" />
-        </div>
-        <span className="text-[10px] font-medium text-gray-500 text-center">Criar nova</span>
+        <Plus className="h-4 w-4" />
+        Criar nova categoria
       </button>
     </div>
   )

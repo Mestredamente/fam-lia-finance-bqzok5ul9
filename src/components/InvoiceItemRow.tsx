@@ -30,6 +30,9 @@ const EMOTION_EMOJI: Record<TransactionEmotion, string> = {
   neutral: '😐',
   regret: '😬',
   impulsive: '😤',
+  grateful: '🙏',
+  surprised: '🎉',
+  anxious: '😰',
 }
 
 interface Props {

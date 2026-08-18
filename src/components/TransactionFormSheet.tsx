@@ -49,6 +49,9 @@ function mapEmotionToRecurring(e: TransactionEmotion | null): RecurringEmotion |
     neutral: 'neutro',
     regret: 'arrependido',
     impulsive: 'impulsivo',
+    grateful: 'feliz',
+    surprised: 'feliz',
+    anxious: 'ansioso',
   }
   return map[e] ?? null
 }
@@ -58,13 +61,26 @@ function mapTypeToRecurring(t: TransactionRecord['type']): RecurringType {
   return t === 'income' ? 'receita' : 'despesa'
 }
 
-const EMOTIONS: { value: TransactionEmotion; emoji: string; label: string }[] = [
-  { value: 'happy', emoji: '😊', label: 'Feliz' },
-  { value: 'necessary', emoji: '✅', label: 'Necessário' },
-  { value: 'neutral', emoji: '😐', label: 'Neutro' },
-  { value: 'regret', emoji: '😬', label: 'Arrependido' },
-  { value: 'impulsive', emoji: '😤', label: 'Impulsivo' },
-]
+/** Emotions available per transaction type. */
+const EMOTIONS_BY_TYPE: Record<
+  'expense' | 'income',
+  { value: TransactionEmotion; emoji: string; label: string }[]
+> = {
+  expense: [
+    { value: 'happy', emoji: '😊', label: 'Feliz' },
+    { value: 'necessary', emoji: '✅', label: 'Necessário' },
+    { value: 'neutral', emoji: '😐', label: 'Neutro' },
+    { value: 'regret', emoji: '😬', label: 'Arrependido' },
+    { value: 'impulsive', emoji: '😤', label: 'Impulsivo' },
+    { value: 'anxious', emoji: '😰', label: 'Ansioso' },
+  ],
+  income: [
+    { value: 'happy', emoji: '😊', label: 'Feliz' },
+    { value: 'grateful', emoji: '🙏', label: 'Grato' },
+    { value: 'surprised', emoji: '🎉', label: 'Surpreso' },
+    { value: 'neutral', emoji: '😐', label: 'Neutro' },
+  ],
+}
 
 export const EMOTION_META: Record<TransactionEmotion, { emoji: string; label: string }> = {
   happy: { emoji: '😊', label: 'Feliz' },
@@ -72,6 +88,9 @@ export const EMOTION_META: Record<TransactionEmotion, { emoji: string; label: st
   neutral: { emoji: '😐', label: 'Neutro' },
   regret: { emoji: '😬', label: 'Arrependido' },
   impulsive: { emoji: '😤', label: 'Impulsivo' },
+  grateful: { emoji: '🙏', label: 'Grato' },
+  surprised: { emoji: '🎉', label: 'Surpreso' },
+  anxious: { emoji: '😰', label: 'Ansioso' },
 }
 
 /** Current local time as HH:MM, used as the default for new transactions. */
@@ -232,6 +251,15 @@ export function TransactionFormSheet({
       setInstallmentCurrent(1)
       setPurchaseDate('')
     }
+  }, [type])
+
+  // When the type changes, clear the selected emotion if it is no longer valid
+  // for the new type (e.g. 'regret' is valid for expense but not for income).
+  useEffect(() => {
+    setEmotion((prev) => {
+      if (prev && EMOTIONS_BY_TYPE[type].some((e) => e.value === prev)) return prev
+      return null
+    })
   }, [type])
 
   // When the transaction date changes and Recorrente is ON (new transaction),
@@ -467,397 +495,420 @@ export function TransactionFormSheet({
     },
   ]
 
+  const typeLabel = type === 'income' ? 'receita' : 'despesa'
+  const typeAction = type === 'income' ? 'registrar' : 'gastar'
+  const emotions = EMOTIONS_BY_TYPE[type]
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-2xl">
-        <SheetHeader>
+      <SheetContent side="bottom" className="max-h-[90vh] rounded-t-2xl flex flex-col">
+        <SheetHeader className="shrink-0">
           <SheetTitle>{editingTransaction ? 'Editar Transação' : 'Nova Transação'}</SheetTitle>
         </SheetHeader>
-        <div className="space-y-4 mt-4">
-          <div className="grid grid-cols-2 gap-2">
-            {types.map((t) => (
-              <button
-                key={t.value}
-                type="button"
-                disabled={!!editingTransaction}
-                onClick={() => setType(t.value)}
-                className={cn(
-                  'py-3 rounded-xl border-2 font-bold text-sm transition-all',
-                  type === t.value
-                    ? `${t.bg} ${t.border} ${t.color}`
-                    : 'border-gray-200 bg-white text-gray-500',
-                  editingTransaction && 'opacity-50 cursor-not-allowed',
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-          <div>
-            <label htmlFor="tx-amount" className="text-xs font-semibold text-gray-700">
-              Valor
-            </label>
-            <CurrencyInput
-              id="tx-amount"
-              value={amount}
-              onChange={setAmount}
-              error={errors.amount}
-              aria-required="true"
-            />
-          </div>
-          <div>
-            <label htmlFor="tx-description" className="text-xs font-semibold text-gray-700">
-              Descrição
-            </label>
-            <Input
-              id="tx-description"
-              placeholder="Exemplo: Supermercado"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              maxLength={100}
-              aria-required="true"
-              aria-describedby={errors.description ? 'tx-description-error' : undefined}
-              className={errors.description ? 'border-red-500' : ''}
-            />
-            {errors.description && (
-              <p
-                id="tx-description-error"
-                role="alert"
-                aria-live="assertive"
-                className="text-xs text-red-500 mt-1"
-              >
-                {errors.description}
-              </p>
-            )}
-          </div>
-          <div>
-            <label htmlFor="tx-category" className="text-xs font-semibold text-gray-700">
-              Categoria
-            </label>
-            <div className="mt-1">
-              <CategoryPicker
-                categories={categories}
-                selectedId={categoryId}
-                onSelect={(id) => {
-                  userTouchedCategory.current = true
-                  setCategoryId(id)
-                }}
-                familyId={familyId}
-                type={type}
+        <div className="overflow-y-auto flex-1 px-0">
+          <div className="space-y-4 mt-4">
+            <div className="grid grid-cols-2 gap-2">
+              {types.map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  disabled={!!editingTransaction}
+                  onClick={() => setType(t.value)}
+                  className={cn(
+                    'py-3 rounded-xl border-2 font-bold text-sm transition-all',
+                    type === t.value
+                      ? `${t.bg} ${t.border} ${t.color}`
+                      : 'border-gray-200 bg-white text-gray-500',
+                    editingTransaction && 'opacity-50 cursor-not-allowed',
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <div>
+              <label htmlFor="tx-amount" className="text-xs font-semibold text-gray-700">
+                Valor
+              </label>
+              <CurrencyInput
+                id="tx-amount"
+                value={amount}
+                onChange={setAmount}
+                error={errors.amount}
                 aria-required="true"
+                emptyOnZero
+                placeholder="R$ 0,00"
               />
             </div>
-            {errors.category_id && (
-              <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
-                {errors.category_id}
-              </p>
-            )}
-            {inlineWarning && (
-              <div
-                role="status"
-                className={cn(
-                  'mt-2 flex items-start gap-2 rounded-lg p-2.5 text-xs',
-                  inlineWarning.exceeded
-                    ? 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300'
-                    : 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 text-amber-700 dark:text-amber-300',
-                )}
-              >
-                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <span>
-                  {inlineWarning.exceeded
-                    ? `🚫 Esta categoria ESTOUROU o orçamento! ${formatBRL(
-                        inlineWarning.spent,
-                      )} de ${formatBRL(inlineWarning.limit)}.`
-                    : `⚠️ Esta categoria está em ${Math.round(
-                        inlineWarning.pct,
-                      )}% do orçamento (${formatBRL(inlineWarning.spent)} de ${formatBRL(
-                        inlineWarning.limit,
-                      )}). Restam ${formatBRL(Math.max(inlineWarning.remaining, 0))}.`}
-                </span>
-              </div>
-            )}
-          </div>
-          <div>
-            <span className="text-xs font-semibold text-gray-700">
-              Como você se sentiu com esta compra?
-            </span>
-            <p className="text-[11px] text-gray-400 mb-2">Opcional</p>
-            <div className="grid grid-cols-5 gap-2" role="group" aria-label="Emoção da compra">
-              {EMOTIONS.map((e) => {
-                const selected = emotion === e.value
-                return (
-                  <button
-                    key={e.value}
-                    type="button"
-                    onClick={() => setEmotion(selected ? null : e.value)}
-                    aria-pressed={selected}
-                    aria-label={e.label}
-                    className={cn(
-                      'flex flex-col items-center justify-center gap-1 py-2 rounded-xl border-2 transition-all',
-                      selected
-                        ? 'border-[#166534] bg-emerald-50'
-                        : 'border-gray-200 bg-white hover:border-gray-300',
-                    )}
-                  >
-                    <span className="text-2xl leading-none" aria-hidden="true">
-                      {e.emoji}
-                    </span>
-                    <span
-                      className={cn(
-                        'text-[10px] font-medium leading-tight text-center',
-                        selected ? 'text-[#166534]' : 'text-gray-500',
-                      )}
-                    >
-                      {e.label}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-            <Textarea
-              placeholder="O que te motivou a comprar?"
-              value={emotionNote}
-              onChange={(e) => setEmotionNote(e.target.value)}
-              maxLength={200}
-              rows={2}
-              className="mt-2 text-sm resize-none"
-              aria-label="Nota sobre a emoção da compra"
-            />
-            <p className="text-[11px] text-gray-400 mt-0.5 text-right">{emotionNote.length}/200</p>
-          </div>
-          {/* Parcelamento — só para expense */}
-          {type === 'expense' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                  Parcelado
-                </span>
-                <Switch checked={isInstallment} onCheckedChange={setIsInstallment} />
-              </div>
-              {isInstallment && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label
-                      htmlFor="tx-installment-total"
-                      className="text-xs font-semibold text-gray-700 dark:text-gray-200"
-                    >
-                      Total de parcelas
-                    </label>
-                    <Input
-                      id="tx-installment-total"
-                      type="number"
-                      min={2}
-                      max={120}
-                      value={installmentTotal}
-                      onChange={(e) => {
-                        const v = parseInt(e.target.value, 10)
-                        setInstallmentTotal(Number.isNaN(v) ? 1 : Math.min(120, Math.max(1, v)))
-                      }}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="tx-installment-current"
-                      className="text-xs font-semibold text-gray-700 dark:text-gray-200"
-                    >
-                      Parcela atual
-                    </label>
-                    <Input
-                      id="tx-installment-current"
-                      type="number"
-                      min={1}
-                      max={installmentTotal}
-                      value={installmentCurrent}
-                      onChange={(e) => {
-                        const v = parseInt(e.target.value, 10)
-                        setInstallmentCurrent(
-                          Number.isNaN(v) ? 1 : Math.min(installmentTotal, Math.max(1, v)),
-                        )
-                      }}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label
-                      htmlFor="tx-purchase-date"
-                      className="text-xs font-semibold text-gray-700 dark:text-gray-200"
-                    >
-                      Data da compra (opcional)
-                    </label>
-                    <Input
-                      id="tx-purchase-date"
-                      type="date"
-                      value={purchaseDate}
-                      onChange={(e) => setPurchaseDate(e.target.value)}
-                      placeholder="Mesma da transação"
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="tx-date" className="text-xs font-semibold text-gray-700">
-                Data
+              <label htmlFor="tx-description" className="text-xs font-semibold text-gray-700">
+                Descrição
               </label>
               <Input
-                id="tx-date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
+                id="tx-description"
+                placeholder={type === 'income' ? 'Exemplo: Salário' : 'Exemplo: Supermercado'}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                maxLength={100}
                 aria-required="true"
-                className={errors.transaction_date ? 'border-red-500' : ''}
+                aria-describedby={errors.description ? 'tx-description-error' : undefined}
+                className={errors.description ? 'border-red-500' : ''}
               />
-              {errors.transaction_date && (
-                <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
-                  {errors.transaction_date}
+              {errors.description && (
+                <p
+                  id="tx-description-error"
+                  role="alert"
+                  aria-live="assertive"
+                  className="text-xs text-red-500 mt-1"
+                >
+                  {errors.description}
                 </p>
               )}
             </div>
             <div>
-              <label
-                htmlFor="tx-time"
-                className="flex items-center gap-1 text-xs font-semibold text-gray-700"
-              >
-                <Clock className="h-3 w-3" />
-                Horário
+              <label htmlFor="tx-category" className="text-xs font-semibold text-gray-700">
+                Categoria
               </label>
-              <Input
-                id="tx-time"
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="mt-1"
-              />
+              <div className="mt-1">
+                <CategoryPicker
+                  categories={categories}
+                  selectedId={categoryId}
+                  onSelect={(id) => {
+                    userTouchedCategory.current = true
+                    setCategoryId(id)
+                  }}
+                  familyId={familyId}
+                  type={type}
+                  aria-required="true"
+                />
+              </div>
+              {errors.category_id && (
+                <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
+                  {errors.category_id}
+                </p>
+              )}
+              {inlineWarning && (
+                <div
+                  role="status"
+                  className={cn(
+                    'mt-2 flex items-start gap-2 rounded-lg p-2.5 text-xs',
+                    inlineWarning.exceeded
+                      ? 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300'
+                      : 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 text-amber-700 dark:text-amber-300',
+                  )}
+                >
+                  <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  <span>
+                    {inlineWarning.exceeded
+                      ? `🚫 Esta categoria ESTOUROU o orçamento! ${formatBRL(
+                          inlineWarning.spent,
+                        )} de ${formatBRL(inlineWarning.limit)}.`
+                      : `⚠️ Esta categoria está em ${Math.round(
+                          inlineWarning.pct,
+                        )}% do orçamento (${formatBRL(inlineWarning.spent)} de ${formatBRL(
+                          inlineWarning.limit,
+                        )}). Restam ${formatBRL(Math.max(inlineWarning.remaining, 0))}.`}
+                  </span>
+                </div>
+              )}
             </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Compartilhada com a família</span>
-            <Switch checked={isShared} onCheckedChange={setIsShared} />
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Conta fixa mensal</span>
-            <Switch checked={isFixed} onCheckedChange={setIsFixed} />
-          </div>
-          {/* Recorrente — only shown when creating a NEW transaction. */}
-          {editingTransaction &&
-            (editingTransaction.recurring_id || editingTransaction.source === 'recurring') && (
-              <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 p-3 text-xs text-amber-700 dark:text-amber-300">
-                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <span>
-                  Esta transação foi gerada por uma recorrente. Para alterar a recorrência, edite-a
-                  na página de Recorrentes.
-                </span>
-              </div>
-            )}
-          {!editingTransaction && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                  🔁 Recorrente
-                </span>
-                <Switch checked={isRecurring} onCheckedChange={setIsRecurring} />
-              </div>
-              {isRecurring && (
-                <div className="space-y-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 p-3 border border-emerald-100 dark:border-emerald-900/40">
-                  <div>
-                    <Label
-                      htmlFor="tx-frequency"
-                      className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+            <div>
+              <span className="text-xs font-semibold text-gray-700">
+                Como você se sentiu com esta {typeLabel}?
+              </span>
+              <p className="text-[11px] text-gray-400 mb-2">Opcional</p>
+              <div
+                className={cn('grid gap-2', type === 'income' ? 'grid-cols-4' : 'grid-cols-3')}
+                role="group"
+                aria-label={`Emoção da ${typeLabel}`}
+              >
+                {emotions.map((e) => {
+                  const selected = emotion === e.value
+                  return (
+                    <button
+                      key={e.value}
+                      type="button"
+                      onClick={() => setEmotion(selected ? null : e.value)}
+                      aria-pressed={selected}
+                      aria-label={e.label}
+                      className={cn(
+                        'flex flex-col items-center justify-center gap-1 py-2 rounded-xl border-2 transition-all',
+                        selected
+                          ? 'border-[#166534] bg-emerald-50'
+                          : 'border-gray-200 bg-white hover:border-gray-300',
+                      )}
                     >
-                      Frequência
-                    </Label>
-                    <Select
-                      value={frequency}
-                      onValueChange={(v) => setFrequency(v as RecurringFrequency)}
-                    >
-                      <SelectTrigger id="tx-frequency" className="mt-1">
-                        <SelectValue placeholder="Frequência" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="monthly">Mensal</SelectItem>
-                        <SelectItem value="weekly">Semanal</SelectItem>
-                        <SelectItem value="yearly">Anual</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {frequency === 'monthly' && (
+                      <span className="text-2xl leading-none" aria-hidden="true">
+                        {e.emoji}
+                      </span>
+                      <span
+                        className={cn(
+                          'text-[10px] font-medium leading-tight text-center',
+                          selected ? 'text-[#166534]' : 'text-gray-500',
+                        )}
+                      >
+                        {e.label}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+              <Textarea
+                placeholder={`O que te motivou a ${typeAction}?`}
+                value={emotionNote}
+                onChange={(e) => setEmotionNote(e.target.value)}
+                maxLength={200}
+                rows={2}
+                className="mt-2 text-sm resize-none"
+                aria-label={`Nota sobre a emoção da ${typeLabel}`}
+              />
+              <p className="text-[11px] text-gray-400 mt-0.5 text-right">
+                {emotionNote.length}/200
+              </p>
+            </div>
+            {/* Parcelamento — só para expense */}
+            {type === 'expense' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    Parcelado
+                  </span>
+                  <Switch checked={isInstallment} onCheckedChange={setIsInstallment} />
+                </div>
+                {isInstallment && (
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label
-                        htmlFor="tx-day-of-month"
+                      <label
+                        htmlFor="tx-installment-total"
                         className="text-xs font-semibold text-gray-700 dark:text-gray-200"
                       >
-                        Dia do mês
-                      </Label>
+                        Total de parcelas
+                      </label>
                       <Input
-                        id="tx-day-of-month"
+                        id="tx-installment-total"
                         type="number"
-                        min={1}
-                        max={31}
-                        value={dayOfMonth}
+                        min={2}
+                        max={120}
+                        value={installmentTotal}
                         onChange={(e) => {
                           const v = parseInt(e.target.value, 10)
-                          setDayOfMonth(Number.isNaN(v) ? 1 : Math.min(31, Math.max(1, v)))
+                          setInstallmentTotal(Number.isNaN(v) ? 1 : Math.min(120, Math.max(1, v)))
                         }}
                         className="mt-1"
                       />
                     </div>
-                  )}
-                  <div>
-                    <Label
-                      htmlFor="tx-recurring-start"
-                      className="text-xs font-semibold text-gray-700 dark:text-gray-200"
-                    >
-                      Início
-                    </Label>
-                    <Input
-                      id="tx-recurring-start"
-                      type="date"
-                      value={recurringStartDate}
-                      onChange={(e) => setRecurringStartDate(e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <Label
-                        htmlFor="tx-recurring-end"
+                    <div>
+                      <label
+                        htmlFor="tx-installment-current"
                         className="text-xs font-semibold text-gray-700 dark:text-gray-200"
                       >
-                        Fim (opcional)
-                      </Label>
-                      <div className="flex items-center gap-2">
-                        <Label
-                          htmlFor="tx-no-end"
-                          className="text-[11px] text-gray-500 dark:text-gray-400 cursor-pointer"
-                        >
-                          Sem data de fim
-                        </Label>
-                        <Switch
-                          id="tx-no-end"
-                          checked={!recurringEndDate}
-                          onCheckedChange={(checked) => {
-                            if (checked) setRecurringEndDate('')
-                          }}
-                        />
-                      </div>
+                        Parcela atual
+                      </label>
+                      <Input
+                        id="tx-installment-current"
+                        type="number"
+                        min={1}
+                        max={installmentTotal}
+                        value={installmentCurrent}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value, 10)
+                          setInstallmentCurrent(
+                            Number.isNaN(v) ? 1 : Math.min(installmentTotal, Math.max(1, v)),
+                          )
+                        }}
+                        className="mt-1"
+                      />
                     </div>
-                    <Input
-                      id="tx-recurring-end"
-                      type="date"
-                      value={recurringEndDate}
-                      onChange={(e) => setRecurringEndDate(e.target.value)}
-                      disabled={!recurringEndDate}
-                      className="mt-1"
-                    />
+                    <div className="col-span-2">
+                      <label
+                        htmlFor="tx-purchase-date"
+                        className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                      >
+                        Data da compra (opcional)
+                      </label>
+                      <Input
+                        id="tx-purchase-date"
+                        type="date"
+                        value={purchaseDate}
+                        onChange={(e) => setPurchaseDate(e.target.value)}
+                        placeholder="Mesma da transação"
+                        className="mt-1"
+                      />
+                    </div>
                   </div>
+                )}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="tx-date" className="text-xs font-semibold text-gray-700">
+                  Data
+                </label>
+                <Input
+                  id="tx-date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  aria-required="true"
+                  className={errors.transaction_date ? 'border-red-500' : ''}
+                />
+                {errors.transaction_date && (
+                  <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
+                    {errors.transaction_date}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label
+                  htmlFor="tx-time"
+                  className="flex items-center gap-1 text-xs font-semibold text-gray-700"
+                >
+                  <Clock className="h-3 w-3" />
+                  Horário
+                </label>
+                <Input
+                  id="tx-time"
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Compartilhada com a família</span>
+              <Switch checked={isShared} onCheckedChange={setIsShared} />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Conta fixa mensal</span>
+              <Switch checked={isFixed} onCheckedChange={setIsFixed} />
+            </div>
+            {/* Recorrente — only shown when creating a NEW transaction. */}
+            {editingTransaction &&
+              (editingTransaction.recurring_id || editingTransaction.source === 'recurring') && (
+                <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 p-3 text-xs text-amber-700 dark:text-amber-300">
+                  <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  <span>
+                    Esta transação foi gerada por uma recorrente. Para alterar a recorrência,
+                    edite-a na página de Recorrentes.
+                  </span>
                 </div>
               )}
-            </div>
-          )}
+            {!editingTransaction && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                      🔁 Recorrente
+                    </span>
+                    <p className="text-[11px] text-gray-400">
+                      {type === 'income'
+                        ? 'Esta receita se repete todo mês'
+                        : 'Esta despesa se repete todo mês'}
+                    </p>
+                  </div>
+                  <Switch checked={isRecurring} onCheckedChange={setIsRecurring} />
+                </div>
+                {isRecurring && (
+                  <div className="space-y-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 p-3 border border-emerald-100 dark:border-emerald-900/40">
+                    <div>
+                      <Label
+                        htmlFor="tx-frequency"
+                        className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                      >
+                        Frequência
+                      </Label>
+                      <Select
+                        value={frequency}
+                        onValueChange={(v) => setFrequency(v as RecurringFrequency)}
+                      >
+                        <SelectTrigger id="tx-frequency" className="mt-1">
+                          <SelectValue placeholder="Frequência" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="monthly">Mensal</SelectItem>
+                          <SelectItem value="weekly">Semanal</SelectItem>
+                          <SelectItem value="yearly">Anual</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {frequency === 'monthly' && (
+                      <div>
+                        <Label
+                          htmlFor="tx-day-of-month"
+                          className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                        >
+                          Dia do mês
+                        </Label>
+                        <Input
+                          id="tx-day-of-month"
+                          type="number"
+                          min={1}
+                          max={31}
+                          value={dayOfMonth}
+                          onChange={(e) => {
+                            const v = parseInt(e.target.value, 10)
+                            setDayOfMonth(Number.isNaN(v) ? 1 : Math.min(31, Math.max(1, v)))
+                          }}
+                          className="mt-1"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <Label
+                        htmlFor="tx-recurring-start"
+                        className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                      >
+                        Início
+                      </Label>
+                      <Input
+                        id="tx-recurring-start"
+                        type="date"
+                        value={recurringStartDate}
+                        onChange={(e) => setRecurringStartDate(e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <Label
+                          htmlFor="tx-recurring-end"
+                          className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                        >
+                          Fim (opcional)
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <Label
+                            htmlFor="tx-no-end"
+                            className="text-[11px] text-gray-500 dark:text-gray-400 cursor-pointer"
+                          >
+                            Sem data de fim
+                          </Label>
+                          <Switch
+                            id="tx-no-end"
+                            checked={!recurringEndDate}
+                            onCheckedChange={(checked) => {
+                              if (checked) setRecurringEndDate('')
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <Input
+                        id="tx-recurring-end"
+                        type="date"
+                        value={recurringEndDate}
+                        onChange={(e) => setRecurringEndDate(e.target.value)}
+                        disabled={!recurringEndDate}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="border-t border-gray-100 pt-3 px-0 pb-1 shrink-0">
           <Button
             onClick={handleSave}
             disabled={saving || amount <= 0 || !description || !categoryId}
