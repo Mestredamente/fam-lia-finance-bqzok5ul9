@@ -72,6 +72,7 @@ routerAdd(
       $app.logger().error('GEMINI_API_KEY not configured')
       return jsonRes(500, {
         success: false,
+        error_code: 'auth_error',
         error: 'Chave da API Gemini não configurada. Contate o suporte.',
       })
     }
@@ -97,7 +98,11 @@ routerAdd(
     if (!token) {
       $app.logger().error('PB_SUPERUSER_TOKEN not configured')
       saveError(invoice, 'Token de autenticação interno não configurado.')
-      return jsonRes(500, { success: false, error: 'Token de autenticação não configurado' })
+      return jsonRes(500, {
+        success: false,
+        error_code: 'auth_error',
+        error: 'Token de autenticação não configurado',
+      })
     }
 
     invoice.set('status', 'pending')
@@ -128,7 +133,11 @@ routerAdd(
         .logger()
         .error('File download failed', 'status', downloadRes.statusCode, 'invoice_id', invoiceId)
       saveError(invoice, 'Falha ao baixar arquivo', null, chosenModel)
-      return jsonRes(500, { success: false, error: 'Falha ao baixar arquivo' })
+      return jsonRes(500, {
+        success: false,
+        error_code: 'internal_error',
+        error: 'Falha ao baixar arquivo',
+      })
     }
 
     var rawBody = downloadRes.body
@@ -137,11 +146,19 @@ routerAdd(
 
     if (fileSize === 0) {
       saveError(invoice, 'Arquivo vazio ou corrompido', null, chosenModel)
-      return jsonRes(400, { success: false, error: 'Arquivo vazio ou corrompido' })
+      return jsonRes(400, {
+        success: false,
+        error_code: 'invalid_file',
+        error: 'Arquivo vazio ou corrompido',
+      })
     }
     if (fileSize > 10 * 1024 * 1024) {
       saveError(invoice, 'Arquivo muito grande. Máximo 10MB.', null, chosenModel)
-      return jsonRes(400, { success: false, error: 'Arquivo muito grande. Máximo 10MB.' })
+      return jsonRes(400, {
+        success: false,
+        error_code: 'invalid_file',
+        error: 'Arquivo muito grande. Máximo 10MB.',
+      })
     }
 
     var ext = fileName.split('.').pop().toLowerCase()
@@ -253,11 +270,13 @@ routerAdd(
           if (gRes.statusCode === 401)
             return jsonRes(401, {
               success: false,
+              error_code: 'auth_error',
               error: 'Erro de autenticação com a API Gemini. Verifique a chave de API.',
               raw_error: lastErrorDetail,
             })
           return jsonRes(400, {
             success: false,
+            error_code: 'invalid_file',
             error: 'Erro de configuração da API Gemini.',
             raw_error: lastErrorDetail,
           })
@@ -277,6 +296,7 @@ routerAdd(
           saveError(invoice, 'Modelo de IA não disponível. Contate o suporte.', null, chosenModel)
           return jsonRes(404, {
             success: false,
+            error_code: 'not_found',
             error: 'Modelo de IA não disponível. Contate o suporte.',
             raw_error: lastErrorDetail,
           })
@@ -322,6 +342,18 @@ routerAdd(
             gRes.statusCode >= 400 && gRes.statusCode < 600 ? gRes.statusCode : 500
           return jsonRes(nonTransientStatus, {
             success: false,
+            error_code:
+              nonTransientStatus === 429
+                ? 'rate_limit'
+                : nonTransientStatus === 503
+                  ? 'overload'
+                  : nonTransientStatus === 404
+                    ? 'not_found'
+                    : nonTransientStatus === 401
+                      ? 'auth_error'
+                      : nonTransientStatus === 400 || nonTransientStatus === 422
+                        ? 'invalid_file'
+                        : 'internal_error',
             error: 'Erro da API Gemini (HTTP ' + gRes.statusCode + ').',
             raw_error: lastErrorDetail,
           })
@@ -349,6 +381,7 @@ routerAdd(
         )
         return jsonRes(503, {
           success: false,
+          error_code: 'timeout',
           error: 'Erro de conexão com a API Gemini.',
           raw_error: lastErrorDetail,
         })
@@ -376,6 +409,7 @@ routerAdd(
         )
         return jsonRes(429, {
           success: false,
+          error_code: 'rate_limit',
           error: 'Serviço de IA sobrecarregado. Tente novamente em alguns minutos.',
           raw_error: lastErrorDetail,
         })
@@ -389,6 +423,7 @@ routerAdd(
       )
       return jsonRes(503, {
         success: false,
+        error_code: 'overload',
         error: 'Serviço de IA temporariamente indisponível. Tente novamente.',
         raw_error: lastErrorDetail,
       })
@@ -419,11 +454,11 @@ routerAdd(
       )
       return jsonRes(500, {
         success: false,
+        error_code: 'internal_error',
         error: 'Resposta da Gemini em formato inválido',
         raw_error: responseBody.substring(0, 500),
       })
     }
-
     var aiContent = ''
     var tokensInput = 0
     var tokensOutput = 0
@@ -474,11 +509,11 @@ routerAdd(
       )
       return jsonRes(500, {
         success: false,
+        error_code: 'internal_error',
         error: 'Resposta da Gemini em formato inválido',
         raw_error: String(extractErr),
       })
     }
-
     if (!aiContent || aiContent.trim() === '') {
       saveError(
         invoice,
@@ -488,11 +523,11 @@ routerAdd(
       )
       return jsonRes(500, {
         success: false,
+        error_code: 'internal_error',
         error: 'Resposta da Gemini está vazia',
         raw_error: responseBody.substring(0, 500),
       })
     }
-
     diagInfo.rawAiExcerpt = aiContent.substring(0, 500)
     diagInfo.logs.push('Gemini tokens - input: ' + tokensInput + ', output: ' + tokensOutput)
     $app
@@ -580,11 +615,11 @@ routerAdd(
       )
       return jsonRes(500, {
         success: false,
+        error_code: 'internal_error',
         error: 'Resposta da IA não contém JSON válido',
         raw_error: aiContent.substring(0, 500),
       })
     }
-
     var parsed = null
     try {
       parsed = JSON.parse(jsonStr)
@@ -667,6 +702,7 @@ routerAdd(
         )
         return e.json(500, {
           success: false,
+          error_code: 'internal_error',
           error: 'JSON malformado na resposta da IA',
           raw_gemini_response: aiContent,
           diagnostics: diagInfo,
@@ -693,6 +729,7 @@ routerAdd(
       )
       return jsonRes(500, {
         success: false,
+        error_code: 'internal_error',
         error: 'Resposta da IA não contém array de items',
         raw_error: aiContent.substring(0, 500),
       })

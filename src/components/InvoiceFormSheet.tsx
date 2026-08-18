@@ -19,6 +19,7 @@ import { getCreditCard } from '@/services/credit-cards'
 import { toast } from '@/hooks/use-toast'
 import { useAnnouncer } from '@/hooks/use-announcer'
 import { getPortugueseError } from '@/lib/error-utils'
+import { detectErrorCode, getErrorConfig } from '@/lib/invoice-errors'
 import { cn } from '@/lib/utils'
 
 const MONTHS = [
@@ -109,7 +110,15 @@ export function InvoiceFormSheet({ open, onOpenChange, cardId, familyId, onSaved
       if (file && useAI) {
         toast({ title: 'Fatura criada! Processando com IA...' })
         announce('Fatura criada')
-        parseInvoice(created.id).catch(() => {})
+        parseInvoice(created.id).catch((err) => {
+          const code = detectErrorCode(err)
+          const config = getErrorConfig(code)
+          toast({
+            variant: 'destructive',
+            title: config.title,
+            description: config.body,
+          })
+        })
       } else {
         toast({ title: 'Fatura criada' })
         announce('Fatura criada')

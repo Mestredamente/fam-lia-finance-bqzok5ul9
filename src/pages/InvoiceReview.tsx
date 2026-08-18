@@ -11,6 +11,9 @@ import {
   Trash2,
   Layers,
   Sparkles,
+  Clock,
+  AlertTriangle,
+  WifiOff,
 } from 'lucide-react'
 import { ClientResponseError } from 'pocketbase'
 import { useAuth } from '@/hooks/use-auth'
@@ -47,7 +50,9 @@ import { InvoiceItemRow } from '@/components/InvoiceItemRow'
 import { DeleteInvoiceDialog } from '@/components/DeleteInvoiceDialog'
 import { EmptyState } from '@/components/EmptyState'
 import { formatBRL, getMonthName, cn } from '@/lib/utils'
-import { getParseStatus } from '@/lib/invoice-utils'
+import { getParseStatus, getParseError } from '@/lib/invoice-utils'
+import { detectErrorCode, getErrorConfig, type InvoiceErrorConfig } from '@/lib/invoice-errors'
+import { TransactionFormSheet } from '@/components/TransactionFormSheet'
 import { toast } from '@/hooks/use-toast'
 import type { InvoiceRecord, InvoiceItemRecord, TransactionEmotion } from '@/types/finance'
 
@@ -64,7 +69,7 @@ const TIMEOUT_MESSAGE = 'Tempo limite excedido. A fatura pode ser muito grande. 
 export default function InvoiceReview() {
   const { cardId, invoiceId } = useParams<{ cardId: string; invoiceId: string }>()
   const navigate = useNavigate()
-  const { family } = useAuth()
+  const { family, member } = useAuth()
   const perms = usePermissions()
   const canDeleteInvoices = perms.canDeleteInvoices()
 
@@ -89,7 +94,9 @@ export default function InvoiceReview() {
   >([])
   const [deletedItemIds, setDeletedItemIds] = useState<string[]>([])
   const [parsingSeconds, setParsingSeconds] = useState(0)
-  const [parseError, setParseError] = useState<string | null>(null)
+  const [parseError, setParseError] = useState<unknown>(null)
+  const [showManualForm, setShowManualForm] = useState(false)
+  const [manualFormDefaultIsExpense, setManualFormDefaultIsExpense] = useState(true)
   const [unmatchedSamples, setUnmatchedSamples] = useState<string[]>([])
   const [aiProcessingLabel, setAiProcessingLabel] = useState<string | null>(null)
   const [aiNoMatchCount, setAiNoMatchCount] = useState(0)
@@ -142,7 +149,7 @@ export default function InvoiceReview() {
     const interval = setInterval(() => {
       setParsingSeconds((s) => {
         if (s + 1 >= 200) {
-          setParseError(TIMEOUT_MESSAGE)
+          setParseError(new Error('TIMEOUT'))
           return s + 1
         }
         return s + 1
@@ -480,19 +487,14 @@ export default function InvoiceReview() {
       await parseInvoice(invoiceId)
       toast({ title: 'Processando fatura com IA...' })
     } catch (err) {
-      const isTimeout = err instanceof Error && err.message === 'TIMEOUT'
-      const errorMsg = isTimeout
-        ? TIMEOUT_MESSAGE
-        : err instanceof ClientResponseError
-          ? ((err.response as Record<string, unknown>)?.error as string) || err.message
-          : err instanceof Error
-            ? err.message
-            : 'Erro ao processar fatura'
-      setParseError(errorMsg)
+      console.error('Reparse error', err)
+      setParseError(err)
+      const code = detectErrorCode(err)
+      const config = getErrorConfig(code)
       toast({
         variant: 'destructive',
-        title: isTimeout ? 'Tempo limite excedido' : 'Erro ao processar fatura',
-        description: errorMsg,
+        title: config.title,
+        description: config.body,
       })
     } finally {
       setReparsing(false)
@@ -600,28 +602,17 @@ export default function InvoiceReview() {
       </Card>
 
       {parseError ? (
-        <Card className="rounded-2xl border-red-200 bg-red-50">
-          <CardContent className="p-8 flex flex-col items-center text-center space-y-3">
-            <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
-              <AlertCircle className="h-7 w-7 text-red-600" />
-            </div>
-            <p className="text-sm font-medium text-red-900">Erro na importação</p>
-            <p className="text-xs text-red-600">{parseError}</p>
-            <Button
-              size="sm"
-              onClick={handleReparse}
-              disabled={reparsing}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {reparsing ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-1" />
-              )}
-              Tentar novamente
-            </Button>
-          </CardContent>
-        </Card>
+        <ParseErrorCard
+          config={getErrorConfig(detectErrorCode(parseError))}
+          reparsing={reparsing}
+          onRetry={handleReparse}
+          onChooseFile={() => navigate(`/cards/${cardId}`)}
+          onOk={() => setParseError(null)}
+          onManualEntry={() => {
+            setManualFormDefaultIsExpense(true)
+            setShowManualForm(true)
+          }}
+        />
       ) : parseStatus === 'processing' ? (
         <Card className="rounded-2xl border-blue-200 bg-blue-50" aria-busy="true">
           <CardContent className="p-8 flex flex-col items-center text-center space-y-3">
@@ -641,28 +632,17 @@ export default function InvoiceReview() {
           </CardContent>
         </Card>
       ) : parseStatus === 'error' && !itemsLoading && items.length === 0 ? (
-        <Card className="rounded-2xl border-red-200 bg-red-50">
-          <CardContent className="p-8 flex flex-col items-center text-center space-y-3">
-            <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
-              <AlertCircle className="h-7 w-7 text-red-600" />
-            </div>
-            <p className="text-sm font-medium text-red-900">Erro na importação</p>
-            <p className="text-xs text-red-600">Não foi possível processar a fatura com IA.</p>
-            <Button
-              size="sm"
-              onClick={handleReparse}
-              disabled={reparsing}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {reparsing ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-1" />
-              )}
-              Tentar novamente
-            </Button>
-          </CardContent>
-        </Card>
+        <ParseErrorCard
+          config={getErrorConfig(detectErrorCode(getParseError(invoice)))}
+          reparsing={reparsing}
+          onRetry={handleReparse}
+          onChooseFile={() => navigate(`/cards/${cardId}`)}
+          onOk={() => setParseError(null)}
+          onManualEntry={() => {
+            setManualFormDefaultIsExpense(true)
+            setShowManualForm(true)
+          }}
+        />
       ) : (
         <>
           {parseStatus === 'error' && items.length > 0 && (
@@ -955,6 +935,15 @@ export default function InvoiceReview() {
         onSuccess={() => navigate(`/cards/${cardId}`)}
       />
 
+      {showManualForm && family && member && (
+        <TransactionFormSheet
+          open={showManualForm}
+          onOpenChange={setShowManualForm}
+          familyId={family.id}
+          ownerId={member.id}
+        />
+      )}
+
       <AlertDialog
         open={!!excludeConfirmItem}
         onOpenChange={(open) => !open && setExcludeConfirmItem(null)}
@@ -974,5 +963,70 @@ export default function InvoiceReview() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+function ParseErrorCard({
+  config,
+  reparsing,
+  onRetry,
+  onChooseFile,
+  onOk,
+  onManualEntry,
+}: {
+  config: InvoiceErrorConfig
+  reparsing: boolean
+  onRetry: () => void
+  onChooseFile: () => void
+  onOk: () => void
+  onManualEntry?: () => void
+}) {
+  const Icon =
+    config.icon === 'clock'
+      ? Clock
+      : config.icon === 'file'
+        ? FileX
+        : config.icon === 'wifi'
+          ? WifiOff
+          : AlertTriangle
+  return (
+    <Card className="rounded-2xl border-amber-200 bg-amber-50">
+      <CardContent className="p-8 flex flex-col items-center text-center space-y-3">
+        <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
+          <Icon className="h-7 w-7 text-amber-600" />
+        </div>
+        <p className="text-sm font-medium text-amber-900">{config.title}</p>
+        <p className="text-xs text-amber-700">{config.body}</p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button
+            size="sm"
+            onClick={() => {
+              if (config.primaryAction.type === 'retry') onRetry()
+              else if (config.primaryAction.type === 'choose_file') onChooseFile()
+              else onOk()
+            }}
+            disabled={reparsing && config.primaryAction.type === 'retry'}
+            className="bg-amber-600 hover:bg-amber-700"
+          >
+            {reparsing && config.primaryAction.type === 'retry' ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+            ) : config.primaryAction.type === 'retry' ? (
+              <RefreshCw className="h-4 w-4 mr-1" />
+            ) : null}
+            {config.primaryAction.label}
+          </Button>
+          {config.secondaryAction && onManualEntry && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onManualEntry}
+              className="border-amber-300 text-amber-700 hover:bg-amber-100"
+            >
+              {config.secondaryAction.label}
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   )
 }

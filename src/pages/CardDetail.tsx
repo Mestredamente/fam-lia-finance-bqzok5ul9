@@ -23,6 +23,7 @@ import { InvoiceFormSheet } from '@/components/InvoiceFormSheet'
 import { DeleteInvoiceDialog } from '@/components/DeleteInvoiceDialog'
 import { formatBRL, getMonthName, cn } from '@/lib/utils'
 import { getParseStatus, getParseError, type ParseStatus } from '@/lib/invoice-utils'
+import { detectErrorCode, getErrorConfig } from '@/lib/invoice-errors'
 import { toast } from '@/hooks/use-toast'
 import type { CreditCardRecord } from '@/types/finance'
 
@@ -68,14 +69,14 @@ export default function CardDetail() {
     } catch (err) {
       if (err instanceof Error && err.message === 'TIMEOUT') {
         setTimeoutErrorIds((prev) => new Set(prev).add(invId))
-        toast({
-          variant: 'destructive',
-          title: 'Tempo limite excedido',
-          description: 'Tente novamente.',
-        })
-      } else {
-        toast({ variant: 'destructive', title: 'Erro ao processar fatura' })
       }
+      const code = detectErrorCode(err)
+      const config = getErrorConfig(code)
+      toast({
+        variant: 'destructive',
+        title: config.title,
+        description: config.body,
+      })
     } finally {
       setReparsingId(null)
     }
@@ -192,8 +193,8 @@ export default function CardDetail() {
             const effectiveParseStatus: ParseStatus = hasTimeout ? 'error' : parseStatus
             const effectiveParseConfig = hasTimeout ? parseStatusConfig.error : parseConfig
             const errorMessage = hasTimeout
-              ? 'Tempo limite excedido. Tente novamente.'
-              : getParseError(inv)
+              ? getErrorConfig('timeout').body
+              : getErrorConfig(detectErrorCode(getParseError(inv))).body
             return (
               <Card
                 key={inv.id}
