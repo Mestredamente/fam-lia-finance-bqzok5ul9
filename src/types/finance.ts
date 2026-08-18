@@ -164,7 +164,7 @@ export interface FixedBill {
 
 export type CategoryType = 'expense' | 'income' | 'investment' | 'debt'
 
-export type TransactionType = 'expense' | 'income' | 'investment' | 'debt_payment'
+export type TransactionType = 'expense' | 'income'
 
 export type TransactionSource =
   | 'manual'
@@ -172,6 +172,8 @@ export type TransactionSource =
   | 'recurring_debt'
   | 'future_installment'
   | 'recurring'
+  | 'debt_payment'
+  | 'investment'
 
 export interface CategoryRecord {
   id: string
@@ -212,6 +214,7 @@ export interface TransactionRecord {
   parent_transaction_id?: string | null
   debt_id?: string | null
   recurring_id?: string | null
+  investment_id?: string | null
   emotion?: TransactionEmotion | null
   emotion_note?: string | null
   created: string
@@ -443,6 +446,11 @@ export interface DebtRecord {
   start_date: string
   is_active: boolean
   notes: string | null
+  category_id?: string | null
+  end_date?: string | null
+  status?: 'active' | 'paid_off' | 'overdue'
+  frequency?: 'monthly' | 'yearly' | 'weekly'
+  auto_create_transaction?: boolean
   created: string
   updated: string
   expand?: {

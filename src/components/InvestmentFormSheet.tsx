@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Loader2 } from 'lucide-react'
 import { z } from 'zod'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -16,6 +16,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { createInvestment, updateInvestment } from '@/services/investments'
+import { createTransaction } from '@/services/transactions'
+import { createRecurringTransaction } from '@/services/recurring-transactions'
+import { useCategories } from '@/hooks/use-categories'
 import { investmentTypeMeta, interestTypeLabels } from '@/lib/patrimony-icons'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
@@ -34,6 +37,8 @@ const schema = z.object({
   notes: z.string().optional(),
 })
 
+const todayISO = () => new Date().toISOString().split('T')[0]
+
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -51,6 +56,7 @@ export function InvestmentFormSheet({
   editingInvestment,
   onSaved,
 }: Props) {
+  const { categories } = useCategories(familyId)
   const [type, setType] = useState<InvestmentType>('cdb')
   const [name, setName] = useState('')
   const [institution, setInstitution] = useState('')
@@ -62,6 +68,18 @@ export function InvestmentFormSheet({
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Geração de despesa no fluxo de caixa
+  const [generateExpense, setGenerateExpense] = useState(true)
+  const [expenseCategory, setExpenseCategory] = useState<string>('')
+  const [frequency, setFrequency] = useState<'unico' | 'mensal'>('unico')
+  const [expenseDate, setExpenseDate] = useState<string>(todayISO())
+  const [dayOfMonth, setDayOfMonth] = useState<number>(new Date().getDate())
+
+  const expenseCategories = useMemo(
+    () => categories.filter((c) => c.type === 'expense'),
+    [categories],
+  )
 
   useEffect(() => {
     if (open) {
@@ -81,6 +99,12 @@ export function InvestmentFormSheet({
             : '',
         )
         setNotes(editingInvestment.notes || '')
+        // Edição: toggle OFF por padrão (não recriar despesa)
+        setGenerateExpense(false)
+        setExpenseCategory('')
+        setFrequency('unico')
+        setExpenseDate(todayISO())
+        setDayOfMonth(new Date().getDate())
       } else {
         setType('cdb')
         setName('')
@@ -91,10 +115,27 @@ export function InvestmentFormSheet({
         setInterestType('')
         setMaturityDate('')
         setNotes('')
+        // Novo: toggle ON por padrão
+        setGenerateExpense(true)
+        setExpenseCategory('')
+        setFrequency('unico')
+        setExpenseDate(todayISO())
+        setDayOfMonth(new Date().getDate())
       }
       setErrors({})
     }
   }, [open, editingInvestment])
+
+  // Default de categoria: buscar "Investimentos" ou "Aportes"
+  useEffect(() => {
+    if (!generateExpense) return
+    if (expenseCategory) return
+    if (expenseCategories.length === 0) return
+    const found =
+      expenseCategories.find((c) => c.name.toLowerCase() === 'investimentos') ||
+      expenseCategories.find((c) => c.name.toLowerCase() === 'aportes')
+    if (found) setExpenseCategory(found.id)
+  }, [generateExpense, expenseCategory, expenseCategories])
 
   const handleSave = async () => {
     const result = schema.safeParse({
@@ -116,6 +157,10 @@ export function InvestmentFormSheet({
       setErrors(errs)
       return
     }
+    if (generateExpense && !expenseCategory) {
+      setErrors((prev) => ({ ...prev, expenseCategory: 'Selecione uma categoria' }))
+      return
+    }
     setSaving(true)
     try {
       const data = {
@@ -132,11 +177,65 @@ export function InvestmentFormSheet({
         is_active: true,
         notes: notes || null,
       }
+      let createdId: string | undefined
       if (editingInvestment) {
         await updateInvestment(editingInvestment.id, data)
-        toast({ title: 'Investimento atualizado' })
+        createdId = editingInvestment.id
       } else {
-        await createInvestment(data)
+        const created = await createInvestment(data)
+        createdId = created.id
+      }
+
+      // Geração de despesa no fluxo de caixa (somente para novo investimento)
+      let createdTransaction = false
+      let createdRecurring = false
+      if (generateExpense && !editingInvestment && createdId) {
+        const txDate = new Date(expenseDate + 'T12:00:00').toISOString()
+        await createTransaction({
+          family_id: familyId,
+          owner_id: ownerId,
+          category_id: expenseCategory,
+          type: 'expense',
+          amount: amountInvested,
+          description: `Aporte: ${name}`,
+          transaction_date: txDate,
+          is_shared: false,
+          is_fixed: false,
+          source: 'investment',
+          investment_id: createdId,
+          status: 'pending',
+        })
+        createdTransaction = true
+
+        if (frequency === 'mensal') {
+          const endDateIso = maturityDate
+            ? new Date(maturityDate + 'T12:00:00').toISOString()
+            : null
+          await createRecurringTransaction({
+            family_id: familyId,
+            member_id: ownerId,
+            description: `Aporte: ${name}`,
+            amount: amountInvested,
+            type: 'despesa',
+            category_id: expenseCategory,
+            frequency: 'monthly',
+            day_of_month: dayOfMonth,
+            start_date: expenseDate,
+            end_date: endDateIso,
+            shared: false,
+            active: true,
+          })
+          createdRecurring = true
+        }
+      }
+
+      if (editingInvestment) {
+        toast({ title: 'Investimento atualizado' })
+      } else if (createdRecurring) {
+        toast({ title: 'Investimento cadastrado com aporte mensal' })
+      } else if (createdTransaction) {
+        toast({ title: 'Investimento cadastrado e despesa registrada' })
+      } else {
         toast({ title: 'Investimento cadastrado' })
       }
       onOpenChange(false)
@@ -270,6 +369,94 @@ export function InvestmentFormSheet({
               maxLength={500}
             />
           </div>
+
+          {/* Geração de despesa no fluxo de caixa */}
+          {!editingInvestment && (
+            <div className="space-y-3 p-3 border border-gray-200 rounded-xl bg-gray-50/60">
+              <div className="flex items-center justify-between">
+                <div className="pr-2">
+                  <p className="text-sm font-semibold text-gray-800">
+                    Gerar despesa no fluxo de caixa
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Registra o aporte como despesa no mês atual.
+                  </p>
+                </div>
+                <Switch checked={generateExpense} onCheckedChange={setGenerateExpense} />
+              </div>
+
+              {generateExpense && (
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs font-semibold text-gray-700">Categoria</Label>
+                    <Select value={expenseCategory} onValueChange={setExpenseCategory}>
+                      <SelectTrigger className={errors.expenseCategory ? 'border-red-500' : ''}>
+                        <SelectValue placeholder="Selecione uma categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {expenseCategories.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.expenseCategory && (
+                      <p className="text-xs text-red-500 mt-1">{errors.expenseCategory}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-gray-700">Frequência</Label>
+                    <Select
+                      value={frequency}
+                      onValueChange={(v) => setFrequency(v as 'unico' | 'mensal')}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unico">Único</SelectItem>
+                        <SelectItem value="mensal">Mensal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-gray-700">Data</Label>
+                    <Input
+                      type="date"
+                      value={expenseDate}
+                      onChange={(e) => {
+                        setExpenseDate(e.target.value)
+                        const d = new Date(e.target.value + 'T12:00:00')
+                        if (!isNaN(d.getTime())) setDayOfMonth(d.getDate())
+                      }}
+                    />
+                  </div>
+                  {frequency === 'mensal' && (
+                    <div>
+                      <Label className="text-xs font-semibold text-gray-700">Dia do mês</Label>
+                      <Select
+                        value={String(dayOfMonth)}
+                        onValueChange={(v) => setDayOfMonth(Number(v))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-64">
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                            <SelectItem key={d} value={String(d)}>
+                              Dia {d}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           <Button
             onClick={handleSave}
             disabled={saving || !name || !institution || amountInvested <= 0 || currentValue <= 0}

@@ -111,12 +111,7 @@ export function MemberDetailSheet({
               {data.transactions.map((t) => {
                 const cat = t.expand?.category_id
                 const Icon = getCategoryIcon(cat?.icon || 'plus-circle')
-                const color =
-                  t.type === 'income'
-                    ? 'text-[#22C55E]'
-                    : t.type === 'investment'
-                      ? 'text-blue-600'
-                      : 'text-red-600'
+                const color = t.type === 'income' ? 'text-[#22C55E]' : 'text-red-600'
                 const prefix = t.type === 'income' ? '+ ' : '- '
                 return (
                   <div key={t.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">

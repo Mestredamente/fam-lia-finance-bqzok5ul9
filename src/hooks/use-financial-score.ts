@@ -122,8 +122,16 @@ export function useFinancialScore(familyId: string | undefined) {
     const essRatio = totExp > 0 ? (essExp / totExp) * 100 : 0
     const essScore = totExp === 0 ? 0 : essRatio < 60 ? 20 : essRatio <= 75 ? 10 : 5
 
+    // Consistência de investimento: conta meses (dos últimos 3) que tenham pelo
+    // menos uma transação no fluxo de caixa com source='investment' ou
+    // investment_id preenchido (aporte gerado pelo cadastro de investimento).
     let invMonths = 0
-    for (const k of mKeys) if ((byMonth[k] || []).some((t) => t.type === 'investment')) invMonths++
+    for (const k of mKeys) {
+      const invTxInMonth = (byMonth[k] || []).some(
+        (t) => t.source === 'investment' || !!t.investment_id,
+      )
+      if (invTxInMonth) invMonths++
+    }
     const invScore = invMonths === 3 ? 20 : invMonths === 2 ? 15 : invMonths === 1 ? 10 : 0
 
     let ctrlScore = 10

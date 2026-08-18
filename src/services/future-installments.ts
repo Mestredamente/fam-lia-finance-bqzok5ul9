@@ -9,10 +9,6 @@ export const getFutureInstallments = (familyId: string) => {
     expand: 'owner_id,category_id',
   })
 }
-
-export const deleteFutureInstallments = async (parentTransactionId: string) => {
-  const items = await pb.collection('transactions').getFullList<TransactionRecord>({
-    filter: `parent_transaction_id = "${parentTransactionId}"`,
-  })
-  await Promise.all(items.map((t) => pb.collection('transactions').delete(t.id)))
-}
+// NOTE: deleting the filhas of a parcelada is now handled automatically
+// by the backend cascade hook (onRecordAfterDeleteRequest on `transactions`),
+// so there is no longer a client-side deleteFutureInstallments helper.

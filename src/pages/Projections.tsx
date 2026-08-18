@@ -60,7 +60,7 @@ export default function Projections() {
   const { installments, loading: installmentsLoading } = useFutureInstallments(family?.id)
   const { debts, loading: debtsLoading } = useDebts(family?.id)
   const { recurring, loading: recurringLoading } = useRecurringTransactions(family?.id)
-  const [filter, setFilter] = useState<'all' | 'card' | 'debt' | 'investment'>('all')
+  const [filter, setFilter] = useState<'all' | 'card' | 'debt'>('all')
   const [monthlyIncome, setMonthlyIncome] = useState(0)
 
   const isDark = useTheme().resolvedTheme === 'dark'
@@ -78,10 +78,13 @@ export default function Projections() {
     if (filter === 'all') return installments
     return installments.filter((t) => {
       // Heurística de tipo da parcela futura:
-      // debt_payment -> Dívida; investment -> Investimento; demais -> Cartão
-      if (filter === 'debt') return t.type === 'debt_payment'
-      if (filter === 'investment') return t.type === 'investment'
-      if (filter === 'card') return t.type !== 'debt_payment' && t.type !== 'investment'
+      // transações vinculadas a dívida (debt_id ou source debt/recurring_debt) -> Dívida;
+      // demais -> Cartão. Após a unificação de tipos, transações são só expense/income,
+      // então a distinção passa a ser por debt_id / source.
+      if (filter === 'debt')
+        return !!t.debt_id || t.source === 'debt_payment' || t.source === 'recurring_debt'
+      if (filter === 'card')
+        return !t.debt_id && t.source !== 'debt_payment' && t.source !== 'recurring_debt'
       return true
     })
   }, [installments, filter])
@@ -158,7 +161,6 @@ export default function Projections() {
           <TabsTrigger value="all">Todos</TabsTrigger>
           <TabsTrigger value="card">Cartão</TabsTrigger>
           <TabsTrigger value="debt">Dívida</TabsTrigger>
-          <TabsTrigger value="investment">Investimento</TabsTrigger>
         </TabsList>
       </Tabs>
 

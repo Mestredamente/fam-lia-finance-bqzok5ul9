@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Loader2 } from 'lucide-react'
 import { z } from 'zod'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import { CurrencyInput } from '@/components/CurrencyInput'
 import {
   Select,
@@ -16,6 +17,7 @@ import {
 } from '@/components/ui/select'
 import { createDebt, updateDebt } from '@/services/debts'
 import { debtFormTypes } from '@/lib/patrimony-icons'
+import { useCategories } from '@/hooks/use-categories'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
 import { cn } from '@/lib/utils'
@@ -62,6 +64,7 @@ export function DebtFormSheet({
   editingDebt,
   onSaved,
 }: Props) {
+  const { categories } = useCategories(familyId)
   const [type, setType] = useState<DebtType>('financing_home')
   const [description, setDescription] = useState('')
   const [totalAmount, setTotalAmount] = useState(0)
@@ -75,6 +78,15 @@ export function DebtFormSheet({
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Geração de despesa no fluxo de caixa (auto_create_transaction)
+  const [generateExpense, setGenerateExpense] = useState(true)
+  const [expenseCategory, setExpenseCategory] = useState<string>('')
+
+  const expenseCategories = useMemo(
+    () => categories.filter((c) => c.type === 'expense'),
+    [categories],
+  )
 
   useEffect(() => {
     if (open) {
@@ -90,6 +102,8 @@ export function DebtFormSheet({
         setDueDay(editingDebt.due_day)
         setStartDate(editingDebt.start_date.split(' ')[0].split('T')[0])
         setNotes(editingDebt.notes || '')
+        setGenerateExpense(!!editingDebt.auto_create_transaction)
+        setExpenseCategory('')
       } else {
         setType('financing_home')
         setDescription('')
@@ -102,10 +116,24 @@ export function DebtFormSheet({
         setDueDay(1)
         setStartDate(new Date().toISOString().split('T')[0])
         setNotes('')
+        // Nova dívida: toggle ON por padrão
+        setGenerateExpense(true)
+        setExpenseCategory('')
       }
       setErrors({})
     }
   }, [open, editingDebt])
+
+  // Default de categoria: buscar "Parcelas" ou "Dívidas"
+  useEffect(() => {
+    if (!generateExpense) return
+    if (expenseCategory) return
+    if (expenseCategories.length === 0) return
+    const found =
+      expenseCategories.find((c) => c.name.toLowerCase() === 'parcelas') ||
+      expenseCategories.find((c) => c.name.toLowerCase() === 'dívidas')
+    if (found) setExpenseCategory(found.id)
+  }, [generateExpense, expenseCategory, expenseCategories])
 
   const handleSave = async () => {
     const result = schema.safeParse({
@@ -146,13 +174,20 @@ export function DebtFormSheet({
         start_date: new Date(startDate + 'T12:00:00').toISOString(),
         is_active: true,
         notes: notes || null,
+        auto_create_transaction: generateExpense,
+        category_id: generateExpense && expenseCategory ? expenseCategory : null,
+        frequency: 'monthly' as const,
       }
       if (editingDebt) {
         await updateDebt(editingDebt.id, data)
         toast({ title: 'Dívida atualizada' })
       } else {
         await createDebt(data)
-        toast({ title: 'Dívida cadastrada' })
+        toast({
+          title: generateExpense
+            ? 'Dívida cadastrada — despesas mensais automáticas ativadas'
+            : 'Dívida cadastrada',
+        })
       }
       onOpenChange(false)
       onSaved?.()
@@ -297,6 +332,40 @@ export function DebtFormSheet({
               maxLength={500}
             />
           </div>
+
+          {/* Geração de despesa no fluxo de caixa */}
+          <div className="space-y-3 p-3 border border-gray-200 rounded-xl bg-gray-50/60">
+            <div className="flex items-center justify-between">
+              <div className="pr-2">
+                <p className="text-sm font-semibold text-gray-800">
+                  Gerar despesa no fluxo de caixa
+                </p>
+                <p className="text-xs text-gray-500">
+                  Gera automaticamente uma despesa mensal (parcela) no fluxo de caixa.
+                </p>
+              </div>
+              <Switch checked={generateExpense} onCheckedChange={setGenerateExpense} />
+            </div>
+
+            {generateExpense && (
+              <div>
+                <Label className="text-xs font-semibold text-gray-700">Categoria</Label>
+                <Select value={expenseCategory} onValueChange={setExpenseCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {expenseCategories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
           <Button
             onClick={handleSave}
             disabled={

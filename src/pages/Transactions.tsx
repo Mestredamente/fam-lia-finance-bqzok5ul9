@@ -10,12 +10,12 @@ import {
   FileDown,
   Upload,
   Trash2,
-  Eraser,
-  Loader2,
+  Filter,
   CloudOff,
   Repeat,
   Layers,
   CalendarDays,
+  Landmark,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -30,12 +30,13 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { useTransactions } from '@/hooks/use-transactions'
 import { useBudgets } from '@/hooks/use-budgets'
 import { getActiveMembersByFamilyId } from '@/services/members'
-import { deleteTransaction, cleanupOrphanTransactions } from '@/services/transactions'
-import { deleteFutureInstallments } from '@/services/future-installments'
+import { deleteTransaction } from '@/services/transactions'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +53,7 @@ import { RecurringTransactionFormSheet } from '@/components/RecurringTransaction
 import { ExportButton } from '@/components/ExportButton'
 import { BankImportSheet } from '@/components/BankImportSheet'
 import { useRecurringTransactions } from '@/hooks/use-recurring-transactions'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { generateMonthlyPDF } from '@/lib/pdf-report'
@@ -88,6 +90,20 @@ const MONTHS = [
   'Dezembro',
 ]
 
+type SourceFilter = 'all' | 'once' | 'recurring' | 'installment' | 'debt'
+
+const SOURCE_OPTIONS: {
+  value: SourceFilter
+  label: string
+  icon: LucideIcon
+}[] = [
+  { value: 'all', label: 'Todas', icon: CalendarDays },
+  { value: 'once', label: 'Avulsas', icon: Receipt },
+  { value: 'recurring', label: 'Recorrentes', icon: Repeat },
+  { value: 'installment', label: 'Parceladas', icon: Layers },
+  { value: 'debt', label: 'Dívidas', icon: Landmark },
+]
+
 function groupByDay(items: TransactionRecord[]) {
   const groups: Record<string, TransactionRecord[]> = {}
   for (const t of items) {
@@ -103,12 +119,20 @@ export default function Transactions() {
   const { family, member } = useAuth()
   const perms = usePermissions()
   const canDeleteTransactions = perms.canDeleteTransactions()
+  const isMobile = useIsMobile()
   const [currentDate, setCurrentDate] = useState(new Date())
+
+  // Applied filters (drive the list)
   const [memberFilter, setMemberFilter] = useState('all')
   const [emotionFilter, setEmotionFilter] = useState<TransactionEmotion | 'all'>('all')
-  const [sourceFilter, setSourceFilter] = useState<'all' | 'once' | 'recurring' | 'installment'>(
-    'all',
-  )
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all')
+
+  // Pending filters (edited inside the panel, committed on "Aplicar")
+  const [pendingMember, setPendingMember] = useState('all')
+  const [pendingEmotion, setPendingEmotion] = useState<TransactionEmotion | 'all'>('all')
+  const [pendingSource, setPendingSource] = useState<SourceFilter>('all')
+
+  const [showFilters, setShowFilters] = useState(false)
   const [members, setMembers] = useState<MemberRecord[]>([])
   const [showForm, setShowForm] = useState(false)
   const [showImport, setShowImport] = useState(false)
@@ -117,7 +141,6 @@ export default function Transactions() {
   const [showDetail, setShowDetail] = useState(false)
   const [deleteTx, setDeleteTx] = useState<TransactionRecord | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [cleaningUp, setCleaningUp] = useState(false)
   const [showRecurringEditDialog, setShowRecurringEditDialog] = useState(false)
   const [recurringEditTx, setRecurringEditTx] = useState<TransactionRecord | null>(null)
   const [recurringChoice, setRecurringChoice] = useState<'once' | 'future'>('once')
@@ -162,6 +185,11 @@ export default function Transactions() {
         .catch(() => {})
   }, [family?.id])
 
+  const activeFilterCount =
+    (sourceFilter !== 'all' ? 1 : 0) +
+    (memberFilter !== 'all' ? 1 : 0) +
+    (emotionFilter !== 'all' ? 1 : 0)
+
   const filtered = transactions.filter((t) => {
     if (memberFilter !== 'all' && t.owner_id !== memberFilter) return false
     if (emotionFilter !== 'all' && t.emotion !== emotionFilter) return false
@@ -171,28 +199,40 @@ export default function Transactions() {
       if (!t.recurring_id) return false
     } else if (sourceFilter === 'installment') {
       if (!t.is_installment) return false
+    } else if (sourceFilter === 'debt') {
+      return !!t.debt_id || t.source === 'debt_payment' || t.source === 'recurring_debt'
     }
     return true
   })
   const grouped = groupByDay(filtered)
 
-  const handleDelete = async (deleteAll?: boolean) => {
+  // Cascade deletion is handled automatically by the backend
+  // (onRecordAfterDeleteRequest hook on `transactions`). The frontend just
+  // deletes the clicked record; if it is a parcelada "mãe", its filhas are
+  // removed server-side. We optimistically drop the visible children too.
+  const handleDelete = async () => {
     if (!detailTx) return
     const prev = transactions
-    const idsToRemove = new Set([detailTx.id])
-    if (deleteAll && detailTx.parent_transaction_id) {
+    const motherId = detailTx.parent_transaction_id || detailTx.id
+    const idsToRemove = new Set<string>([detailTx.id])
+    // If the deleted record is a mother (children point to it), drop children
+    // from the local view as well — the backend cascades them silently.
+    if (!detailTx.parent_transaction_id) {
       prev.forEach((t) => {
-        if (t.parent_transaction_id === detailTx.parent_transaction_id) idsToRemove.add(t.id)
+        if (t.parent_transaction_id === detailTx.id) idsToRemove.add(t.id)
       })
     }
     setTransactions(prev.filter((t) => !idsToRemove.has(t.id)))
     setShowDetail(false)
     try {
       await deleteTransaction(detailTx.id)
-      if (deleteAll && detailTx.parent_transaction_id) {
-        await deleteFutureInstallments(detailTx.parent_transaction_id)
-      }
-      toast({ title: 'Transação excluída' })
+      toast({
+        title: 'Transação excluída',
+        description:
+          motherId !== detailTx.id || idsToRemove.size > 1
+            ? `${idsToRemove.size} transação(ões) removida(s)`
+            : undefined,
+      })
     } catch {
       setTransactions(prev)
       toast({ variant: 'destructive', title: 'Erro', description: 'Erro ao excluir transação' })
@@ -202,7 +242,13 @@ export default function Transactions() {
   const handleRowDelete = async () => {
     if (!deleteTx) return
     const prev = transactions
-    setTransactions(prev.filter((t) => t.id !== deleteTx.id))
+    const idsToRemove = new Set<string>([deleteTx.id])
+    if (!deleteTx.parent_transaction_id) {
+      prev.forEach((t) => {
+        if (t.parent_transaction_id === deleteTx.id) idsToRemove.add(t.id)
+      })
+    }
+    setTransactions(prev.filter((t) => !idsToRemove.has(t.id)))
     setShowDeleteDialog(false)
     try {
       await deleteTransaction(deleteTx.id)
@@ -213,20 +259,25 @@ export default function Transactions() {
     }
   }
 
-  const handleCleanupOrphans = async () => {
-    setCleaningUp(true)
-    try {
-      const result = await cleanupOrphanTransactions()
-      toast({
-        title: `${result.deleted} transações órfãs removidas`,
-        description: `Antes: ${result.before_null_category} sem categoria, ${result.before_filled_category} com categoria. Depois: ${result.remaining_null_category} sem categoria.`,
-      })
-      refetch()
-    } catch {
-      toast({ variant: 'destructive', title: 'Erro ao limpar transações' })
-    } finally {
-      setCleaningUp(false)
-    }
+  const openFilters = () => {
+    // sync pending state with applied state when opening
+    setPendingMember(memberFilter)
+    setPendingEmotion(emotionFilter)
+    setPendingSource(sourceFilter)
+    setShowFilters(true)
+  }
+
+  const applyFilters = () => {
+    setMemberFilter(pendingMember)
+    setEmotionFilter(pendingEmotion)
+    setSourceFilter(pendingSource)
+    setShowFilters(false)
+  }
+
+  const clearFilters = () => {
+    setPendingMember('all')
+    setPendingEmotion('all')
+    setPendingSource('all')
   }
 
   const openForm = () => {
@@ -266,8 +317,105 @@ export default function Transactions() {
       </div>
     )
 
+  const filtersPanel = (
+    <div className="space-y-5">
+      {/* Tipo */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          Tipo
+        </p>
+        <RadioGroup
+          value={pendingSource}
+          onValueChange={(v) => setPendingSource(v as SourceFilter)}
+          className="grid grid-cols-3 gap-2"
+        >
+          {SOURCE_OPTIONS.map((f) => (
+            <Label
+              key={f.value}
+              className={cn(
+                'flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer hover:bg-accent text-sm',
+                pendingSource === f.value && 'border-[#166534] bg-[#166534]/5',
+              )}
+            >
+              <RadioGroupItem value={f.value} id={`src-${f.value}`} className="sr-only" />
+              <f.icon className="h-4 w-4 shrink-0" />
+              <span>{f.label}</span>
+            </Label>
+          ))}
+        </RadioGroup>
+      </div>
+
+      {/* Usuário — sempre dinâmico da lista de membros */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          Usuário
+        </p>
+        <RadioGroup
+          value={pendingMember}
+          onValueChange={setPendingMember}
+          className="grid grid-cols-2 gap-2"
+        >
+          <Label
+            className={cn(
+              'flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer hover:bg-accent text-sm',
+              pendingMember === 'all' && 'border-[#166534] bg-[#166534]/5',
+            )}
+          >
+            <RadioGroupItem value="all" id="usr-all" className="sr-only" />
+            <span>Todos</span>
+          </Label>
+          {members.map((m) => (
+            <Label
+              key={m.id}
+              className={cn(
+                'flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer hover:bg-accent text-sm',
+                pendingMember === m.id && 'border-[#166534] bg-[#166534]/5',
+              )}
+            >
+              <RadioGroupItem value={m.id} id={`usr-${m.id}`} className="sr-only" />
+              <span className="truncate">{m.display_name}</span>
+            </Label>
+          ))}
+        </RadioGroup>
+      </div>
+
+      {/* Emoção */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          Emoção
+        </p>
+        <Select
+          value={pendingEmotion}
+          onValueChange={(v) => setPendingEmotion(v as TransactionEmotion | 'all')}
+        >
+          <SelectTrigger className="w-full h-9 rounded-lg px-3 py-1.5 text-sm">
+            <SelectValue placeholder="Todas emoções" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas emoções</SelectItem>
+            {EMOTION_FILTERS.map((e) => (
+              <SelectItem key={e.value} value={e.value}>
+                <span className="mr-1">{e.emoji}</span> {e.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex gap-2 pt-1">
+        <Button variant="outline" className="flex-1" onClick={clearFilters}>
+          Limpar filtros
+        </Button>
+        <Button className="flex-1 bg-[#166534] hover:bg-[#15803D]" onClick={applyFilters}>
+          Aplicar
+        </Button>
+      </div>
+    </div>
+  )
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
+      {/* ÚNICA linha de controles no topo */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold text-gray-900 dark:text-foreground">Transações</h1>
         <div className="flex flex-wrap items-center gap-2">
@@ -296,113 +444,76 @@ export default function Transactions() {
             <FileDown className="h-4 w-4" />
             <span className="hidden sm:inline">Relatório</span>
           </Button>
-          <Button
-            variant="secondary"
-            onClick={handleCleanupOrphans}
-            disabled={cleaningUp}
-            className="h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground"
-          >
-            {cleaningUp ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Eraser className="h-4 w-4" />
-            )}
-            <span className="hidden sm:inline">Limpar órfãs</span>
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
-            className="h-9 w-9 p-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground"
-            aria-label="Mês anterior"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 min-w-[120px] text-center">
-            {MONTHS[month]} {year}
-          </span>
-          <Button
-            variant="secondary"
-            onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
-            className="h-9 w-9 p-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground"
-            aria-label="Próximo mês"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
-          {(
-            [
-              { value: 'all', label: 'Todas', icon: CalendarDays },
-              { value: 'once', label: 'Avulsas', icon: Receipt },
-              { value: 'recurring', label: 'Recorrentes', icon: Repeat },
-              { value: 'installment', label: 'Parceladas', icon: Layers },
-            ] as {
-              value: 'all' | 'once' | 'recurring' | 'installment'
-              label: string
-              icon: LucideIcon
-            }[]
-          ).map((f) => (
+          {/* Navegação de mês */}
+          <div className="flex items-center gap-1 ml-1">
             <Button
-              key={f.value}
-              variant={sourceFilter === f.value ? 'default' : 'secondary'}
-              onClick={() => setSourceFilter(f.value)}
-              className={cn(
-                'h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground',
-                sourceFilter === f.value && 'bg-[#166534] hover:bg-[#15803D] text-white',
-              )}
+              variant="secondary"
+              onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
+              className="h-9 w-9 p-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground"
+              aria-label="Mês anterior"
             >
-              <f.icon className="h-4 w-4" />
-              <span className="hidden sm:inline">{f.label}</span>
+              <ChevronLeft className="h-4 w-4" />
             </Button>
-          ))}
-        </div>
-      </div>
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 min-w-[110px] text-center">
+              {MONTHS[month]} {year}
+            </span>
+            <Button
+              variant="secondary"
+              onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
+              className="h-9 w-9 p-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground"
+              aria-label="Próximo mês"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
-          <Button
-            variant={memberFilter === 'all' ? 'default' : 'secondary'}
-            onClick={() => setMemberFilter('all')}
-            className={cn(
-              'h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground',
-              memberFilter === 'all' && 'bg-[#166534] hover:bg-[#15803D] text-white',
-            )}
-          >
-            Todos
-          </Button>
-          {members.map((m) => (
-            <Button
-              key={m.id}
-              variant={memberFilter === m.id ? 'default' : 'secondary'}
-              onClick={() => setMemberFilter(m.id)}
-              className={cn(
-                'h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground',
-                memberFilter === m.id && 'bg-[#166534] hover:bg-[#15803D] text-white',
-              )}
-            >
-              {m.display_name}
-            </Button>
-          ))}
+          {/* Botão Filtros — Sheet no mobile, Popover no desktop */}
+          {isMobile ? (
+            <Sheet open={showFilters} onOpenChange={setShowFilters}>
+              <Button
+                variant="secondary"
+                onClick={openFilters}
+                className="relative h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground"
+              >
+                <Filter className="h-4 w-4" />
+                <span className="hidden sm:inline">Filtros</span>
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#166534] text-white text-[10px] font-bold flex items-center justify-center">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </Button>
+              <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>Filtros</SheetTitle>
+                </SheetHeader>
+                <div className="mt-4">{filtersPanel}</div>
+              </SheetContent>
+            </Sheet>
+          ) : (
+            <Popover open={showFilters} onOpenChange={setShowFilters}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="secondary"
+                  onClick={openFilters}
+                  className="relative h-9 px-3 py-2 rounded-lg text-sm bg-muted hover:bg-muted/80 text-foreground"
+                >
+                  <Filter className="h-4 w-4" />
+                  <span className="hidden sm:inline">Filtros</span>
+                  {activeFilterCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#166534] text-white text-[10px] font-bold flex items-center justify-center">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 p-4">
+                {filtersPanel}
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
-        <Select
-          value={emotionFilter}
-          onValueChange={(v) => setEmotionFilter(v as TransactionEmotion | 'all')}
-        >
-          <SelectTrigger className="w-[150px] h-9 rounded-lg px-3 py-1.5 text-sm shrink-0 bg-muted border-0 hover:bg-muted/80">
-            <SelectValue placeholder="Todas emoções" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas emoções</SelectItem>
-            {EMOTION_FILTERS.map((e) => (
-              <SelectItem key={e.value} value={e.value}>
-                <span className="mr-1">{e.emoji}</span> {e.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {loading ? (
@@ -447,11 +558,7 @@ export default function Transactions() {
                   const cat = t.expand?.category_id
                   const Icon = getCategoryIcon(cat?.icon || 'plus-circle')
                   const color =
-                    t.type === 'income'
-                      ? 'text-[#22C55E] dark:text-success'
-                      : t.type === 'investment'
-                        ? 'text-blue-600 dark:text-blue-400'
-                        : 'text-danger'
+                    t.type === 'income' ? 'text-[#22C55E] dark:text-success' : 'text-danger'
                   const prefix = t.type === 'income' ? '+ ' : '- '
                   return (
                     <Card

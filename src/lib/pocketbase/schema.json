@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-18T02:44:00.461Z",
+  "generatedAt": "2026-08-18T03:43:45.643Z",
   "collections": [
     {
       "name": "users",
@@ -511,13 +511,6 @@
           "collectionRef": "categories"
         },
         {
-          "name": "type",
-          "type": "select",
-          "required": true,
-          "system": false,
-          "selectValues": ["expense", "income", "investment", "debt_payment"]
-        },
-        {
           "name": "amount",
           "type": "number",
           "required": true,
@@ -634,6 +627,20 @@
           "collectionRef": "recurring_transactions"
         },
         {
+          "name": "type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["expense", "income"]
+        },
+        {
+          "name": "investment_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "investments"
+        },
+        {
           "name": "source",
           "type": "select",
           "required": false,
@@ -643,7 +650,9 @@
             "invoice_import",
             "recurring_debt",
             "future_installment",
-            "recurring"
+            "recurring",
+            "debt_payment",
+            "investment"
           ]
         }
       ],
@@ -652,7 +661,8 @@
         "CREATE INDEX idx_transactions_owner_id ON transactions (owner_id)",
         "CREATE INDEX idx_transactions_category_id ON transactions (category_id)",
         "CREATE INDEX `idx_transactions_transaction_date` ON `transactions` (transaction_date)",
-        "CREATE INDEX `idx_transactions_recurring_id` ON `transactions` (recurring_id)"
+        "CREATE INDEX `idx_transactions_recurring_id` ON `transactions` (recurring_id)",
+        "CREATE INDEX `idx_transactions_investment_id` ON `transactions` (investment_id)"
       ]
     },
     {

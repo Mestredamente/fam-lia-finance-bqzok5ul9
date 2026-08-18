@@ -31,11 +31,9 @@ import { useOfflineQueue } from '@/hooks/use-offline-queue'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
 import { cn, formatBRL } from '@/lib/utils'
-import { getDebtsByFamilyId } from '@/services/debts'
 import type {
   TransactionRecord,
   TransactionEmotion,
-  DebtRecord,
   RecurringType,
   RecurringFrequency,
   RecurringEmotion,
@@ -84,7 +82,7 @@ function nowHHMM() {
 
 const schema = z
   .object({
-    type: z.enum(['expense', 'income', 'investment', 'debt_payment']),
+    type: z.enum(['expense', 'income']),
     amount: z.number().positive('Valor deve ser maior que zero').max(99999999.99),
     description: z.string().min(2, 'Descrição muito curta').max(100, 'Descrição muito longa'),
     category_id: z.string().min(1, 'Selecione uma categoria'),
@@ -92,7 +90,6 @@ const schema = z
   })
   .refine(
     (d) => {
-      if (d.type === 'investment') return true
       const date = new Date(d.transaction_date)
       const today = new Date()
       today.setHours(23, 59, 59, 999)
@@ -121,7 +118,7 @@ export function TransactionFormSheet({
   defaultIsFixed,
 }: Props) {
   const { categories } = useCategories(familyId)
-  const [type, setType] = useState<'expense' | 'income' | 'investment' | 'debt_payment'>('expense')
+  const [type, setType] = useState<'expense' | 'income'>('expense')
   const [amount, setAmount] = useState(0)
   const [description, setDescription] = useState('')
   const [categoryId, setCategoryId] = useState<string | null>(null)
@@ -133,8 +130,6 @@ export function TransactionFormSheet({
   const [installmentTotal, setInstallmentTotal] = useState(1)
   const [installmentCurrent, setInstallmentCurrent] = useState(1)
   const [purchaseDate, setPurchaseDate] = useState('')
-  const [debtId, setDebtId] = useState<string | null>(null)
-  const [activeDebts, setActiveDebts] = useState<DebtRecord[]>([])
   const [emotion, setEmotion] = useState<TransactionEmotion | null>(null)
   const [emotionNote, setEmotionNote] = useState('')
   // Recurring toggle + fields — only visible/usable when creating a NEW transaction.
@@ -178,7 +173,7 @@ export function TransactionFormSheet({
   useEffect(() => {
     if (open) {
       if (editingTransaction) {
-        setType(editingTransaction.type as 'expense' | 'income' | 'investment' | 'debt_payment')
+        setType(editingTransaction.type)
         setAmount(editingTransaction.amount)
         setDescription(editingTransaction.description)
         setCategoryId(editingTransaction.category_id)
@@ -193,7 +188,6 @@ export function TransactionFormSheet({
         setPurchaseDate(
           editingTransaction.purchase_date ? editingTransaction.purchase_date.split('T')[0] : '',
         )
-        setDebtId(editingTransaction.debt_id ?? null)
         setEmotion((editingTransaction.emotion as TransactionEmotion) || null)
         setEmotionNote(editingTransaction.emotion_note || '')
         // When editing, the recurring toggle is never shown (no recurring creation).
@@ -216,7 +210,6 @@ export function TransactionFormSheet({
         setInstallmentTotal(1)
         setInstallmentCurrent(1)
         setPurchaseDate('')
-        setDebtId(null)
         setEmotion(null)
         setEmotionNote('')
         // New transaction: default recurring fields from today's date.
@@ -231,9 +224,9 @@ export function TransactionFormSheet({
     }
   }, [open, editingTransaction, defaultIsFixed])
 
-  // Reset installment fields when switching to a type that doesn't support them.
+  // Reset installment fields when switching away from expense.
   useEffect(() => {
-    if (type !== 'expense' && type !== 'investment') {
+    if (type !== 'expense') {
       setIsInstallment(false)
       setInstallmentTotal(1)
       setInstallmentCurrent(1)
@@ -249,25 +242,6 @@ export function TransactionFormSheet({
     setDayOfMonth(day)
     setRecurringStartDate(date)
   }, [date, isRecurring, editingTransaction])
-
-  // Load active debts when the form is open in debt_payment mode.
-  useEffect(() => {
-    if (!open || type !== 'debt_payment') {
-      setActiveDebts([])
-      return
-    }
-    let cancelled = false
-    getDebtsByFamilyId(familyId)
-      .then((debts) => {
-        if (!cancelled) setActiveDebts(debts)
-      })
-      .catch(() => {
-        if (!cancelled) setActiveDebts([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [open, type, familyId])
 
   // Inline budget warning for the currently selected category.
   // Computes spent / limit for the month of the selected transaction date,
@@ -422,7 +396,7 @@ export function TransactionFormSheet({
         return
       }
 
-      const supportsInstallment = type === 'expense' || type === 'investment'
+      const supportsInstallment = type === 'expense'
       const data = {
         family_id: familyId,
         owner_id: ownerId,
@@ -440,7 +414,6 @@ export function TransactionFormSheet({
         installment_current: supportsInstallment && isInstallment ? installmentCurrent : null,
         installment_total: supportsInstallment && isInstallment ? installmentTotal : null,
         purchase_date: purchaseDate || null,
-        debt_id: type === 'debt_payment' ? debtId : null,
       }
       if (editingTransaction) {
         await updateTransaction(editingTransaction.id, data)
@@ -492,20 +465,6 @@ export function TransactionFormSheet({
       bg: 'bg-emerald-50',
       border: 'border-[#22C55E]',
     },
-    {
-      value: 'investment' as const,
-      label: 'Investimento',
-      color: 'text-blue-600',
-      bg: 'bg-blue-50',
-      border: 'border-blue-500',
-    },
-    {
-      value: 'debt_payment' as const,
-      label: 'Dívida',
-      color: 'text-purple-600',
-      bg: 'bg-purple-50',
-      border: 'border-purple-500',
-    },
   ]
 
   return (
@@ -515,7 +474,7 @@ export function TransactionFormSheet({
           <SheetTitle>{editingTransaction ? 'Editar Transação' : 'Nova Transação'}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 mt-4">
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {types.map((t) => (
               <button
                 key={t.value}
@@ -584,9 +543,7 @@ export function TransactionFormSheet({
                   setCategoryId(id)
                 }}
                 familyId={familyId}
-                type={
-                  type === 'debt_payment' ? 'debt' : (type as 'expense' | 'income' | 'investment')
-                }
+                type={type}
                 aria-required="true"
               />
             </div>
@@ -668,8 +625,8 @@ export function TransactionFormSheet({
             />
             <p className="text-[11px] text-gray-400 mt-0.5 text-right">{emotionNote.length}/200</p>
           </div>
-          {/* Parcelamento — só para expense e investment */}
-          {(type === 'expense' || type === 'investment') && (
+          {/* Parcelamento — só para expense */}
+          {type === 'expense' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
@@ -739,31 +696,6 @@ export function TransactionFormSheet({
                   </div>
                 </div>
               )}
-            </div>
-          )}
-          {/* Dívida vinculada — só para debt_payment */}
-          {type === 'debt_payment' && (
-            <div>
-              <label
-                htmlFor="tx-debt"
-                className="text-xs font-semibold text-gray-700 dark:text-gray-200"
-              >
-                Dívida vinculada
-              </label>
-              <select
-                id="tx-debt"
-                value={debtId || ''}
-                onChange={(e) => setDebtId(e.target.value || null)}
-                className="mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-2 text-sm"
-              >
-                <option value="">Nenhuma (pagamento avulso)</option>
-                {activeDebts.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.description} — {formatBRL(d.installment_value)}/mês (restam{' '}
-                    {d.installments_remaining})
-                  </option>
-                ))}
-              </select>
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">

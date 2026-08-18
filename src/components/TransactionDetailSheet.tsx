@@ -23,7 +23,7 @@ interface Props {
   onOpenChange: (open: boolean) => void
   isOwner: boolean
   onEdit: () => void
-  onDelete: (deleteAll?: boolean) => void
+  onDelete: () => void
 }
 
 export function TransactionDetailSheet({
@@ -40,22 +40,10 @@ export function TransactionDetailSheet({
 
   const category = transaction.expand?.category_id
   const Icon = getCategoryIcon(category?.icon || 'plus-circle')
-  const amountColor =
-    transaction.type === 'income'
-      ? 'text-[#22C55E]'
-      : transaction.type === 'investment'
-        ? 'text-blue-600'
-        : 'text-red-600'
+  const amountColor = transaction.type === 'income' ? 'text-[#22C55E]' : 'text-red-600'
   const amountPrefix = transaction.type === 'income' ? '+ ' : '- '
   const date = new Date(transaction.transaction_date)
-  const typeLabel =
-    transaction.type === 'expense'
-      ? 'Despesa'
-      : transaction.type === 'income'
-        ? 'Receita'
-        : transaction.type === 'investment'
-          ? 'Investimento'
-          : 'Pagamento de Dívida'
+  const typeLabel = transaction.type === 'expense' ? 'Despesa' : 'Receita'
 
   return (
     <>
@@ -127,11 +115,13 @@ export function TransactionDetailSheet({
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir esta transação?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir transação?</AlertDialogTitle>
             <AlertDialogDescription>
               {transaction?.parent_transaction_id
-                ? 'Esta é uma parcela de uma compra parcelada. Deseja excluir apenas esta parcela ou todas as parcelas futuras?'
-                : 'Esta ação não pode ser desfeita.'}
+                ? 'Esta é uma parcela. Apenas esta parcela será excluída.'
+                : transaction?.is_installment
+                  ? 'Esta transação é parcelada. Todas as parcelas vinculadas também serão excluídas automaticamente.'
+                  : 'Esta ação não pode ser desfeita.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
@@ -139,23 +129,12 @@ export function TransactionDetailSheet({
             <AlertDialogAction
               onClick={() => {
                 setConfirmDelete(false)
-                onDelete(false)
+                onDelete()
               }}
               className="bg-red-600 hover:bg-red-700"
             >
-              {transaction?.parent_transaction_id ? 'Apenas esta' : 'Excluir'}
+              Excluir
             </AlertDialogAction>
-            {transaction?.parent_transaction_id && (
-              <AlertDialogAction
-                onClick={() => {
-                  setConfirmDelete(false)
-                  onDelete(true)
-                }}
-                className="bg-red-800 hover:bg-red-900"
-              >
-                Esta e futuras
-              </AlertDialogAction>
-            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

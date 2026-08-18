@@ -70,13 +70,14 @@ export async function registerDebtPayment(debt: DebtRecord): Promise<{ quitada: 
     family_id: debt.family_id,
     owner_id: debt.owner_id,
     category_id: categoryId,
-    type: 'debt_payment',
+    type: 'expense',
     amount: debt.installment_value,
     description: `Parcela ${debt.description}`,
+    debt_id: debt.id,
     transaction_date: new Date().toISOString(),
     is_shared: false,
     is_fixed: false,
-    source: 'manual',
+    source: 'debt_payment',
   })
 
   return { quitada: newRemaining === 0 }

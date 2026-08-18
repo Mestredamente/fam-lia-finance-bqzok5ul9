@@ -78,9 +78,6 @@ export const updateTransaction = (id: string, data: Partial<TransactionRecord>) 
 
 export const deleteTransaction = (id: string) => pb.collection('transactions').delete(id)
 
-export const cleanupOrphanTransactions = () =>
-  pb.send('/backend/v1/transactions/cleanup-orphans', { method: 'POST' })
-
 export const getTransactionsByFamilyAndDateRange = (
   familyId: string,
   startDate: string,
