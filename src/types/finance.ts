@@ -211,6 +211,8 @@ export interface TransactionRecord {
   is_installment?: boolean
   installment_current?: number | null
   installment_total?: number | null
+  installment_due_day?: number | null
+  installment_start_date?: string | null
   parent_transaction_id?: string | null
   debt_id?: string | null
   recurring_id?: string | null
