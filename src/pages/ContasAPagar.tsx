@@ -8,6 +8,7 @@ import {
   Receipt,
   Loader2,
   Pencil,
+  CreditCard,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useContasAPagar, buildBillPaymentPayload } from '@/hooks/use-contas-a-pagar'
@@ -20,6 +21,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { TransactionFormSheet, type TransactionPrefill } from '@/components/TransactionFormSheet'
 import { InvestmentDetailSheet } from '@/components/InvestmentDetailSheet'
 import { DebtDetailSheet } from '@/components/DebtDetailSheet'
+import { InvoicePaymentDialog } from '@/components/InvoicePaymentDialog'
 import pb from '@/lib/pocketbase/client'
 import { getInvestmentsByFamilyId } from '@/services/investments'
 import { getDebtsByFamilyId } from '@/services/debts'
@@ -40,12 +42,14 @@ const SOURCE_LABEL: Record<BillItem['source'], string> = {
   recurring: 'Recorrente',
   investment: 'Investimento',
   debt: 'Dívida',
+  invoice: 'Fatura',
 }
 
 const SOURCE_ICON = {
   recurring: CalendarClock,
   investment: TrendingUp,
   debt: HandCoins,
+  invoice: CreditCard,
 } as const
 
 const STATUS_DOT: Record<BillStatus, React.ReactNode> = {
@@ -89,6 +93,10 @@ export default function ContasAPagar() {
   // ── "Pagar agora" sheet ──
   const [paySheetOpen, setPaySheetOpen] = useState(false)
   const [payPrefill, setPayPrefill] = useState<TransactionPrefill | null>(null)
+
+  // ── Invoice payment dialog (card invoice flow) ──
+  const [invoicePayOpen, setInvoicePayOpen] = useState(false)
+  const [invoicePayBill, setInvoicePayBill] = useState<BillItem | null>(null)
 
   // ── Detail sheets ──
   const [detailInv, setDetailInv] = useState<InvestmentRecord | null>(null)
@@ -156,6 +164,13 @@ export default function ContasAPagar() {
   const handleMarkPaid = useCallback(
     async (bill: BillItem) => {
       if (!family || !member) return
+      // Invoices go through the dedicated payment dialog (total / minimum /
+      // other) instead of a straight "mark as paid".
+      if (bill.source === 'invoice') {
+        setInvoicePayBill(bill)
+        setInvoicePayOpen(true)
+        return
+      }
       if (bill.transactionId) {
         toast({ title: 'Esta conta já está paga' })
         return
@@ -362,6 +377,16 @@ export default function ContasAPagar() {
         prefill={payPrefill}
       />
 
+      {/* Invoice payment dialog (total / mínimo / outro valor) */}
+      <InvoicePaymentDialog
+        bill={invoicePayBill}
+        open={invoicePayOpen}
+        onOpenChange={setInvoicePayOpen}
+        familyId={family.id}
+        ownerId={member?.id || ''}
+        onPaid={refetch}
+      />
+
       {/* Detail sheets */}
       <InvestmentDetailSheet
         investment={detailInv}
@@ -537,6 +562,7 @@ function BillRow({
   const isIncome = bill.type === 'income'
   const amountColor = isIncome ? 'text-emerald-600' : 'text-gray-900 dark:text-foreground'
   const isPaid = bill.status === 'paga'
+  const isInvoice = bill.source === 'invoice'
 
   return (
     <Card
@@ -554,7 +580,9 @@ function BillRow({
               ? 'bg-indigo-50 text-indigo-600'
               : bill.source === 'investment'
                 ? 'bg-violet-50 text-violet-600'
-                : 'bg-red-50 text-red-600',
+                : isInvoice
+                  ? 'bg-blue-50 text-blue-600'
+                  : 'bg-red-50 text-red-600',
           )}
         >
           <Icon className="h-5 w-5" />
@@ -565,9 +593,16 @@ function BillRow({
             <p className="font-bold text-sm text-gray-900 dark:text-foreground truncate">
               {bill.description}
             </p>
-            <Badge variant="outline" className="text-[10px] py-0 px-1.5">
-              {SOURCE_LABEL[bill.source]}
-            </Badge>
+            {isInvoice ? (
+              <Badge className="bg-blue-100 text-blue-700 border-0 text-[10px] py-0 px-1.5 gap-1">
+                <CreditCard className="h-2.5 w-2.5" />
+                Fatura
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] py-0 px-1.5">
+                {SOURCE_LABEL[bill.source]}
+              </Badge>
+            )}
             {bill.extraInfo && (
               <Badge variant="secondary" className="text-[10px] py-0 px-1.5">
                 {bill.extraInfo}
@@ -584,6 +619,12 @@ function BillRow({
                   : `Vence em ${formatDatePtBR(bill.dueDate)}`}
             </span>
           </div>
+          {/* Invoice: show the minimum payment below the due date */}
+          {isInvoice && typeof bill.minimumPayment === 'number' && (
+            <div className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+              Mínimo: {formatBRL(bill.minimumPayment)}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col items-end gap-1 shrink-0">
@@ -593,7 +634,22 @@ function BillRow({
           </span>
           {isPaid ? (
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-          ) : readonly ? null : (
+          ) : readonly ? null : isInvoice ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onMarkPaid}
+              disabled={paying}
+              className="h-7 px-3 text-xs"
+            >
+              {paying ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <CreditCard className="h-3 w-3" />
+              )}
+              Pagar
+            </Button>
+          ) : (
             <div className="flex items-center gap-1">
               <Button
                 size="sm"

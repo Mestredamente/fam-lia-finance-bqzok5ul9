@@ -5,6 +5,14 @@ export const getInvoicesByCardId = (cardId: string) =>
   pb.collection('invoices').getFullList<InvoiceRecord>({
     filter: `card_id = "${cardId}"`,
     sort: '-month_ref',
+    expand: 'card_id',
+  })
+
+export const getInvoicesByFamilyId = (familyId: string) =>
+  pb.collection('invoices').getFullList<InvoiceRecord>({
+    filter: `family_id = "${familyId}"`,
+    sort: '-month_ref',
+    expand: 'card_id',
   })
 
 export const getInvoice = (id: string) =>

@@ -99,12 +99,22 @@ const schema = z
     path: ['installments_paid'],
   })
 
+interface DebtPrefill {
+  description?: string
+  totalAmount?: number
+  remainingAmount?: number
+  installmentValue?: number
+  installmentsTotal?: number
+  notes?: string
+}
+
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
   familyId: string
   ownerId: string
   editingDebt?: DebtRecord | null
+  prefill?: DebtPrefill | null
   onSaved?: () => void
 }
 
@@ -114,6 +124,7 @@ export function DebtFormSheet({
   familyId,
   ownerId,
   editingDebt,
+  prefill,
   onSaved,
 }: Props) {
   const { categories } = useCategories(familyId)
@@ -165,26 +176,26 @@ export function DebtFormSheet({
         setExpenseCategory('')
       } else {
         setType('financing_home')
-        setDescription('')
-        setTotalAmount(0)
-        setRemainingAmount(0)
-        setInstallmentValue(0)
-        setInstallmentsTotal(1)
-        setInstallmentsTotalStr('1')
+        setDescription(prefill?.description || '')
+        setTotalAmount(prefill?.totalAmount ?? 0)
+        setRemainingAmount(prefill?.remainingAmount ?? prefill?.totalAmount ?? 0)
+        setInstallmentValue(prefill?.installmentValue ?? 0)
+        setInstallmentsTotal(prefill?.installmentsTotal ?? 1)
+        setInstallmentsTotalStr(String(prefill?.installmentsTotal ?? 1))
         setInstallmentsPaid(0)
         setInstallmentsPaidStr('0')
         setInterestRate('')
         setInterestRateStr('')
         setDueDay(1)
         setStartDate(new Date().toISOString().split('T')[0])
-        setNotes('')
+        setNotes(prefill?.notes || '')
         // Nova dívida: toggle ON por padrão
         setGenerateExpense(true)
         setExpenseCategory('')
       }
       setErrors({})
     }
-  }, [open, editingDebt])
+  }, [open, editingDebt, prefill])
 
   // Default de categoria: buscar "Parcelas" ou "Dívidas"
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   ChevronLeft,
   Plus,
@@ -8,10 +8,14 @@ import {
   AlertCircle,
   RefreshCw,
   Trash2,
+  CreditCard,
+  TrendingUp,
+  ExternalLink,
 } from 'lucide-react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useInvoices } from '@/hooks/use-invoices'
 import { usePermissions } from '@/hooks/use-permissions'
+import { useAuth } from '@/hooks/use-auth'
 import { getCreditCard } from '@/services/credit-cards'
 import { parseInvoice } from '@/services/invoices'
 import { Button } from '@/components/ui/button'
@@ -21,6 +25,7 @@ import { Badge } from '@/components/ui/badge'
 import { CreditCardVisual } from '@/components/CreditCardVisual'
 import { InvoiceFormSheet } from '@/components/InvoiceFormSheet'
 import { DeleteInvoiceDialog } from '@/components/DeleteInvoiceDialog'
+import { DebtFormSheet } from '@/components/DebtFormSheet'
 import { formatBRL, getMonthName, cn } from '@/lib/utils'
 import { getParseStatus, getParseError, type ParseStatus } from '@/lib/invoice-utils'
 import { detectErrorCode, getErrorConfig } from '@/lib/invoice-errors'
@@ -33,6 +38,7 @@ const invoiceStatusConfig: Record<string, { label: string; className: string }> 
   paid: { label: 'Paga', className: 'bg-green-100 text-green-700' },
   parsed: { label: 'Processada', className: 'bg-emerald-100 text-emerald-700' },
   error: { label: 'Erro', className: 'bg-red-100 text-red-700' },
+  partial: { label: 'Parcial', className: 'bg-amber-100 text-amber-700' },
 }
 
 const parseStatusConfig: Record<ParseStatus, { label: string; className: string }> = {
@@ -46,6 +52,7 @@ export default function CardDetail() {
   const { cardId } = useParams<{ cardId: string }>()
   const navigate = useNavigate()
   const perms = usePermissions()
+  const { family, member } = useAuth()
   const canDeleteInvoices = perms.canDeleteInvoices()
   const canImportInvoices = perms.canImportInvoices()
   const { invoices, loading, error, refetch } = useInvoices(cardId)
@@ -55,6 +62,32 @@ export default function CardDetail() {
   const [reparsingId, setReparsingId] = useState<string | null>(null)
   const [timeoutErrorIds, setTimeoutErrorIds] = useState<Set<string>>(new Set())
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null)
+  const [showRotativoForm, setShowRotativoForm] = useState(false)
+
+  // Saldo rotativo: soma dos restantes das faturas com pagamento parcial.
+  const rotativo = useMemo(() => {
+    return invoices
+      .filter((inv) => inv.status === 'partial')
+      .reduce((sum, inv) => {
+        const restante =
+          inv.partial_amount != null
+            ? inv.total_amount - (inv.partial_amount || 0)
+            : inv.total_amount
+        return sum + Math.max(0, restante)
+      }, 0)
+  }, [invoices])
+  const hasRotativo = rotativo > 0
+  // Estimativa simples da próxima fatura: rotativo + soma dos gastos não
+  // pagos (faturas pending/reviewed). É só um indicador, não uma projeção
+  // precisa de novos gastos futuros.
+  const proximaFaturaEstimativa = useMemo(() => {
+    return (
+      rotativo +
+      invoices
+        .filter((inv) => inv.status !== 'paid' && inv.status !== 'partial')
+        .reduce((s, inv) => s + inv.total_amount, 0)
+    )
+  }, [invoices, rotativo])
 
   const handleReparse = async (invId: string) => {
     setReparsingId(invId)
@@ -151,6 +184,39 @@ export default function CardDetail() {
         </Card>
       )}
 
+      {/* Saldo rotativo — aparece quando há faturas com pagamento parcial */}
+      {hasRotativo && (
+        <Card className="border-amber-200 dark:border-amber-900/50 shadow-subtle rounded-2xl bg-amber-50/60 dark:bg-amber-950/20">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+                <TrendingUp className="h-4 w-4 text-amber-700 dark:text-amber-300" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                  Saldo rotativo
+                </p>
+                <p className="text-lg font-bold text-amber-700 dark:text-amber-300">
+                  {formatBRL(rotativo)}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-amber-700 dark:text-amber-300/80">
+              Próxima fatura: previsão {formatBRL(proximaFaturaEstimativa)} (inclui rotativo + novos
+              gastos)
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowRotativoForm(true)}
+              className="border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-900/40"
+            >
+              Parcelar rotativo
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {loading ? (
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
@@ -214,6 +280,13 @@ export default function CardDetail() {
                     </p>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <Badge className={cn('text-xs', status.className)}>{status.label}</Badge>
+                      {inv.status === 'partial' &&
+                        inv.partial_amount != null &&
+                        inv.partial_amount > 0 && (
+                          <Badge className="text-[10px] bg-amber-100 text-amber-700 border-0">
+                            Pago {formatBRL(inv.partial_amount)}
+                          </Badge>
+                        )}
                       {effectiveParseStatus !== 'none' && (
                         <Badge
                           className={cn(
@@ -275,6 +348,29 @@ export default function CardDetail() {
         </div>
       )}
 
+      {/* Link para Contas a Pagar — o pagamento de faturas agora acontece lá */}
+      <Card className="border-blue-100 dark:border-blue-900/40 shadow-subtle rounded-2xl bg-blue-50/40 dark:bg-blue-950/20">
+        <CardContent className="p-4">
+          <button
+            onClick={() => navigate('/contas?tab=a_vencer')}
+            className="flex items-center gap-3 w-full text-left"
+          >
+            <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
+              <CreditCard className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">
+                Ver em Contas a Pagar
+              </p>
+              <p className="text-xs text-blue-700 dark:text-blue-300/80">
+                Pague suas faturas pelo fluxo de pagamento inteligente
+              </p>
+            </div>
+            <ExternalLink className="h-4 w-4 text-blue-600 dark:text-blue-300 shrink-0" />
+          </button>
+        </CardContent>
+      </Card>
+
       {canImportInvoices && (
         <button
           onClick={() => setShowInvoiceForm(true)}
@@ -290,6 +386,25 @@ export default function CardDetail() {
           onOpenChange={setShowInvoiceForm}
           cardId={cardId}
           familyId={card.family_id}
+          onSaved={refetch}
+        />
+      )}
+
+      {card && family && member && (
+        <DebtFormSheet
+          open={showRotativoForm}
+          onOpenChange={setShowRotativoForm}
+          familyId={family.id}
+          ownerId={member.id}
+          prefill={{
+            description: `Rotativo ${card.name}`,
+            totalAmount: rotativo,
+            remainingAmount: rotativo,
+            // Sugere parcelamento em 12x como ponto de partida.
+            installmentValue: rotativo > 0 ? Math.round((rotativo / 12) * 100) / 100 : 0,
+            installmentsTotal: 12,
+            notes: 'Saldo rotativo de cartão de crédito',
+          }}
           onSaved={refetch}
         />
       )}

@@ -22,6 +22,7 @@ import {
   CreditCard,
   AlertCircle,
   Search,
+  MoreVertical,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -45,6 +46,13 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -368,7 +376,11 @@ export default function Transactions() {
       } else if (sourceFilter === 'investment') {
         if (t.source !== 'investment') return false
       } else if (sourceFilter === 'card') {
-        if (t.source !== 'invoice_import' && t.source !== 'future_installment') return false
+        // "Cartão" covers all card-related transactions: invoice imports,
+        // future installments, and any transaction created by the invoice
+        // payment flow (source='invoice_import' with invoice_id set).
+        if (t.source !== 'invoice_import' && t.source !== 'future_installment' && !t.invoice_id)
+          return false
       }
       if (q) {
         const desc = (t.description || '').toLowerCase()
@@ -1009,36 +1021,41 @@ export default function Transactions() {
                               {formatBRL(t.amount)}
                             </span>
                           </div>
-                          {/* Ações rápidas (editar / excluir) — ícones ao lado */}
-                          <div className="flex items-center gap-1 shrink-0">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                openEditFromRow(t)
-                              }}
-                              className="h-8 w-8 p-0 text-gray-400 hover:text-blue-500 hover:bg-blue-50"
-                              aria-label="Editar transação"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            {canDeleteTransactions && (
+                          {/* Ações rápidas (editar / excluir) — kebab menu */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setDeleteTx(t)
-                                  setShowDeleteDialog(true)
-                                }}
-                                className="h-8 w-8 p-0 text-gray-400 hover:text-red-500 hover:bg-danger/5"
-                                aria-label="Excluir transação"
+                                onClick={(e) => e.stopPropagation()}
+                                className="h-8 w-8 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                                aria-label="Mais ações"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <MoreVertical className="h-4 w-4" />
                               </Button>
-                            )}
-                          </div>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenuItem onClick={() => openEditFromRow(t)}>
+                                <Pencil className="h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                              {canDeleteTransactions && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-red-600 focus:text-red-700 focus:bg-red-50"
+                                    onClick={() => {
+                                      setDeleteTx(t)
+                                      setShowDeleteDialog(true)
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Excluir
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </CardContent>
                       </Card>
                     )

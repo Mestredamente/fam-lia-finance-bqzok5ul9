@@ -3,20 +3,23 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { getRecurringTransactionsByFamilyId } from '@/services/recurring-transactions'
 import { getInvestmentsByFamilyId } from '@/services/investments'
 import { getDebtsByFamilyId } from '@/services/debts'
+import { getInvoicesByFamilyId } from '@/services/invoices'
 import pb from '@/lib/pocketbase/client'
 import type {
   BillItem,
   BillSummary,
   BillStatus,
+  InvoiceRecord,
   TransactionRecord,
   TransactionSource,
 } from '@/types/finance'
 
 /**
- * Consolidates upcoming bills from three sources into a single read-only view:
+ * Consolidates upcoming bills from four sources into a single read-only view:
  *  - active recurring_transactions → next occurrence (day_of_month)
  *  - active investments with installments → next installment (installment_due_day)
  *  - active debts → next due date (due_day)
+ *  - unpaid card invoices → the invoice's due date (month_ref + card due_day)
  *
  * A bill is considered "paga" when a transaction with the matching origin id
  * already exists in the current month. Otherwise its status is derived from
@@ -47,14 +50,16 @@ export function useContasAPagar(familyId: string | undefined) {
       const startISO = startOfMonth.toISOString()
       const endISO = endOfMonth.toISOString()
 
-      const [recurring, investments, debts] = await Promise.all([
+      const [recurring, investments, debts, invoices] = await Promise.all([
         getRecurringTransactionsByFamilyId(familyId),
         getInvestmentsByFamilyId(familyId),
         getDebtsByFamilyId(familyId),
+        getInvoicesByFamilyId(familyId),
       ])
 
       // Pull all transactions for the current month once, then partition by
-      // the origin id we care about (recurring_id / investment_id / debt_id).
+      // the origin id we care about (recurring_id / investment_id / debt_id /
+      // invoice_id).
       const monthTx = await pb.collection('transactions').getFullList<TransactionRecord>({
         filter: `family_id = "${familyId}" && transaction_date >= "${startISO}" && transaction_date < "${endISO}"`,
       })
@@ -62,10 +67,12 @@ export function useContasAPagar(familyId: string | undefined) {
       const txByRecurring = new Map<string, TransactionRecord>()
       const txByInvestment = new Map<string, TransactionRecord>()
       const txByDebt = new Map<string, TransactionRecord>()
+      const txByInvoice = new Map<string, TransactionRecord>()
       for (const t of monthTx) {
         if (t.recurring_id) txByRecurring.set(t.recurring_id, t)
         if (t.investment_id) txByInvestment.set(t.investment_id, t)
         if (t.debt_id) txByDebt.set(t.debt_id, t)
+        if (t.invoice_id) txByInvoice.set(t.invoice_id, t)
       }
 
       const items: BillItem[] = []
@@ -152,6 +159,56 @@ export function useContasAPagar(familyId: string | undefined) {
         })
       }
 
+      // ── Card invoices (unpaid or partially paid) ──
+      for (const inv of invoices) {
+        // Skip invoices that are fully paid via the payment flow.
+        if (inv.status === 'paid') continue
+        // Only show invoices with a positive amount.
+        if (!inv.total_amount || inv.total_amount <= 0) continue
+
+        // Resolve the card (for the due day and the display name).
+        const card = inv.expand?.card_id
+        const cardName = card?.name || 'Cartão'
+        const dueDay = card?.due_day
+
+        // Compute the invoice due date from the month_ref + card due_day.
+        const dueDate = computeInvoiceDueDate(inv, dueDay, now)
+        if (!dueDate) continue
+
+        // Skip invoices whose due date is before the start of the current
+        // month AND are not "partial" (fully stale, already-paid-history).
+        // Partial invoices stay visible so the user can settle the rotativo.
+        if (inv.status !== 'partial') {
+          const startOfCurrentMonth = new Date(year, month, 1)
+          if (dueDate < startOfCurrentMonth) continue
+        }
+
+        const paidTx = txByInvoice.get(inv.id)
+        const status =
+          inv.status === 'partial' ? 'a_vencer' : paidTx ? 'paga' : deriveStatus(dueDate, now)
+        const monthRefLabel = formatMonthRef(inv.month_ref)
+        const minimumPayment = Math.round(inv.total_amount * 0.15 * 100) / 100
+
+        items.push({
+          id: `invoice-${inv.id}`,
+          description: `Fatura ${cardName} - ${monthRefLabel}`,
+          amount: inv.total_amount,
+          dueDate: dueDate.toISOString(),
+          source: 'invoice',
+          status,
+          originId: inv.id,
+          extraInfo: inv.status === 'partial' ? 'Pagamento parcial' : undefined,
+          type: 'expense',
+          paidDate: paidTx?.transaction_date,
+          transactionId: paidTx?.id,
+          cardId: inv.card_id,
+          cardName,
+          invoiceId: inv.id,
+          minimumPayment,
+          monthRef: inv.month_ref,
+        })
+      }
+
       // Sort by due date ascending; paid items sink to the bottom of their
       // equal-date group so upcoming bills surface first.
       items.sort((a, b) => {
@@ -180,6 +237,7 @@ export function useContasAPagar(familyId: string | undefined) {
   useRealtime('recurring_transactions', () => loadData())
   useRealtime('investments', () => loadData())
   useRealtime('debts', () => loadData())
+  useRealtime('invoices', () => loadData())
 
   const summary = useMemo<BillSummary>(() => {
     const now = new Date()
@@ -238,6 +296,49 @@ function deriveStatus(dueDate: Date, now: Date): BillStatus {
 }
 
 /**
+ * Computes the due date for a card invoice. PocketBase stores month_ref as a
+ * date string ("YYYY-MM-DD 00:00:00 +00:00"); we combine its month with the
+ * card's due_day to get the actual payment deadline. Returns null when the
+ * invoice or card is missing the data we need.
+ */
+function computeInvoiceDueDate(
+  inv: InvoiceRecord,
+  dueDay: number | undefined,
+  now: Date,
+): Date | null {
+  // month_ref is like "2024-08-01 00:00:00 +00:00" — take the YYYY-MM-DD part.
+  const refStr = (inv.month_ref || '').split(' ')[0]
+  if (!refStr) return null
+  const ref = new Date(refStr + 'T12:00:00')
+  if (isNaN(ref.getTime())) return null
+  const day = dueDay && dueDay >= 1 && dueDay <= 31 ? dueDay : ref.getDate()
+  const due = new Date(ref.getFullYear(), ref.getMonth(), day, 12, 0, 0, 0)
+  return due
+}
+
+function formatMonthRef(monthRef: string): string {
+  const refStr = (monthRef || '').split(' ')[0]
+  if (!refStr) return ''
+  const d = new Date(refStr + 'T12:00:00')
+  if (isNaN(d.getTime())) return ''
+  const months = [
+    'jan',
+    'fev',
+    'mar',
+    'abr',
+    'mai',
+    'jun',
+    'jul',
+    'ago',
+    'set',
+    'out',
+    'nov',
+    'dez',
+  ]
+  return `${months[d.getMonth()]}/${d.getFullYear()}`
+}
+
+/**
  * Builds the transaction payload to mark a bill as paid. Mirrors the cron's
  * record creation (source + origin id) so the same dedup logic applies on
  * refetch. Returns null when the bill is already paid.
@@ -266,6 +367,10 @@ export function buildBillPaymentPayload(
   } else if (bill.source === 'investment') {
     base.source = 'investment' as TransactionSource
     base.investment_id = bill.originId
+  } else if (bill.source === 'invoice') {
+    base.source = 'invoice_import' as TransactionSource
+    base.invoice_id = bill.invoiceId || bill.originId
+    if (bill.cardId) base.card_id = bill.cardId
   } else {
     base.source = 'recurring_debt' as TransactionSource
     base.debt_id = bill.originId

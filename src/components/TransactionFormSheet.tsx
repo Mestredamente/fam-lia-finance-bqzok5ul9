@@ -30,6 +30,7 @@ import {
 import { createRecurringTransaction } from '@/services/recurring-transactions'
 import { getBudgetsByFamilyId } from '@/services/budgets'
 import { useOfflineQueue } from '@/hooks/use-offline-queue'
+import { useSuggestCategory } from '@/hooks/use-suggest-category'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
 import { cn, formatBRL } from '@/lib/utils'
@@ -224,7 +225,17 @@ export function TransactionFormSheet({
   const { announce } = useAnnouncer()
   const userTouchedCategory = useRef(false)
   const userTouchedInstallment = useRef(false)
+  const lastInstallmentToastRef = useRef<number | null>(null)
   const { isOnline, enqueueTransaction } = useOfflineQueue()
+
+  // History-based category suggestion (≥3 past transactions with the same
+  // description + category → confidence > 0.7). Disabled while editing or
+  // once the user has manually picked a category this session.
+  const categorySuggestion = useSuggestCategory(
+    description,
+    familyId,
+    !editingTransaction && !userTouchedCategory.current,
+  )
 
   // Derived numeric values (null when empty / invalid).
   const installmentTotal = useMemo(() => {
@@ -281,13 +292,29 @@ export function TransactionFormSheet({
   }, [familyId, open])
 
   // ── Auto-category suggestion (debounced 500ms) ──
-  // Looks up the categorization rules for the typed description. When a rule
-  // matches AND the user hasn't manually picked a category, we set the
-  // category and flag it as "suggested" so the UI can show a hint badge.
+  // Two sources, in priority order:
+  //  1. History-based (useSuggestCategory) — only when confidence > 0.7
+  //     (≥3 past transactions with the same description + category).
+  //  2. Categorization rules — keyword match against the family's rules.
+  // Either source sets the category and flags it as "suggested" so the UI
+  // can show a hint badge. Both are suppressed once the user manually picks
+  // a category (session-scoped via the userTouchedCategory ref).
   useEffect(() => {
     if (editingTransaction || userTouchedCategory.current) return
-    if (!description.trim() || rules.length === 0) return
+    if (!description.trim()) return
     const handle = setTimeout(() => {
+      // History suggestion takes priority when it meets the confidence bar.
+      if (
+        categorySuggestion.confidence > 0.7 &&
+        categorySuggestion.categoryId &&
+        categorySuggestion.categoryId !== categoryId
+      ) {
+        setCategoryId(categorySuggestion.categoryId)
+        setSuggestedCategory(categorySuggestion.categoryId)
+        return
+      }
+      // Fall back to keyword rules.
+      if (rules.length === 0) return
       const matched = findMatchingCategory(description, rules)
       if (matched && matched !== categoryId) {
         setCategoryId(matched)
@@ -295,7 +322,7 @@ export function TransactionFormSheet({
       }
     }, 500)
     return () => clearTimeout(handle)
-  }, [description, rules, editingTransaction, categoryId])
+  }, [description, rules, editingTransaction, categoryId, categorySuggestion])
 
   // Clear "suggested" flag whenever the user picks a category themselves.
   useEffect(() => {
@@ -304,28 +331,38 @@ export function TransactionFormSheet({
     }
   }, [categoryId, suggestedCategory])
 
-  // ── Auto-parcelado suggestion ──
+  // ── Auto-parcelado suggestion (debounced 300ms) ──
   // When the description contains a pattern like "10x" / "em 10x" / "10 vezes",
   // auto-select Parcelado mode + prefill the installment total (unless the
-  // user has already touched the installment total field).
+  // user has already touched the installment total field), and show a subtle
+  // toast the first time a count is detected for the current description.
   useEffect(() => {
     if (editingTransaction) return
     if (!description.trim()) {
       setSuggestedInstallment(false)
+      lastInstallmentToastRef.current = null
       return
     }
-    const n = detectInstallmentCount(description)
-    if (n && n > 1) {
-      if (type === 'expense' && paymentMode !== 'installment') {
-        setPaymentMode('installment')
-        setSuggestedInstallment(true)
+    const handle = setTimeout(() => {
+      const n = detectInstallmentCount(description)
+      if (n && n > 1) {
+        if (type === 'expense' && paymentMode !== 'installment') {
+          setPaymentMode('installment')
+          setSuggestedInstallment(true)
+        }
+        if (!userTouchedInstallment.current) {
+          setInstallmentTotalStr(String(n))
+        }
+        if (lastInstallmentToastRef.current !== n) {
+          lastInstallmentToastRef.current = n
+          toast({ title: `Parcelamento detectado: ${n}x` })
+        }
+      } else {
+        setSuggestedInstallment(false)
+        lastInstallmentToastRef.current = null
       }
-      if (!userTouchedInstallment.current) {
-        setInstallmentTotalStr(String(n))
-      }
-    } else {
-      setSuggestedInstallment(false)
-    }
+    }, 300)
+    return () => clearTimeout(handle)
   }, [description, editingTransaction, type, paymentMode])
 
   // Reset form state when opening.
@@ -1084,7 +1121,7 @@ export function TransactionFormSheet({
                   Categoria
                 </label>
                 {showSuggestedBadge && (
-                  <Badge className="ml-2 bg-emerald-100 text-emerald-700 border-0 gap-1 text-[10px] align-middle">
+                  <Badge className="ml-2 bg-blue-100 text-blue-700 border-0 gap-1 text-[10px] align-middle">
                     <Sparkles className="h-2.5 w-2.5" /> Sugerido
                   </Badge>
                 )}

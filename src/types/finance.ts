@@ -174,25 +174,6 @@ export type TransactionSource =
   | 'recurring'
   | 'debt_payment'
   | 'investment'
-
-export interface CategoryRecord {
-  id: string
-  family_id: string
-  name: string
-  type: CategoryType
-  icon: string
-  color: string
-  is_fixed: boolean
-  is_custom: boolean
-  created_by?: string
-  created: string
-  updated: string
-  expand?: {
-    family_id?: FamilyRecord
-    created_by?: AuthUser
-  }
-}
-
 export interface TransactionRecord {
   id: string
   family_id: string
@@ -217,6 +198,8 @@ export interface TransactionRecord {
   debt_id?: string | null
   recurring_id?: string | null
   investment_id?: string | null
+  invoice_id?: string | null
+  card_id?: string | null
   emotion?: TransactionEmotion | null
   emotion_note?: string | null
   created: string
@@ -226,6 +209,24 @@ export interface TransactionRecord {
     owner_id?: MemberRecord
     category_id?: CategoryRecord
     recurring_id?: RecurringTransaction
+  }
+}
+
+export interface CategoryRecord {
+  id: string
+  family_id: string
+  name: string
+  type: CategoryType
+  icon: string
+  color: string
+  is_fixed: boolean
+  is_custom: boolean
+  created_by?: string
+  created: string
+  updated: string
+  expand?: {
+    family_id?: FamilyRecord
+    created_by?: AuthUser
   }
 }
 
@@ -345,11 +346,13 @@ export interface InvoiceRecord {
   owner_id: string
   month_ref: string
   total_amount: number
-  status: 'pending' | 'reviewed' | 'paid' | 'parsed' | 'error'
+  status: 'pending' | 'reviewed' | 'paid' | 'parsed' | 'error' | 'partial'
   raw_file_url: string
   parsed_data: string
   parsed_at: string
   reviewed_at?: string | null
+  partial_amount?: number | null
+  paid_at?: string | null
   created: string
   updated: string
   expand?: {
@@ -457,7 +460,7 @@ export type DebtType =
   | 'other'
 
 export type BillStatus = 'paga' | 'vencida' | 'a_vencer' | 'futura'
-export type BillSource = 'recurring' | 'investment' | 'debt'
+export type BillSource = 'recurring' | 'investment' | 'debt' | 'invoice'
 
 export interface BillItem {
   id: string
@@ -472,6 +475,12 @@ export interface BillItem {
   type: 'expense' | 'income'
   paidDate?: string
   transactionId?: string
+  // Invoice-specific fields
+  cardId?: string
+  cardName?: string
+  invoiceId?: string
+  minimumPayment?: number
+  monthRef?: string
 }
 
 export interface BillSummary {
