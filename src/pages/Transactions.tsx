@@ -943,7 +943,7 @@ export default function Transactions() {
                           setDetailTx(t)
                           setShowDetail(true)
                         }}
-                        className="border border-gray-100 dark:border-gray-700 shadow-subtle hover:shadow-elevation rounded-2xl bg-white dark:bg-card cursor-pointer transition-all"
+                        className="group border border-gray-100 dark:border-gray-700 shadow-subtle hover:shadow-elevation rounded-2xl bg-white dark:bg-card cursor-pointer transition-all"
                       >
                         <CardContent className="p-4 flex items-center gap-3">
                           <div
@@ -1028,7 +1028,7 @@ export default function Transactions() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={(e) => e.stopPropagation()}
-                                className="h-8 w-8 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                                className="h-8 w-8 p-0 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-150"
                                 aria-label="Mais ações"
                               >
                                 <MoreVertical className="h-4 w-4" />

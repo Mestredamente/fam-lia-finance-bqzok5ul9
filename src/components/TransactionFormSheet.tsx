@@ -225,6 +225,7 @@ export function TransactionFormSheet({
   const { announce } = useAnnouncer()
   const userTouchedCategory = useRef(false)
   const userTouchedInstallment = useRef(false)
+  const userTouchedPaymentMode = useRef(false)
   const lastInstallmentToastRef = useRef<number | null>(null)
   const { isOnline, enqueueTransaction } = useOfflineQueue()
 
@@ -346,14 +347,21 @@ export function TransactionFormSheet({
     const handle = setTimeout(() => {
       const n = detectInstallmentCount(description)
       if (n && n > 1) {
-        if (type === 'expense' && paymentMode !== 'installment') {
+        // Respect a manual override: once the user has switched to "À vista"
+        // or "Recorrente" themselves, don't re-activate auto-parcelado for
+        // this form session (spec: "não reativar o auto-parcelado").
+        if (
+          type === 'expense' &&
+          paymentMode !== 'installment' &&
+          !userTouchedPaymentMode.current
+        ) {
           setPaymentMode('installment')
           setSuggestedInstallment(true)
         }
-        if (!userTouchedInstallment.current) {
+        if (!userTouchedInstallment.current && !userTouchedPaymentMode.current) {
           setInstallmentTotalStr(String(n))
         }
-        if (lastInstallmentToastRef.current !== n) {
+        if (lastInstallmentToastRef.current !== n && !userTouchedPaymentMode.current) {
           lastInstallmentToastRef.current = n
           toast({ title: `Parcelamento detectado: ${n}x` })
         }
@@ -463,6 +471,7 @@ export function TransactionFormSheet({
       setErrors({})
       userTouchedCategory.current = false
       userTouchedInstallment.current = false
+      userTouchedPaymentMode.current = false
     }
   }, [open, editingTransaction, defaultIsFixed, prefill])
 
@@ -827,7 +836,14 @@ export function TransactionFormSheet({
               </div>
               <RadioGroup
                 value={paymentMode}
-                onValueChange={(v) => setPaymentMode(v as PaymentMode)}
+                onValueChange={(v) => {
+                  // Track manual payment-mode overrides so auto-parcelado
+                  // doesn't re-activate after the user picks "À vista" or
+                  // "Recorrente". Manually choosing "Parcelado" re-enables
+                  // the helpful auto-fill of the installment total.
+                  userTouchedPaymentMode.current = v !== 'installment'
+                  setPaymentMode(v as PaymentMode)
+                }}
                 className="grid grid-cols-3 gap-2"
               >
                 {(
