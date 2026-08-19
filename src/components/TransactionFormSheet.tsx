@@ -561,7 +561,7 @@ export function TransactionFormSheet({
     if (!result.success) {
       const errs: Record<string, string> = {}
       result.error.issues.forEach((i) => {
-        errs[i.path[0]] = i.message
+        errs[String(i.path[0])] = i.message
       })
       setErrors(errs)
       return
@@ -956,9 +956,7 @@ export function TransactionFormSheet({
                         inputMode="numeric"
                         placeholder="1"
                         value={dayOfMonthStr}
-                        onChange={(e) =>
-                          setDayOfMonthStr(sanitizeIntInput(e.target.value, 1, 31))
-                        }
+                        onChange={(e) => setDayOfMonthStr(sanitizeIntInput(e.target.value, 1, 31))}
                         className="mt-1"
                       />
                     </div>
