@@ -158,9 +158,12 @@ export default function CardDetail() {
           ))}
         </div>
       ) : error ? (
-        <Card className="border-red-200 rounded-2xl">
+        <Card className="border-amber-200 rounded-2xl">
           <CardContent className="p-6 text-center space-y-3">
-            <p className="text-sm text-red-600">{error}</p>
+            <div className="flex justify-center">
+              <AlertCircle className="h-8 w-8 text-amber-600" />
+            </div>
+            <p className="text-sm text-amber-700">{error}</p>
             <Button size="sm" variant="outline" onClick={refetch}>
               Tentar novamente
             </Button>
@@ -245,7 +248,7 @@ export default function CardDetail() {
                         </button>
                       )}
                     </div>
-                    {errorMessage && <p className="text-xs text-red-600 mt-1">{errorMessage}</p>}
+                    {errorMessage && <p className="text-xs text-amber-600 mt-1">{errorMessage}</p>}
                   </div>
                   <span className="font-bold text-sm text-gray-900 whitespace-nowrap">
                     {formatBRL(inv.total_amount)}

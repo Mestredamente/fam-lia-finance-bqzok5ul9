@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, CreditCard as CreditCardIcon, ChevronRight } from 'lucide-react'
+import { Plus, CreditCard as CreditCardIcon, ChevronRight, AlertCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { useCreditCards } from '@/hooks/use-credit-cards'
@@ -42,9 +42,12 @@ export default function Cards() {
           ))}
         </div>
       ) : error ? (
-        <Card className="border-red-200 rounded-2xl">
-          <CardContent className="p-6 text-center">
-            <p className="text-sm text-danger mb-2">{error}</p>
+        <Card className="border-amber-200 rounded-2xl">
+          <CardContent className="p-6 text-center space-y-3">
+            <div className="flex justify-center">
+              <AlertCircle className="h-8 w-8 text-amber-600" />
+            </div>
+            <p className="text-sm text-amber-700">{error}</p>
             <Button size="sm" variant="outline" onClick={refetch}>
               Tentar novamente
             </Button>

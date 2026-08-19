@@ -32,5 +32,17 @@ export function getPortugueseError(error: unknown): string {
   if (error.status === 409) {
     return 'Este registro já existe.'
   }
+  if (error.status === 408) {
+    return 'Tempo esgotado. A operação demorou demais. Tente novamente.'
+  }
+  if (error.status === 429) {
+    return 'Muitas solicitações. Aguarde alguns minutos e tente novamente.'
+  }
+  if (error.status === 500) {
+    return 'Erro interno. Tente novamente — se persistir, contate o suporte.'
+  }
+  if (error.status === 503) {
+    return 'Sistema ocupado. O serviço está momentaneamente sobrecarregado. Tente novamente em alguns instantes.'
+  }
   return 'Ocorreu um erro inesperado. Tente novamente.'
 }
