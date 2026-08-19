@@ -160,6 +160,13 @@ const schema = z
 
 type PaymentMode = 'once' | 'installment' | 'recurring'
 
+export interface TransactionPrefill {
+  type?: 'expense' | 'income'
+  amount?: number
+  description?: string
+  categoryId?: string | null
+}
+
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -168,6 +175,7 @@ interface Props {
   editingTransaction?: TransactionRecord | null
   onSaved?: () => void
   defaultIsFixed?: boolean
+  prefill?: TransactionPrefill | null
 }
 
 export function TransactionFormSheet({
@@ -178,6 +186,7 @@ export function TransactionFormSheet({
   editingTransaction,
   onSaved,
   defaultIsFixed,
+  prefill,
 }: Props) {
   const { categories } = useCategories(familyId)
   const [type, setType] = useState<'expense' | 'income'>('expense')
@@ -406,12 +415,19 @@ export function TransactionFormSheet({
         setEmotionNote('')
         setSuggestedCategory(null)
         setSuggestedInstallment(false)
+        // Apply external prefill (e.g. "Pagar agora" from the bills page).
+        if (prefill) {
+          if (prefill.type) setType(prefill.type)
+          if (typeof prefill.amount === 'number') setAmount(prefill.amount)
+          if (prefill.description) setDescription(prefill.description)
+          if (prefill.categoryId) setCategoryId(prefill.categoryId)
+        }
       }
       setErrors({})
       userTouchedCategory.current = false
       userTouchedInstallment.current = false
     }
-  }, [open, editingTransaction, defaultIsFixed])
+  }, [open, editingTransaction, defaultIsFixed, prefill])
 
   // Reset installment fields when switching away from expense.
   useEffect(() => {

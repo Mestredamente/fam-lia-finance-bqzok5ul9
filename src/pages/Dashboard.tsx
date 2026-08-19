@@ -43,7 +43,7 @@ import { exportToCSV } from '@/lib/export-utils'
 import { DashboardInstallBanner } from '@/components/DashboardInstallBanner'
 import { MemberRecord, AIInsight } from '@/types/finance'
 import { getActiveMembersByFamilyId } from '@/services/members'
-import { getMonthName } from '@/lib/utils'
+import { getMonthName, formatBRL, cn } from '@/lib/utils'
 import { ComprometimentoFuturoCard } from '@/components/ComprometimentoFuturoCard'
 import { UpcomingTasksSection } from '@/components/UpcomingTasksSection'
 import { EmotionalSpendingCard } from '@/components/EmotionalSpendingCard'
@@ -67,10 +67,16 @@ import {
   type DashboardPdfData,
 } from '@/components/DashboardPdfExport'
 import { useFutureInstallments } from '@/hooks/use-future-installments'
+import { useContasAPagar } from '@/hooks/use-contas-a-pagar'
+import { generateBillAlerts } from '@/services/bill-alerts'
 import { toast } from '@/hooks/use-toast'
+import { AlertTriangle, ArrowRight } from 'lucide-react'
+import { Card } from '@/components/ui/card'
+import { useNavigate } from 'react-router-dom'
 
 export default function Dashboard() {
   const { family, member } = useAuth()
+  const navigate = useNavigate()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [members, setMembers] = useState<MemberRecord[]>([])
   const [selectedMember, setSelectedMember] = useState<MemberRecord | null>(null)
@@ -94,6 +100,8 @@ export default function Dashboard() {
   const pdfCaptureRef = useRef<HTMLDivElement | null>(null)
   const generatePdf = useGeneratePdf(pdfCaptureRef)
   const { installments: futureInstallments } = useFutureInstallments(family?.id)
+  const { contas: bills } = useContasAPagar(family?.id)
+  const billAlerts = useMemo(() => generateBillAlerts(bills), [bills])
 
   // Holds the AI-generated emotional insights surfaced by the
   // EmotionalSpendingCard so they can be included in the PDF export. Using a
@@ -607,6 +615,69 @@ export default function Dashboard() {
       )}
 
       <BudgetAlertBanner familyId={family.id} year={year} month={month} />
+
+      {billAlerts.length > 0 && (
+        <div className="space-y-2">
+          {billAlerts.map((alert) => {
+            const isOverdue = alert.type === 'overdue'
+            return (
+              <Card
+                key={alert.type}
+                onClick={() => navigate(`/contas?tab=${isOverdue ? 'vencidas' : 'a_vencer'}`)}
+                className={cn(
+                  'cursor-pointer border rounded-2xl shadow-subtle transition-colors',
+                  isOverdue
+                    ? 'border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-800'
+                    : 'border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800',
+                )}
+              >
+                <div className="p-4 flex items-center gap-3">
+                  <AlertTriangle
+                    className={cn(
+                      'h-5 w-5 shrink-0',
+                      isOverdue
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-amber-600 dark:text-amber-400',
+                    )}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className={cn(
+                        'font-bold text-sm',
+                        isOverdue
+                          ? 'text-red-900 dark:text-red-200'
+                          : 'text-amber-900 dark:text-amber-200',
+                      )}
+                    >
+                      {isOverdue
+                        ? `${alert.count} ${alert.count === 1 ? 'conta vencida' : 'contas vencidas'}`
+                        : `${alert.count} ${alert.count === 1 ? 'conta vence' : 'contas vencem'} esta semana`}
+                    </p>
+                    <p
+                      className={cn(
+                        'text-xs',
+                        isOverdue
+                          ? 'text-red-700 dark:text-red-300'
+                          : 'text-amber-700 dark:text-amber-300',
+                      )}
+                    >
+                      Total {formatBRL(alert.total)}
+                    </p>
+                  </div>
+                  <ArrowRight
+                    className={cn(
+                      'h-4 w-4 shrink-0',
+                      isOverdue
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-amber-600 dark:text-amber-400',
+                    )}
+                  />
+                </div>
+              </Card>
+            )
+          })}
+        </div>
+      )}
 
       {orderedCards}
 

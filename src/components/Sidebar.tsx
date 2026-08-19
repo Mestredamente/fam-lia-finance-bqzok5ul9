@@ -50,6 +50,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Transações', path: '/transacoes', icon: List },
       { label: 'Cartões', path: '/cards', icon: CreditCard },
+      { label: 'Contas a Pagar', path: '/contas', icon: CalendarClock },
       { label: 'Orçamentos', path: '/orcamentos', icon: Wallet, perm: 'canViewBudgets' },
     ],
   },

@@ -456,6 +456,41 @@ export type DebtType =
   | 'condo'
   | 'other'
 
+export type BillStatus = 'paga' | 'vencida' | 'a_vencer' | 'futura'
+export type BillSource = 'recurring' | 'investment' | 'debt'
+
+export interface BillItem {
+  id: string
+  description: string
+  amount: number
+  dueDate: string
+  source: BillSource
+  status: BillStatus
+  originId: string
+  extraInfo?: string
+  categoryId?: string
+  type: 'expense' | 'income'
+  paidDate?: string
+  transactionId?: string
+}
+
+export interface BillSummary {
+  totalMes: number
+  totalPagas: number
+  countPagas: number
+  totalRestante: number
+  countRestante: number
+  totalVencidas: number
+  countVencidas: number
+}
+
+export interface BillAlert {
+  type: 'overdue' | 'upcoming'
+  count: number
+  total: number
+  accounts: BillItem[]
+}
+
 export interface DebtRecord {
   id: string
   family_id: string

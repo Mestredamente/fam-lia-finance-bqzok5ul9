@@ -40,6 +40,7 @@ const Casa = lazy(() => import('@/pages/Casa'))
 const DiagnosticInvoice = lazy(() => import('@/pages/DiagnosticInvoice'))
 const RecurringTransactions = lazy(() => import('@/pages/RecurringTransactions'))
 const SavingsGoals = lazy(() => import('@/pages/SavingsGoals'))
+const ContasAPagar = lazy(() => import('@/pages/ContasAPagar'))
 
 function NavigationGuard() {
   const location = useLocation()
@@ -172,6 +173,10 @@ function AppInner() {
                       <Route
                         path="/cards"
                         element={<ProtectedRoute>{withSuspense(Cards)}</ProtectedRoute>}
+                      />
+                      <Route
+                        path="/contas"
+                        element={<ProtectedRoute>{withSuspense(ContasAPagar)}</ProtectedRoute>}
                       />
                       <Route
                         path="/cards/:cardId"
