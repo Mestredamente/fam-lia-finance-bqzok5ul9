@@ -16,6 +16,7 @@ import {
   Layers,
   CalendarDays,
   Landmark,
+  Settings,
   TrendingUp,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -402,6 +403,22 @@ export default function Transactions() {
           </SelectContent>
         </Select>
       </div>
+
+      {recurring.filter((r) => r.active).length > 0 && (
+        <div className="pt-2 border-t">
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-sm text-gray-600 hover:text-gray-900"
+            onClick={() => {
+              setShowFilters(false)
+              navigate('/recorrentes')
+            }}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Gerenciar recorrentes
+          </Button>
+        </div>
+      )}
 
       <div className="flex gap-2 pt-1">
         <Button variant="outline" className="flex-1" onClick={clearFilters}>
