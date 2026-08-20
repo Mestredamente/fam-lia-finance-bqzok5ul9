@@ -7,6 +7,7 @@ export interface AppNotification {
   timestamp: number
   read: boolean
   iconColor?: string
+  link?: string
 }
 
 const STORAGE_KEY = 'ff_notifications'
@@ -56,6 +57,12 @@ export function markAllRead() {
   emit()
 }
 
+export function dismissNotification(id: string) {
+  notifications = notifications.filter((n) => n.id !== id)
+  save()
+  emit()
+}
+
 export function clearNotifications() {
   notifications = []
   save()
@@ -72,7 +79,14 @@ export function useNotificationsStore() {
     }
   }, [])
   const unreadCount = notifications.filter((n) => !n.read).length
-  return { notifications, unreadCount, markAllRead, clearNotifications, addNotification }
+  return {
+    notifications,
+    unreadCount,
+    markAllRead,
+    clearNotifications,
+    addNotification,
+    dismissNotification,
+  }
 }
 
 export default useNotificationsStore

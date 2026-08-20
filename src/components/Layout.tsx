@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { useExpenseNotifications } from '@/hooks/use-expense-notifications'
+import { useBillNotifications } from '@/hooks/use-bill-notifications'
 import { Header, BottomNav } from '@/components/Navigation'
 import { Sidebar } from '@/components/Sidebar'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -19,6 +20,7 @@ const FAB_OPEN_EVENT = 'ff-open-fab-menu'
 export default function Layout() {
   const { isAuthenticated, loading } = useAuth()
   useExpenseNotifications(isAuthenticated)
+  useBillNotifications(isAuthenticated)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
