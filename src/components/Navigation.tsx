@@ -288,6 +288,14 @@ export function BottomNav({ onFabClick }: { onFabClick?: () => void }) {
   const { family } = useAuth()
   const pendingCount = usePendingInvoicesCount(family?.id)
 
+  const handleCenterFabClick = () => {
+    if (onFabClick) {
+      onFabClick()
+    } else {
+      window.dispatchEvent(new CustomEvent('ff-open-fab-menu'))
+    }
+  }
+
   const tabs = [
     { label: 'Início', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Transações', path: '/transacoes', icon: List },
@@ -339,7 +347,7 @@ export function BottomNav({ onFabClick }: { onFabClick?: () => void }) {
       {/* Central FAB */}
       <div className="flex flex-col items-center justify-center w-full">
         <button
-          onClick={onFabClick}
+          onClick={handleCenterFabClick}
           aria-label="Adicionar"
           className="-translate-y-4 w-12 h-12 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-lg ring-4 ring-white dark:ring-card transition-transform active:scale-95 cursor-pointer"
         >

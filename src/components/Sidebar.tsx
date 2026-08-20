@@ -67,6 +67,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Projeções', path: '/projections', icon: CalendarClock },
       { label: 'Metas', path: '/metas', icon: Target },
       { label: 'Dívidas', path: '/dividas', icon: FileText },
+      { label: 'Casa', path: '/casa', icon: Home },
       { label: 'Desafios', path: '/challenges', icon: Trophy },
     ],
   },

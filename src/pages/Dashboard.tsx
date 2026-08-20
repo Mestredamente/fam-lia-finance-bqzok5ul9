@@ -59,7 +59,7 @@ import { CustomizableCard } from '@/components/CustomizableCard'
 import { BudgetAlertBanner } from '@/components/BudgetAlertBanner'
 import { useDashboardLayout, CARD_TITLES, type DashboardCardId } from '@/hooks/use-dashboard-layout'
 import { MobileMonthPicker } from '@/components/MobileMonthPicker'
-import { FabMenu, ExportBottomSheet, type FabMenuAction } from '@/components/FabMenu'
+import { ExportBottomSheet, type FabMenuAction } from '@/components/FabMenu'
 import { useIsMobile } from '@/hooks/use-mobile'
 import {
   PdfCaptureTargets,
@@ -353,17 +353,14 @@ export default function Dashboard() {
   // Swipe gesture on the mobile header: left → next month, right → previous.
   const touchStartX = React.useRef<number | null>(null)
 
-  // Mobile FAB menu actions, dispatched from the central FAB in BottomNav.
+  // Transaction form opening via custom event
   useEffect(() => {
-    const openFab = () => setShowFabMenu(true)
     const openTransactionForm = () => {
       setDefaultIsFixed(false)
       setShowForm(true)
     }
-    window.addEventListener('ff-open-fab-menu', openFab)
     window.addEventListener('ff-open-transaction-form', openTransactionForm)
     return () => {
-      window.removeEventListener('ff-open-fab-menu', openFab)
       window.removeEventListener('ff-open-transaction-form', openTransactionForm)
     }
   }, [])
@@ -702,12 +699,7 @@ export default function Dashboard() {
 
       {orderedCards}
 
-      {/* Mobile-only expanding FAB menu + sheets */}
-      <FabMenu
-        open={showFabMenu && isMobile}
-        onClose={() => setShowFabMenu(false)}
-        onAction={handleFabAction}
-      />
+      {/* Export sheet (used by export options) */}
       <ExportBottomSheet
         open={showExportSheet}
         onClose={() => setShowExportSheet(false)}

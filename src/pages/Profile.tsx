@@ -13,13 +13,10 @@ import {
   BookOpen,
   Smartphone,
   Tags,
-  Home,
-  ArrowRight,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useRealtime } from '@/hooks/use-realtime'
-import { useHouseholdTasks } from '@/hooks/use-household-tasks'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -68,10 +65,6 @@ export default function Profile() {
   const [allTransactions, setAllTransactions] = useState<TransactionRecord[]>([])
   const [userInvestments, setUserInvestments] = useState<InvestmentRecord[]>([])
   const [userDebts, setUserDebts] = useState<DebtRecord[]>([])
-  const { tasks: householdTasks } = useHouseholdTasks(family?.id)
-  const pendingHouseholdTasks = householdTasks.filter(
-    (t) => t.status !== 'completed' && t.status !== 'cancelled',
-  ).length
 
   const loadMembers = async () => {
     if (!family) return
@@ -393,50 +386,6 @@ export default function Profile() {
             {familyMembers.length} {familyMembers.length === 1 ? 'membro ativo' : 'membros ativos'}
             {familyMembers.some((m) => m.is_dependent) &&
               ` • ${familyMembers.filter((m) => m.is_dependent).length} dependentes`}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Seção Casa / Residência */}
-      <Card className="border border-gray-100 dark:border-gray-800 shadow-subtle rounded-2xl bg-white dark:bg-card">
-        <CardContent className="p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-[#166534] dark:text-emerald-400 flex items-center justify-center">
-                <Home className="h-4 w-4" />
-              </div>
-              <div>
-                <h3 className="font-bold text-base text-gray-900 dark:text-foreground">Casa</h3>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  Tarefas e compromissos financeiros da residência
-                </span>
-              </div>
-            </div>
-            {pendingHouseholdTasks > 0 ? (
-              <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-200">
-                {pendingHouseholdTasks}{' '}
-                {pendingHouseholdTasks === 1 ? 'tarefa pendente' : 'tarefas pendentes'}
-              </Badge>
-            ) : (
-              <Badge className="bg-emerald-100 text-[#166534] hover:bg-emerald-100 border-0">
-                Tudo em dia
-              </Badge>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between pt-1">
-            <p className="text-xs text-gray-600 dark:text-gray-400 max-w-sm">
-              Organize divisões de compras, consertos, faxinas e atribuições para cada membro da
-              casa.
-            </p>
-            <Button
-              onClick={() => navigate('/casa')}
-              className="bg-[#166534] hover:bg-[#15803D] text-white gap-1.5 shrink-0"
-              size="sm"
-            >
-              <span>Acessar Planejador</span>
-              <ArrowRight className="h-4 w-4" />
-            </Button>
           </div>
         </CardContent>
       </Card>

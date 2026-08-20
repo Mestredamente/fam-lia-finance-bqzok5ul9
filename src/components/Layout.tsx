@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { useExpenseNotifications } from '@/hooks/use-expense-notifications'
 import { useBillNotifications } from '@/hooks/use-bill-notifications'
@@ -10,28 +10,11 @@ import { OnboardingTour } from '@/components/OnboardingTour'
 import { PullToRefresh } from '@/components/PullToRefresh'
 import { FabMenu } from '@/components/FabMenu'
 
-const FAB_OPEN_EVENT = 'ff-open-fab-menu'
-
 export default function Layout() {
   const { isAuthenticated, loading } = useAuth()
   useExpenseNotifications(isAuthenticated)
   useBillNotifications(isAuthenticated)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const location = useLocation()
-  const navigate = useNavigate()
-
-  const handleFabClick = useCallback(() => {
-    if (location.pathname.startsWith('/dashboard')) {
-      window.dispatchEvent(new CustomEvent(FAB_OPEN_EVENT))
-    } else {
-      // On non-dashboard pages the central FAB takes the user to the dashboard
-      // and opens the transaction form there.
-      navigate('/dashboard')
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('ff-open-transaction-form'))
-      }, 300)
-    }
-  }, [location.pathname, navigate])
 
   if (loading) {
     return <LoadingScreen />
@@ -69,7 +52,7 @@ export default function Layout() {
         </main>
       </div>
       <FabMenu />
-      <BottomNav onFabClick={handleFabClick} />
+      <BottomNav />
       <OnboardingTour />
     </div>
   )

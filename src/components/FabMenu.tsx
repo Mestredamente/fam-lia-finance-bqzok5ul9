@@ -91,6 +91,17 @@ export function FabMenu({
   const isOpen = isControlled ? controlledOpen : internalOpen
   const containerRef = useRef<HTMLDivElement>(null)
 
+  // Listen to 'ff-open-fab-menu' event to open popup (from Mobile BottomNav or shortcuts)
+  useEffect(() => {
+    const handleOpenEvent = () => {
+      setInternalOpen((prev) => !prev)
+    }
+    window.addEventListener('ff-open-fab-menu', handleOpenEvent)
+    return () => {
+      window.removeEventListener('ff-open-fab-menu', handleOpenEvent)
+    }
+  }, [])
+
   const handleClose = () => {
     if (isControlled && controlledOnClose) {
       controlledOnClose()
@@ -127,7 +138,7 @@ export function FabMenu({
     }
   }
 
-  // Close on outside click
+  // Close on outside click or Escape key
   useEffect(() => {
     if (!isOpen) return
     const handleClickOutside = (e: MouseEvent) => {
@@ -176,7 +187,7 @@ export function FabMenu({
   ]
 
   return (
-    <div ref={containerRef} className="hidden lg:block">
+    <div ref={containerRef}>
       {/* Semi-transparent backdrop when open */}
       {isOpen && (
         <div
@@ -186,10 +197,15 @@ export function FabMenu({
         />
       )}
 
-      {/* Action options popup */}
+      {/* Action options popup
+          Mobile: bottom-20 (above 64px BottomNav) and centered horizontally (left-1/2 -translate-x-1/2 items-center)
+          Desktop (lg+): bottom-24 right-8 items-end left-auto translate-x-0
+      */}
       <div
         className={cn(
-          'fixed bottom-24 right-8 z-40 flex flex-col items-end gap-2.5 transition-all duration-200 pointer-events-none',
+          'fixed z-40 flex flex-col gap-2.5 transition-all duration-200 pointer-events-none',
+          'bottom-20 left-1/2 -translate-x-1/2 items-center',
+          'lg:bottom-24 lg:right-8 lg:left-auto lg:translate-x-0 lg:items-end',
           isOpen
             ? 'opacity-100 translate-y-0 pointer-events-auto scale-100'
             : 'opacity-0 translate-y-4 scale-95',
@@ -222,13 +238,13 @@ export function FabMenu({
         })}
       </div>
 
-      {/* Main Trigger Button (Desktop) */}
+      {/* Main Trigger Button — Desktop only (lg+), since mobile has BottomNav "+" button */}
       <button
         onClick={toggleOpen}
         aria-label={isOpen ? 'Fechar menu de ações' : 'Adicionar / Ações rápidas'}
         aria-expanded={isOpen}
         className={cn(
-          'fixed bottom-8 right-8 z-40 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-xl ring-4 ring-white/60 dark:ring-gray-900/60 transition-all duration-300 active:scale-95 cursor-pointer',
+          'hidden lg:flex fixed bottom-8 right-8 z-40 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white items-center justify-center shadow-xl ring-4 ring-white/60 dark:ring-gray-900/60 transition-all duration-300 active:scale-95 cursor-pointer',
         )}
       >
         <Plus
