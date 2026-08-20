@@ -32,22 +32,58 @@ routerAdd(
       return t
     }
 
+    function fixMojibake(str) {
+      if (!str || typeof str !== 'string') return str || ''
+      if (
+        /Ã[§£©ãÃáéíóúâêîôûàèìòùäëïöüãõñçÁÉÍÓÚÂÊÎÔÛÀÈÌÒÙÄËÏÖÜÃÕÑÇ\x80-\xbf]/.test(str) ||
+        /[\u00c0-\u00c3][\u0080-\u00bf]/.test(str)
+      ) {
+        try {
+          var fixed = decodeURIComponent(escape(str))
+          if (fixed && fixed !== str) return fixed
+        } catch (_) {}
+      }
+      return str
+    }
+
     function bodyToText(rawBody) {
       if (!rawBody) return ''
-      if (typeof rawBody === 'string') return rawBody
+      if (typeof rawBody === 'string') return fixMojibake(rawBody)
+
+      var uint8Arr = null
       if (rawBody instanceof ArrayBuffer) {
-        var bytes = new Uint8Array(rawBody)
-        var chars = []
-        for (var bi = 0; bi < bytes.length; bi++) chars.push(String.fromCharCode(bytes[bi]))
-        return chars.join('')
+        uint8Arr = new Uint8Array(rawBody)
+      } else if (rawBody && typeof rawBody.length === 'number' && typeof rawBody[0] === 'number') {
+        uint8Arr = new Uint8Array(rawBody)
       }
-      if (rawBody && typeof rawBody.length === 'number' && typeof rawBody[0] === 'number') {
-        var bChars = []
-        for (var bj = 0; bj < rawBody.length; bj++) bChars.push(String.fromCharCode(rawBody[bj]))
-        return bChars.join('')
+
+      if (uint8Arr) {
+        if (typeof TextDecoder !== 'undefined') {
+          try {
+            var decoder = new TextDecoder('utf-8')
+            return decoder.decode(uint8Arr)
+          } catch (_) {}
+        }
+        try {
+          var binaryStr = ''
+          var chunkSize = 8192
+          for (var i = 0; i < uint8Arr.length; i += chunkSize) {
+            var slice = uint8Arr.subarray(i, i + chunkSize)
+            binaryStr += String.fromCharCode.apply(null, slice)
+          }
+          return decodeURIComponent(escape(binaryStr))
+        } catch (_) {
+          try {
+            var fallbackChars = []
+            for (var bi = 0; bi < uint8Arr.length; bi++)
+              fallbackChars.push(String.fromCharCode(uint8Arr[bi]))
+            return fixMojibake(fallbackChars.join(''))
+          } catch (_) {}
+        }
       }
+
       try {
-        return String(rawBody)
+        return fixMojibake(String(rawBody))
       } catch (_) {
         return ''
       }
@@ -230,7 +266,10 @@ routerAdd(
         var gRes = $http.send({
           url: geminiUrl,
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-goog-api-key': GEMINI_API_KEY },
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'X-goog-api-key': GEMINI_API_KEY,
+          },
           body: geminiBody,
           timeout: 180,
         })
@@ -528,6 +567,7 @@ routerAdd(
         raw_error: responseBody.substring(0, 500),
       })
     }
+    aiContent = fixMojibake(aiContent)
     diagInfo.rawAiExcerpt = aiContent.substring(0, 500)
     diagInfo.logs.push('Gemini tokens - input: ' + tokensInput + ', output: ' + tokensOutput)
     $app
@@ -754,7 +794,7 @@ routerAdd(
       if (reason) {
         invalidItems.push({ index: m, reason: reason })
       } else {
-        var desc = it.description.trim().substring(0, 255)
+        var desc = fixMojibake(it.description.trim()).substring(0, 255)
         var amt = Number(it.amount)
 
         if (amt <= 0) {

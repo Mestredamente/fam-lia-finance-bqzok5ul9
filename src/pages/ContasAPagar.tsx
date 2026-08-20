@@ -656,6 +656,15 @@ function BillRow({
   const amountColor = isIncome ? 'text-emerald-600' : 'text-gray-900 dark:text-foreground'
   const isPaid = bill.status === 'paga'
   const isInvoice = bill.source === 'invoice'
+  const isOverdueInvoice = isInvoice && bill.status === 'vencida'
+  const daysOverdue = useMemo(() => {
+    if (!isOverdueInvoice) return 0
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const due = new Date(bill.dueDate)
+    due.setHours(0, 0, 0, 0)
+    return Math.max(1, Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24)))
+  }, [isOverdueInvoice, bill.dueDate])
 
   return (
     <Card
@@ -701,6 +710,18 @@ function BillRow({
                 ({bill.cardName})
               </span>
             )}
+            {isOverdueInvoice && (
+              <Badge
+                className={cn(
+                  'text-[10px] py-0 px-1.5 font-bold border-0',
+                  daysOverdue > 30
+                    ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
+                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
+                )}
+              >
+                Vencida há {daysOverdue} {daysOverdue === 1 ? 'dia' : 'dias'}
+              </Badge>
+            )}
             {bill.extraInfo && (
               <Badge variant="secondary" className="text-[10px] py-0 px-1.5">
                 {bill.extraInfo}
@@ -724,6 +745,11 @@ function BillRow({
               <span className="font-medium text-gray-700 dark:text-gray-300">
                 {formatBRL(bill.minimumPayment)}
               </span>
+            </div>
+          )}
+          {isOverdueInvoice && (
+            <div className="mt-1 text-[11px] text-red-600 dark:text-red-400 font-medium">
+              Esta fatura está vencida. Pagar agora ou ver opções?
             </div>
           )}
         </div>

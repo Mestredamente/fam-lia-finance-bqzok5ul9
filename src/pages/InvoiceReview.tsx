@@ -30,7 +30,8 @@ import {
   convertInvoiceItems,
   aiCategorizeInvoiceItems,
 } from '@/services/invoices'
-import { updateInvoiceItem } from '@/services/invoice-items'
+import { updateInvoiceItem, deleteInvoiceItem } from '@/services/invoice-items'
+import { deleteTransaction } from '@/services/transactions'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -227,11 +228,42 @@ export default function InvoiceReview() {
     updateInvoiceItem(itemId, { excluded: true }).catch(() => {})
   }, [])
 
-  const confirmExclude = () => {
+  const confirmExcludeItemOnly = async () => {
     if (!excludeConfirmItem) return
-    setDeletedItemIds((prev) => [...prev, excludeConfirmItem.id])
-    updateInvoiceItem(excludeConfirmItem.id, { excluded: true }).catch(() => {})
+    const item = excludeConfirmItem
+    setDeletedItemIds((prev) => [...prev, item.id])
     setExcludeConfirmItem(null)
+    try {
+      await deleteInvoiceItem(item.id)
+      toast({ title: 'Item removido da fatura' })
+      refetch()
+    } catch {
+      // Fallback: mark as excluded if delete fails
+      updateInvoiceItem(item.id, { excluded: true }).catch(() => {})
+    }
+  }
+
+  const confirmExcludeItemAndTransaction = async () => {
+    if (!excludeConfirmItem) return
+    const item = excludeConfirmItem
+    const txId = item.converted_transaction_id
+    setDeletedItemIds((prev) => [...prev, item.id])
+    setExcludeConfirmItem(null)
+    try {
+      await deleteInvoiceItem(item.id)
+      if (txId) {
+        try {
+          await deleteTransaction(txId)
+        } catch (txErr) {
+          console.error('Failed to delete transaction:', txErr)
+        }
+      }
+      toast({ title: 'Item e transação removidos' })
+      refetch()
+    } catch {
+      // Fallback
+      updateInvoiceItem(item.id, { excluded: true }).catch(() => {})
+    }
   }
 
   const handleApplyCategoryToAll = () => {
@@ -944,17 +976,56 @@ export default function InvoiceReview() {
         open={!!excludeConfirmItem}
         onOpenChange={(open) => !open && setExcludeConfirmItem(null)}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-            <AlertDialogDescription>
-              Este item já foi convertido em transação. Excluir não removerá a transação já criada.
-              Deseja continuar?
+            <AlertDialogDescription className="space-y-3 text-left">
+              <p>
+                Este item foi convertido em transação em{' '}
+                <span className="font-semibold text-gray-900 dark:text-foreground">
+                  {excludeConfirmItem?.updated
+                    ? new Date(excludeConfirmItem.updated).toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      })
+                    : excludeConfirmItem?.transaction_date
+                      ? new Date(
+                          excludeConfirmItem.transaction_date + 'T12:00:00',
+                        ).toLocaleDateString('pt-BR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                        })
+                      : 'data anterior'}
+                </span>
+                .
+              </p>
+              <p>
+                Ao excluir: a transação permanece em seu histórico, mas o item sai desta fatura.
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Se quiser remover a transação também, use o botão "Excluir item e transação" abaixo
+                ou vá em Transações e exclua lá.
+              </p>
+              <p className="font-medium text-gray-700 dark:text-gray-300">Deseja continuar?</p>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Não</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmExclude}>Sim</AlertDialogAction>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto mt-0">Cancelar</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={confirmExcludeItemOnly}
+              className="w-full sm:w-auto border-amber-500 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/40"
+            >
+              Excluir apenas o item
+            </Button>
+            <AlertDialogAction
+              onClick={confirmExcludeItemAndTransaction}
+              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white"
+            >
+              Excluir item e transação
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

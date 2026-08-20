@@ -210,9 +210,6 @@ export function useContasAPagar(familyId: string | undefined) {
 
       // ── Card invoices (unpaid, partially paid, or paid in month) ──
       for (const inv of invoices) {
-        // Only show invoices with a positive amount.
-        if (!inv.total_amount || inv.total_amount <= 0) continue
-
         // Resolve the card (for the due day and the display name).
         const card = inv.expand?.card_id || (inv.card_id ? cardMap.get(inv.card_id) : undefined)
         const cardName = card?.name || 'Cartão'
@@ -220,17 +217,27 @@ export function useContasAPagar(familyId: string | undefined) {
 
         // Compute the invoice due date from the month_ref + card due_day.
         const dueDate = computeInvoiceDueDate(inv, dueDay, now)
-        if (!dueDate) continue
-
-        // Skip invoices whose due date is before the start of the current
-        // month AND are not "partial" or "paid" in the current month.
-        if (inv.status !== 'partial' && inv.status !== 'paid') {
-          const startOfCurrentMonth = new Date(year, month, 1)
-          if (dueDate < startOfCurrentMonth) continue
-        }
 
         const paidTx = txByInvoice.get(inv.id)
         const isPaidByInvoiceStatus = inv.status === 'paid'
+        const isPaid = !!paidTx || isPaidByInvoiceStatus
+
+        // Debug logging of all invoices found
+        console.log('[useContasAPagar] Invoice encontrada:', {
+          id: inv.id,
+          month_ref: inv.month_ref,
+          status: inv.status,
+          total_amount: inv.total_amount,
+          dueDate: dueDate ? dueDate.toISOString() : null,
+          cardName,
+          isPaid,
+          included: !(!inv.total_amount || inv.total_amount <= 0 || !dueDate),
+        })
+
+        // Only show invoices with a positive amount and valid dueDate.
+        if (!inv.total_amount || inv.total_amount <= 0) continue
+        if (!dueDate) continue
+
         if (!paidTx) {
           console.log('[useContasAPagar] Sem match em transação para invoice:', {
             originId: inv.id,
@@ -242,7 +249,6 @@ export function useContasAPagar(familyId: string | undefined) {
         }
 
         // Se a fatura é status='paid' ou encontramos transação correspondente, é paga
-        const isPaid = !!paidTx || isPaidByInvoiceStatus
         const status: BillStatus = isPaid
           ? 'paga'
           : inv.status === 'partial'

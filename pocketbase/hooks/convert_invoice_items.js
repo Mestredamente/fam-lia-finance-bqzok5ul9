@@ -5,6 +5,20 @@ routerAdd(
     var failedItemId = ''
     var totalItems = 0
 
+    function fixMojibake(str) {
+      if (!str || typeof str !== 'string') return str || ''
+      if (
+        /Ã[§£©ãÃáéíóúâêîôûàèìòùäëïöüãõñçÁÉÍÓÚÂÊÎÔÛÀÈÌÒÙÄËÏÖÜÃÕÑÇ\x80-\xbf]/.test(str) ||
+        /[\u00c0-\u00c3][\u0080-\u00bf]/.test(str)
+      ) {
+        try {
+          var fixed = decodeURIComponent(escape(str))
+          if (fixed && fixed !== str) return fixed
+        } catch (_) {}
+      }
+      return str
+    }
+
     try {
       var body = e.requestInfo().body || {}
       var invoiceId = body.invoice_id || ''
@@ -104,7 +118,7 @@ routerAdd(
           continue
         }
 
-        var description = item.getString('description') || ''
+        var description = fixMojibake(item.getString('description') || '')
         if (!description) {
           errors.push({ item_id: itemId, description: '', error: 'Descrição ausente', index: j })
           continue
