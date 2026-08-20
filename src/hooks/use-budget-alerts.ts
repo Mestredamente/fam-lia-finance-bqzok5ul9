@@ -75,10 +75,10 @@ export function useBudgetAlerts(familyId: string | undefined, enabled: boolean =
     [familyId],
   )
 
-  useRealtime<TransactionRecord>(
+  useRealtime(
     'transactions',
     (e) => {
-      if (e.action === 'create') checkBudget(e.record)
+      if (e.action === 'create') checkBudget(e.record as unknown as TransactionRecord)
     },
     enabled && !!familyId,
   )

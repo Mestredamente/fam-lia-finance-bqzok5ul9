@@ -80,7 +80,9 @@ export default function Onboarding() {
     const res = step1Schema.safeParse({ name, email, password })
     if (!res.success) {
       const errs: Record<string, string> = {}
-      res.error.issues.forEach((i) => (errs[i.path[0]] = i.message))
+      res.error.issues.forEach((i) => {
+        if (i.path[0]) errs[String(i.path[0])] = i.message
+      })
       setStep1Errors(errs)
       return
     }
@@ -213,7 +215,7 @@ export default function Onboarding() {
             .collection('members')
             .getFullList({ filter: `user_id = "${userId}"`, limit: 1 })
           if (memberRecords.length > 0) {
-            const m = memberRecords[0] as { id: string; family_id: string }
+            const m = memberRecords[0] as unknown as { id: string; family_id: string }
             for (const bill of fixedBills) {
               const instTotal = bill.installments_total || 1
               const instPaid = bill.installments_paid || 0

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { CurrencyInput } from '@/components/ui/CurrencyInput'
+import { CurrencyInput } from '@/components/CurrencyInput'
 import {
   Select,
   SelectContent,
@@ -20,7 +20,7 @@ import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
 import { EMOTION_LIST, TRIGGER_SUGGESTIONS } from '@/lib/wellness-constants'
 import { cn } from '@/lib/utils'
-import type { EmotionalJournalRecord, TransactionRecord } from '@/types/finance'
+import type { EmotionalJournalRecord, TransactionRecord, EmotionType } from '@/types/finance'
 
 const schema = z.object({
   emotion: z.string().min(1, 'Selecione uma emoção'),
@@ -100,7 +100,7 @@ export function EmotionalDiaryFormSheet({
     if (!result.success) {
       const errs: Record<string, string> = {}
       result.error.issues.forEach((i) => {
-        errs[i.path[0]] = i.message
+        if (i.path[0]) errs[String(i.path[0])] = i.message
       })
       setErrors(errs)
       return
@@ -110,7 +110,7 @@ export function EmotionalDiaryFormSheet({
       const data = {
         family_id: familyId,
         user_id: memberId,
-        emotion,
+        emotion: emotion as EmotionType,
         trigger,
         note: note || '',
         spending_amount: amount > 0 ? amount : null,

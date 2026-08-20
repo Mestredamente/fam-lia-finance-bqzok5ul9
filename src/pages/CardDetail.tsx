@@ -397,6 +397,7 @@ export default function CardDetail() {
           familyId={family.id}
           ownerId={member.id}
           prefill={{
+            type: 'credit_card',
             description: `Rotativo ${card.name}`,
             totalAmount: rotativo,
             remainingAmount: rotativo,

@@ -100,6 +100,7 @@ const schema = z
   })
 
 interface DebtPrefill {
+  type?: DebtType
   description?: string
   totalAmount?: number
   remainingAmount?: number
@@ -175,7 +176,7 @@ export function DebtFormSheet({
         setGenerateExpense(!!editingDebt.auto_create_transaction)
         setExpenseCategory('')
       } else {
-        setType('financing_home')
+        setType(prefill?.type || 'financing_home')
         setDescription(prefill?.description || '')
         setTotalAmount(prefill?.totalAmount ?? 0)
         setRemainingAmount(prefill?.remainingAmount ?? prefill?.totalAmount ?? 0)
@@ -254,7 +255,7 @@ export function DebtFormSheet({
     if (!result.success) {
       const errs: Record<string, string> = {}
       result.error.issues.forEach((i) => {
-        errs[i.path[0]] = i.message
+        if (i.path[0]) errs[String(i.path[0])] = i.message
       })
       setErrors(errs)
       return

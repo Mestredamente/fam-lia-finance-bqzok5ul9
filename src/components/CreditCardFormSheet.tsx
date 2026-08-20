@@ -105,7 +105,7 @@ export function CreditCardFormSheet({
     if (!result.success) {
       const errs: Record<string, string> = {}
       result.error.issues.forEach((i) => {
-        errs[i.path[0]] = i.message
+        if (i.path[0]) errs[String(i.path[0])] = i.message
       })
       setErrors(errs)
       return
@@ -115,7 +115,7 @@ export function CreditCardFormSheet({
       const data = {
         family_id: familyId,
         name,
-        card_brand: brand,
+        card_brand: brand as 'Visa' | 'Mastercard' | 'Elo' | 'Amex' | 'Outros',
         owner_id: ownerId,
         closing_day: closingDay,
         due_day: dueDay,

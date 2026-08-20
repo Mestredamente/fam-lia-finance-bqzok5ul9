@@ -4,6 +4,7 @@ import { getRecurringTransactionsByFamilyId } from '@/services/recurring-transac
 import { getInvestmentsByFamilyId } from '@/services/investments'
 import { getDebtsByFamilyId } from '@/services/debts'
 import { getInvoicesByFamilyId } from '@/services/invoices'
+import { getCreditCardsByFamilyId } from '@/services/credit-cards'
 import pb from '@/lib/pocketbase/client'
 import type {
   BillItem,
@@ -50,12 +51,18 @@ export function useContasAPagar(familyId: string | undefined) {
       const startISO = startOfMonth.toISOString()
       const endISO = endOfMonth.toISOString()
 
-      const [recurring, investments, debts, invoices] = await Promise.all([
+      const [recurring, investments, debts, invoices, creditCards] = await Promise.all([
         getRecurringTransactionsByFamilyId(familyId),
         getInvestmentsByFamilyId(familyId),
         getDebtsByFamilyId(familyId),
         getInvoicesByFamilyId(familyId),
+        getCreditCardsByFamilyId(familyId),
       ])
+
+      const cardMap = new Map<string, (typeof creditCards)[0]>()
+      for (const c of creditCards) {
+        cardMap.set(c.id, c)
+      }
 
       // Pull all transactions for the current month once, then partition by
       // the origin id we care about (recurring_id / investment_id / debt_id /
@@ -167,7 +174,7 @@ export function useContasAPagar(familyId: string | undefined) {
         if (!inv.total_amount || inv.total_amount <= 0) continue
 
         // Resolve the card (for the due day and the display name).
-        const card = inv.expand?.card_id
+        const card = inv.expand?.card_id || (inv.card_id ? cardMap.get(inv.card_id) : undefined)
         const cardName = card?.name || 'Cartão'
         const dueDay = card?.due_day
 
@@ -184,8 +191,11 @@ export function useContasAPagar(familyId: string | undefined) {
         }
 
         const paidTx = txByInvoice.get(inv.id)
-        const status =
-          inv.status === 'partial' ? 'a_vencer' : paidTx ? 'paga' : deriveStatus(dueDate, now)
+        const status: BillStatus = paidTx
+          ? 'paga'
+          : inv.status === 'partial'
+            ? 'a_vencer'
+            : deriveStatus(dueDate, now)
         const monthRefLabel = formatMonthRef(inv.month_ref)
         const minimumPayment = Math.round(inv.total_amount * 0.15 * 100) / 100
 
@@ -238,6 +248,7 @@ export function useContasAPagar(familyId: string | undefined) {
   useRealtime('investments', () => loadData())
   useRealtime('debts', () => loadData())
   useRealtime('invoices', () => loadData())
+  useRealtime('credit_cards', () => loadData())
 
   const summary = useMemo<BillSummary>(() => {
     const now = new Date()

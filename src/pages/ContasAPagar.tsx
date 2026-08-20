@@ -594,7 +594,7 @@ function BillRow({
               {bill.description}
             </p>
             {isInvoice ? (
-              <Badge className="bg-blue-100 text-blue-700 border-0 text-[10px] py-0 px-1.5 gap-1">
+              <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border-0 text-[10px] py-0 px-1.5 gap-1 font-semibold">
                 <CreditCard className="h-2.5 w-2.5" />
                 Fatura
               </Badge>
@@ -602,6 +602,11 @@ function BillRow({
               <Badge variant="outline" className="text-[10px] py-0 px-1.5">
                 {SOURCE_LABEL[bill.source]}
               </Badge>
+            )}
+            {bill.cardName && isInvoice && (
+              <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+                ({bill.cardName})
+              </span>
             )}
             {bill.extraInfo && (
               <Badge variant="secondary" className="text-[10px] py-0 px-1.5">
@@ -619,10 +624,13 @@ function BillRow({
                   : `Vence em ${formatDatePtBR(bill.dueDate)}`}
             </span>
           </div>
-          {/* Invoice: show the minimum payment below the due date */}
+          {/* Invoice: show the minimum payment below the due date / amount */}
           {isInvoice && typeof bill.minimumPayment === 'number' && (
-            <div className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
-              Mínimo: {formatBRL(bill.minimumPayment)}
+            <div className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+              Mínimo:{' '}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                {formatBRL(bill.minimumPayment)}
+              </span>
             </div>
           )}
         </div>

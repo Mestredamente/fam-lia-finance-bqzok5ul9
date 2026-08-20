@@ -106,6 +106,7 @@ export interface AiCategorizeResult {
   no_match: number
   ai_error: string | null
   step: string | null
+  unmatched_samples?: string[]
 }
 
 export const aiCategorizeInvoiceItems = (invoiceId: string) =>

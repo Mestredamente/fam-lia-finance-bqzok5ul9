@@ -43,6 +43,10 @@ export const debtTypeMeta: Record<DebtType, TypeMeta> = {
   financing_home: { label: 'Fin. Imobiliário', icon: Home, color: '#DC2626' },
   financing_car: { label: 'Fin. de Veículo', icon: Car, color: '#EA580C' },
   personal_loan: { label: 'Empréstimo Pessoal', icon: HandCoins, color: '#D97706' },
+  utility: { label: 'Contas de Consumo', icon: FileText, color: '#0284C7' },
+  subscription: { label: 'Assinaturas', icon: FileText, color: '#8B5CF6' },
+  rent: { label: 'Aluguel', icon: Home, color: '#E11D48' },
+  condo: { label: 'Condomínio', icon: Building, color: '#7C3AED' },
   other: { label: 'Outros', icon: FileText, color: '#6B7280' },
 }
 

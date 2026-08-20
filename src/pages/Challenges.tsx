@@ -32,7 +32,7 @@ export default function Challenges() {
 
   useEffect(() => {
     challenges.forEach((c) => {
-      if (c.status === 'active' && isChallengeExpired(c)) {
+      if (c.status === 'active' && isChallengeExpired(c.end_date)) {
         updateChallenge(c.id, { status: 'failed' }).catch(() => {})
       }
     })

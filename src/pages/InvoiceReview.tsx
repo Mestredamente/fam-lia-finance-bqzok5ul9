@@ -14,6 +14,7 @@ import {
   Clock,
   AlertTriangle,
   WifiOff,
+  CreditCard,
 } from 'lucide-react'
 import { ClientResponseError } from 'pocketbase'
 import { useAuth } from '@/hooks/use-auth'
@@ -886,16 +887,11 @@ export default function InvoiceReview() {
                 )}
                 {invoice.status === 'reviewed' && (
                   <Button
-                    onClick={() => handleStatusUpdate('paid')}
-                    disabled={updatingStatus}
-                    className="flex-1 bg-[#22C55E] hover:bg-green-600"
+                    onClick={() => navigate('/contas?tab=a_vencer')}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700"
                   >
-                    {updatingStatus ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                    )}
-                    Marcar como paga
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Pagar em Contas a Pagar
                   </Button>
                 )}
               </div>

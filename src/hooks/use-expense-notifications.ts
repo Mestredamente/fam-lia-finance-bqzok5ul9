@@ -14,11 +14,11 @@ export function useExpenseNotifications(enabled: boolean = true) {
   const toastRef = useRef(toast)
   toastRef.current = toast
 
-  useRealtime<TransactionRecord>(
+  useRealtime(
     'transactions',
     (e) => {
       if (e.action !== 'create') return
-      const tx = e.record
+      const tx = e.record as unknown as TransactionRecord
       if (!memberIdRef.current) return
       if (tx.owner_id === memberIdRef.current) return
 

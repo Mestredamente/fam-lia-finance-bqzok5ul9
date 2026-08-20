@@ -117,7 +117,7 @@ export function HouseholdTaskFormSheet({
     if (!result.success) {
       const errs: Record<string, string> = {}
       result.error.issues.forEach((i) => {
-        errs[i.path[0]] = i.message
+        if (i.path[0]) errs[String(i.path[0])] = i.message
       })
       setErrors(errs)
       return

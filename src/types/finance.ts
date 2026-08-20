@@ -76,6 +76,7 @@ export interface MemberRecord {
   monthly_income_real?: number | null
   occupation?: string | null
   avatar_url?: string | null
+  avatar?: string | null
   is_active: boolean
   access_level?: AccessLevel
   perm_view_others?: boolean
@@ -176,6 +177,8 @@ export type TransactionSource =
   | 'investment'
 export interface TransactionRecord {
   id: string
+  collectionId?: string
+  collectionName?: string
   family_id: string
   owner_id: string
   category_id: string
@@ -527,5 +530,100 @@ export interface DebtRecord {
   expand?: {
     family_id?: FamilyRecord
     owner_id?: MemberRecord
+  }
+}
+
+export type EmotionType =
+  | 'anxiety'
+  | 'happiness'
+  | 'guilt'
+  | 'relief'
+  | 'frustration'
+  | 'pride'
+  | 'fear'
+  | 'impulse'
+  | 'gratitude'
+  | 'stress'
+
+export interface EmotionalJournalRecord {
+  id: string
+  family_id: string
+  user_id: string
+  transaction_id?: string | null
+  emotion: EmotionType
+  trigger?: string | null
+  note?: string | null
+  spending_amount?: number | null
+  created: string
+  updated: string
+  expand?: {
+    family_id?: FamilyRecord
+    user_id?: MemberRecord
+    transaction_id?: TransactionRecord
+  }
+}
+
+export interface EmotionalPattern {
+  titulo: string
+  descricao: string
+  exemplos?: string[]
+}
+
+export interface EmotionalTriggerSummary {
+  nome: string
+  total_gasto: number
+  frequencia: number
+}
+
+export interface DominantEmotionSummary {
+  nome: string
+  frequencia: number
+  impacto_financeiro?: string
+}
+
+export interface EmotionalSuggestion {
+  titulo: string
+  descricao: string
+  tecnica_ccb?: string
+}
+
+export interface EmotionalAnalysisResult {
+  padroes: EmotionalPattern[]
+  gatilho_mais_custoso?: EmotionalTriggerSummary | null
+  emocao_dominante?: DominantEmotionSummary | null
+  sugestoes: EmotionalSuggestion[]
+}
+
+export type ChallengeType =
+  | 'spending_freeze'
+  | 'savings_goal'
+  | 'no_impulse'
+  | 'category_cut'
+  | 'emotional_awareness'
+  | 'custom'
+
+export type BadgeType = 'none' | 'bronze' | 'silver' | 'gold' | 'platinum'
+
+export type ChallengeStatus = 'active' | 'completed' | 'failed' | 'abandoned'
+
+export interface ChallengeRecord {
+  id: string
+  family_id: string
+  user_id: string
+  type: ChallengeType
+  title: string
+  description?: string | null
+  target_value?: number | null
+  current_value: number
+  start_date: string
+  end_date: string
+  status: ChallengeStatus
+  points: number
+  badge_type: BadgeType
+  created: string
+  updated: string
+  expand?: {
+    family_id?: FamilyRecord
+    user_id?: MemberRecord
   }
 }
