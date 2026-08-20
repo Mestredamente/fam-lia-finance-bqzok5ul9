@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRealtime } from '@/hooks/use-realtime'
 import { getInvoiceItemsByInvoiceId } from '@/services/invoice-items'
 import type { InvoiceItemRecord } from '@/types/finance'
+import { fixMojibake } from '@/lib/utils'
 
 export function useInvoiceItems(invoiceId: string | undefined) {
   const [items, setItems] = useState<InvoiceItemRecord[]>([])
@@ -19,7 +20,14 @@ export function useInvoiceItems(invoiceId: string | undefined) {
       setError(null)
       try {
         const data = await getInvoiceItemsByInvoiceId(invoiceId)
-        setItems(data.filter((item) => !item.excluded))
+        setItems(
+          data
+            .filter((item) => !item.excluded)
+            .map((item) => ({
+              ...item,
+              description: fixMojibake(item.description),
+            })),
+        )
       } catch {
         setError('Erro ao carregar itens')
       } finally {

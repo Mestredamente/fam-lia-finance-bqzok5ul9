@@ -143,7 +143,10 @@ function InvoiceItemRowComponent({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0 ml-2">
+          <span className="font-bold text-sm text-gray-900 whitespace-nowrap">
+            {formatBRL(item.amount)}
+          </span>
           {onEmotionChange && (
             <Popover open={emotionOpen} onOpenChange={setEmotionOpen}>
               <PopoverTrigger asChild>
@@ -203,9 +206,6 @@ function InvoiceItemRowComponent({
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
-          <span className="font-bold text-sm text-gray-900 whitespace-nowrap">
-            {formatBRL(item.amount)}
-          </span>
         </div>
       </div>
 
@@ -256,15 +256,12 @@ function InvoiceItemRowComponent({
       ) : (
         <div className="flex items-center mt-3">
           {activeCat ? (
-            <Badge
-              className="text-xs gap-0.5"
-              style={{ backgroundColor: activeCat.color + '20', color: activeCat.color }}
-            >
-              <Icon className="h-2.5 w-2.5" />
+            <Badge className="text-xs gap-1 font-medium bg-purple-900 text-purple-50 dark:bg-purple-950 dark:text-purple-200 border-purple-700">
+              <Icon className="h-3 w-3 text-purple-200" />
               {activeCat.name}
             </Badge>
           ) : (
-            <Badge variant="outline" className="text-xs text-gray-400">
+            <Badge variant="outline" className="text-xs text-gray-500 border-gray-300">
               Sem categoria
             </Badge>
           )}

@@ -537,7 +537,7 @@ export default function InvoiceReview() {
   if (loading) {
     return (
       <div
-        className="space-y-4 animate-fade-in"
+        className="space-y-4 animate-fade-in max-w-4xl mx-auto"
         role="status"
         aria-label="Carregando"
         aria-busy="true"
@@ -552,18 +552,20 @@ export default function InvoiceReview() {
 
   if (error || !invoice) {
     return (
-      <Card className="border-red-200 rounded-2xl">
-        <CardContent className="p-6 text-center space-y-3">
-          <FileX className="h-10 w-10 text-red-400 mx-auto" />
-          <p className="text-sm font-medium text-red-600">{error || 'Fatura não encontrada'}</p>
-          <p className="text-xs text-gray-500">
-            A fatura pode ter sido excluída. Volte e faça o upload da fatura novamente.
-          </p>
-          <Button size="sm" variant="outline" onClick={() => navigate(`/cards/${cardId}`)}>
-            Voltar para o cartão
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="max-w-4xl mx-auto">
+        <Card className="border-red-200 rounded-2xl">
+          <CardContent className="p-6 text-center space-y-3">
+            <FileX className="h-10 w-10 text-red-400 mx-auto" />
+            <p className="text-sm font-medium text-red-600">{error || 'Fatura não encontrada'}</p>
+            <p className="text-xs text-gray-500">
+              A fatura pode ter sido excluída. Volte e faça o upload da fatura novamente.
+            </p>
+            <Button size="sm" variant="outline" onClick={() => navigate(`/cards/${cardId}`)}>
+              Voltar para o cartão
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
@@ -571,7 +573,7 @@ export default function InvoiceReview() {
   const statusInfo = statusConfig[invoice.status] || statusConfig.pending
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate(`/cards/${cardId}`)}>
           <ChevronLeft className="h-5 w-5" />
@@ -907,7 +909,7 @@ export default function InvoiceReview() {
                   <Button
                     onClick={() => handleStatusUpdate('reviewed')}
                     disabled={updatingStatus || unconvertedItems.length > 0}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700"
+                    className="w-full sm:w-auto sm:min-w-[200px] bg-blue-600 hover:bg-blue-700"
                   >
                     {updatingStatus ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -920,7 +922,7 @@ export default function InvoiceReview() {
                 {invoice.status === 'reviewed' && (
                   <Button
                     onClick={() => navigate('/contas?tab=a_vencer')}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700"
+                    className="w-full sm:w-auto sm:max-w-xs bg-blue-600 hover:bg-blue-700"
                   >
                     <CreditCard className="h-4 w-4 mr-2" />
                     Pagar em Contas a Pagar
@@ -976,56 +978,34 @@ export default function InvoiceReview() {
         open={!!excludeConfirmItem}
         onOpenChange={(open) => !open && setExcludeConfirmItem(null)}
       >
-        <AlertDialogContent className="sm:max-w-md">
+        <AlertDialogContent className="max-w-lg sm:max-w-lg p-6">
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3 text-left">
-              <p>
-                Este item foi convertido em transação em{' '}
-                <span className="font-semibold text-gray-900 dark:text-foreground">
-                  {excludeConfirmItem?.updated
-                    ? new Date(excludeConfirmItem.updated).toLocaleDateString('pt-BR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                      })
-                    : excludeConfirmItem?.transaction_date
-                      ? new Date(
-                          excludeConfirmItem.transaction_date + 'T12:00:00',
-                        ).toLocaleDateString('pt-BR', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                        })
-                      : 'data anterior'}
-                </span>
-                .
-              </p>
-              <p>
-                Ao excluir: a transação permanece em seu histórico, mas o item sai desta fatura.
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Se quiser remover a transação também, use o botão "Excluir item e transação" abaixo
-                ou vá em Transações e exclua lá.
-              </p>
-              <p className="font-medium text-gray-700 dark:text-gray-300">Deseja continuar?</p>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-left text-sm text-gray-600 dark:text-gray-300 whitespace-normal">
+                <p>Este item foi convertido em transação.</p>
+                <p>Ao excluir apenas o item: a transação permanece no seu histórico.</p>
+                <p>Para remover tudo, use &quot;Excluir item e transação&quot;.</p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-2">
-            <AlertDialogCancel className="w-full sm:w-auto mt-0">Cancelar</AlertDialogCancel>
-            <Button
-              variant="outline"
-              onClick={confirmExcludeItemOnly}
-              className="w-full sm:w-auto border-amber-500 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/40"
-            >
-              Excluir apenas o item
-            </Button>
+          <AlertDialogFooter className="grid grid-cols-1 gap-2 sm:grid-cols-1 sm:space-x-0 pt-2">
             <AlertDialogAction
               onClick={confirmExcludeItemAndTransaction}
-              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white"
+              className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white justify-center"
             >
               Excluir item e transação
             </AlertDialogAction>
+            <Button
+              variant="outline"
+              onClick={confirmExcludeItemOnly}
+              className="w-full px-4 py-2 border-amber-500 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/40 justify-center"
+            >
+              Excluir apenas o item
+            </Button>
+            <AlertDialogCancel className="w-full px-4 py-2 mt-0 justify-center">
+              Cancelar
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

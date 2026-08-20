@@ -46,3 +46,56 @@ export function getProgressBarColor(ratio: number): string {
   if (ratio <= 80) return 'bg-[#EAB308]'
   return 'bg-[#EF4444]'
 }
+
+/**
+ * Corrige mojibake comum decorrente de dupla decodificação UTF-8 (ex: "TransaÃ§Ã£o" -> "Transação").
+ */
+export function fixMojibake(str: string | null | undefined): string {
+  if (!str || typeof str !== 'string') return str || ''
+  let result = str
+  if (
+    /Ã[§£©ãÃáéíóúâêîôûàèìòùäëïöüãõñçÁÉÍÓÚÂÊÎÔÛÀÈÌÒÙÄËÏÖÜÃÕÑÇ\x80-\xbf]/.test(result) ||
+    /[\u00c0-\u00c3][\u0080-\u00bf]/.test(result)
+  ) {
+    try {
+      const fixed = decodeURIComponent(escape(result))
+      if (fixed && fixed !== result) {
+        result = fixed
+      }
+    } catch {
+      /* intentionally ignored */
+    }
+  }
+
+  // Substituições diretas como garantia caso escape/decodeURIComponent falhe
+  if (result.includes('Ã')) {
+    result = result
+      .replace(/Ã§/g, 'ç')
+      .replace(/Ã£/g, 'ã')
+      .replace(/Ã©/g, 'é')
+      .replace(/Ã¡/g, 'á')
+      .replace(/Ã­/g, 'í')
+      .replace(/Ã³/g, 'ó')
+      .replace(/Ãº/g, 'ú')
+      .replace(/Ã /g, 'à')
+      .replace(/Ã¢/g, 'â')
+      .replace(/Ãª/g, 'ê')
+      .replace(/Ã´/g, 'ô')
+      .replace(/Ãµ/g, 'õ')
+      .replace(/Ã¼/g, 'ü')
+      .replace(/Ã€/g, 'À')
+      .replace(/Ã/g, 'Á')
+      .replace(/Ã‚/g, 'Â')
+      .replace(/Ãƒ/g, 'Ã')
+      .replace(/Ã‰/g, 'É')
+      .replace(/ÃŠ/g, 'Ê')
+      .replace(/Ã/g, 'Í')
+      .replace(/Ã“/g, 'Ó')
+      .replace(/Ã”/g, 'Ô')
+      .replace(/Ã•/g, 'Õ')
+      .replace(/Ãš/g, 'Ú')
+      .replace(/Ã‡/g, 'Ç')
+  }
+
+  return result
+}

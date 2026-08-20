@@ -3,6 +3,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { getTransactionsByFamilyAndMonth } from '@/services/transactions'
 import { useOfflineQueue } from '@/hooks/use-offline-queue'
 import type { TransactionRecord } from '@/types/finance'
+import { fixMojibake } from '@/lib/utils'
 import { getCachedTransactions, setCachedTransactions } from '@/lib/transaction-cache'
 
 /**
@@ -35,14 +36,23 @@ export function useTransactions(
     setLoading(true)
     setError(null)
     try {
-      const data = await getTransactionsByFamilyAndMonth(familyId, year, month, memberId)
+      const rawData = await getTransactionsByFamilyAndMonth(familyId, year, month, memberId)
+      const data = rawData.map((tx) => ({
+        ...tx,
+        description: fixMojibake(tx.description),
+      }))
       setTransactions(data)
       setCachedTransactions(familyId, year, month, memberId, data)
     } catch {
       // Offline / network error: fall back to the last cached payload.
       const cached = getCachedTransactions(familyId, year, month, memberId)
       if (cached.length > 0) {
-        setTransactions(cached)
+        setTransactions(
+          cached.map((tx) => ({
+            ...tx,
+            description: fixMojibake(tx.description),
+          })),
+        )
         setError(null)
       } else {
         setError('Erro ao carregar transações')
@@ -104,7 +114,7 @@ function mergePending(
     category_id: (p.data.category_id as string) || '',
     type: (p.data.type as TransactionRecord['type']) || 'expense',
     amount: (p.data.amount as number) || 0,
-    description: (p.data.description as string) || '',
+    description: fixMojibake((p.data.description as string) || ''),
     transaction_date: (p.data.transaction_date as string) || p.queuedAt,
     is_shared: !!p.data.is_shared,
     is_fixed: !!p.data.is_fixed,

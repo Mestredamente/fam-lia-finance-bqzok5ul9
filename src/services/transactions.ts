@@ -1,23 +1,31 @@
 import pb from '@/lib/pocketbase/client'
 import type { TransactionRecord } from '@/types/finance'
 
-export const getTransactionsByFamilyAndPeriod = (
+import { fixMojibake } from '@/lib/utils'
+
+export const getTransactionsByFamilyAndPeriod = async (
   familyId: string,
   startDate: string | null,
   endDate: string | null,
 ) => {
+  let list: TransactionRecord[]
   if (!startDate || !endDate) {
-    return pb.collection('transactions').getFullList<TransactionRecord>({
+    list = await pb.collection('transactions').getFullList<TransactionRecord>({
       filter: `family_id = "${familyId}"`,
       sort: '-transaction_date',
       expand: 'owner_id,category_id',
     })
+  } else {
+    list = await pb.collection('transactions').getFullList<TransactionRecord>({
+      filter: `family_id = "${familyId}" && transaction_date >= "${startDate}" && transaction_date < "${endDate}"`,
+      sort: '-transaction_date',
+      expand: 'owner_id,category_id',
+    })
   }
-  return pb.collection('transactions').getFullList<TransactionRecord>({
-    filter: `family_id = "${familyId}" && transaction_date >= "${startDate}" && transaction_date < "${endDate}"`,
-    sort: '-transaction_date',
-    expand: 'owner_id,category_id',
-  })
+  return list.map((tx) => ({
+    ...tx,
+    description: fixMojibake(tx.description),
+  }))
 }
 
 export const getTransactionsCountOutsideRange = (
@@ -38,7 +46,7 @@ function getMonthRange(year: number, month: number) {
   return { startDate, endDate }
 }
 
-export const getTransactionsByFamilyAndMonth = (
+export const getTransactionsByFamilyAndMonth = async (
   familyId: string,
   year: number,
   month: number,
@@ -47,29 +55,45 @@ export const getTransactionsByFamilyAndMonth = (
   const { startDate, endDate } = getMonthRange(year, month)
   let filter = `family_id = "${familyId}" && transaction_date >= "${startDate}" && transaction_date < "${endDate}"`
   if (memberId) filter += ` && owner_id = "${memberId}"`
-  return pb.collection('transactions').getFullList<TransactionRecord>({
+  const list = await pb.collection('transactions').getFullList<TransactionRecord>({
     filter,
     sort: '-transaction_date',
     expand: 'owner_id,category_id',
   })
+  return list.map((tx) => ({
+    ...tx,
+    description: fixMojibake(tx.description),
+  }))
 }
 
-export const getFixedBillsByFamilyAndMonth = (familyId: string, year: number, month: number) => {
+export const getFixedBillsByFamilyAndMonth = async (
+  familyId: string,
+  year: number,
+  month: number,
+) => {
   const { startDate, endDate } = getMonthRange(year, month)
-  return pb.collection('transactions').getFullList<TransactionRecord>({
+  const list = await pb.collection('transactions').getFullList<TransactionRecord>({
     filter: `family_id = "${familyId}" && is_fixed = true && transaction_date >= "${startDate}" && transaction_date < "${endDate}"`,
     sort: 'transaction_date',
     expand: 'owner_id,category_id',
   })
+  return list.map((tx) => ({
+    ...tx,
+    description: fixMojibake(tx.description),
+  }))
 }
 
-export const getTransactionsByMember = (memberId: string) =>
-  pb.collection('transactions').getFullList<TransactionRecord>({
+export const getTransactionsByMember = async (memberId: string) => {
+  const list = await pb.collection('transactions').getFullList<TransactionRecord>({
     filter: `owner_id = "${memberId}"`,
     sort: '-transaction_date',
     expand: 'category_id',
   })
-
+  return list.map((tx) => ({
+    ...tx,
+    description: fixMojibake(tx.description),
+  }))
+}
 export const createTransaction = (data: Partial<TransactionRecord>) =>
   pb.collection('transactions').create<TransactionRecord>(data)
 
@@ -88,13 +112,18 @@ export const updateTransaction = (id: string, data: Partial<TransactionRecord>) 
 
 export const deleteTransaction = (id: string) => pb.collection('transactions').delete(id)
 
-export const getTransactionsByFamilyAndDateRange = (
+export const getTransactionsByFamilyAndDateRange = async (
   familyId: string,
   startDate: string,
   endDate: string,
-) =>
-  pb.collection('transactions').getFullList<TransactionRecord>({
+) => {
+  const list = await pb.collection('transactions').getFullList<TransactionRecord>({
     filter: `family_id = "${familyId}" && transaction_date >= "${startDate}" && transaction_date < "${endDate}"`,
     sort: '-transaction_date',
     expand: 'owner_id,category_id',
   })
+  return list.map((tx) => ({
+    ...tx,
+    description: fixMojibake(tx.description),
+  }))
+}

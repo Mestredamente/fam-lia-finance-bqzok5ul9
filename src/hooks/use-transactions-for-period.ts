@@ -5,6 +5,7 @@ import {
   getTransactionsByFamilyAndDateRange,
 } from '@/services/transactions'
 import type { TransactionRecord } from '@/types/finance'
+import { fixMojibake } from '@/lib/utils'
 
 export type PeriodFilter = 'today' | 'week' | 'fortnight' | 'month'
 
@@ -80,7 +81,12 @@ export function useTransactionsForPeriod(
         const { start, end } = getPeriodRange(period)
         data = await getTransactionsByFamilyAndDateRange(familyId, start, end)
       }
-      setTransactions(data)
+      setTransactions(
+        data.map((tx) => ({
+          ...tx,
+          description: fixMojibake(tx.description),
+        })),
+      )
     } catch {
       setError('Erro ao carregar transações')
     } finally {
