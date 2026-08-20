@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Loader2, ChevronDown, ChevronUp, Upload } from 'lucide-react'
 import { z } from 'zod'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
@@ -21,6 +21,8 @@ import { useCategories } from '@/hooks/use-categories'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
 import { cn, formatBRL } from '@/lib/utils'
+import { DDCImportSheet } from '@/components/DDCImportSheet'
+import type { DDCParsedData } from '@/services/ddc'
 import type { DebtRecord, DebtType, AmortizationSystem } from '@/types/finance'
 
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
@@ -172,6 +174,10 @@ export function DebtFormSheet({
   const [generateExpense, setGenerateExpense] = useState(true)
   const [expenseCategory, setExpenseCategory] = useState<string>('')
 
+  // DDC Import state
+  const [showDDCImport, setShowDDCImport] = useState(false)
+  const [importedFromDDC, setImportedFromDDC] = useState(false)
+
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -234,10 +240,64 @@ export function DebtFormSheet({
         setGenerateExpense(true)
         setExpenseCategory('')
         setShowAdvanced(false)
+        setImportedFromDDC(false)
       }
       setErrors({})
     }
   }, [open, editingDebt, prefill])
+
+  const handleDDCConfirm = (data: DDCParsedData) => {
+    // Tipo sugerido: 'personal_loan' como padrão
+    setType('personal_loan')
+
+    // Descrição baseada em bank_name e amortization_system
+    if (data.bank_name) {
+      if (data.amortization_system) {
+        setDescription(`Empréstimo ${data.bank_name} - ${data.amortization_system}`)
+      } else {
+        setDescription(`DDC ${data.bank_name}`)
+      }
+    } else {
+      setDescription('DDC Importado')
+    }
+
+    if (data.installment_value != null) {
+      setInstallmentValue(data.installment_value)
+    }
+    if (data.installments_total != null) {
+      setInstallmentsTotalStr(String(data.installments_total))
+    }
+    setInstallmentsPaidStr(String(data.installments_paid || 0))
+    if (data.balance_due != null) {
+      setBalanceDue(data.balance_due)
+    }
+    if (data.amortization_system) {
+      setAmortizationSystem(data.amortization_system)
+    }
+    if (data.interest_rate != null) {
+      setInterestRateStr(String(data.interest_rate))
+    }
+    if (data.cet != null) {
+      setCetStr(String(data.cet))
+    }
+    if (data.financed_amount != null) {
+      setFinancedAmount(data.financed_amount)
+    }
+    if (data.due_day != null) {
+      setDueDay(data.due_day)
+    }
+    if (data.first_due_date) {
+      setStartDate(data.first_due_date)
+    }
+
+    // Abrir seção "Avançado" automaticamente
+    setShowAdvanced(true)
+    setImportedFromDDC(true)
+    toast({
+      title: 'Dados do DDC importados!',
+      description: 'Revise os campos preenchidos e salve quando estiver pronto.',
+    })
+  }
 
   // Default de categoria: buscar "Parcelas" ou "Dívidas"
   useEffect(() => {
@@ -411,6 +471,28 @@ export function DebtFormSheet({
         </SheetHeader>
 
         <div className="space-y-4">
+          {/* Botão Importar DDC (apenas em modo criação e se ainda não importou DDC) */}
+          {!editingDebt && !importedFromDDC && (
+            <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-emerald-900">Possui o DDC do banco?</p>
+                <p className="text-[11px] text-emerald-700">
+                  Importe o PDF para preencher todos os campos automaticamente.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDDCImport(true)}
+                className="bg-white hover:bg-emerald-100 text-emerald-800 border-emerald-300 shrink-0 text-xs font-semibold"
+              >
+                <Upload className="h-3.5 w-3.5 mr-1.5" />
+                Importar DDC
+              </Button>
+            </div>
+          )}
+
           {/* Identificação */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-gray-700 block mb-2">Tipo de dívida</Label>
@@ -815,6 +897,13 @@ export function DebtFormSheet({
             )}
           </Button>
         </div>
+
+        <DDCImportSheet
+          open={showDDCImport}
+          onOpenChange={setShowDDCImport}
+          familyId={familyId}
+          onConfirm={handleDDCConfirm}
+        />
       </SheetContent>
     </Sheet>
   )
