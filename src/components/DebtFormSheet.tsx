@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { z } from 'zod'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
@@ -21,7 +21,7 @@ import { useCategories } from '@/hooks/use-categories'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
 import { cn, formatBRL } from '@/lib/utils'
-import type { DebtRecord, DebtType } from '@/types/finance'
+import type { DebtRecord, DebtType, AmortizationSystem } from '@/types/finance'
 
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
 
@@ -35,14 +35,12 @@ function sanitizeInt(raw: string): string {
   return String(n)
 }
 
-// Helper para decimais (juros)
+// Helper para decimais (juros / porcentagens)
 function sanitizeDecimal(raw: string): string {
   if (raw === '') return ''
   let s = raw.replace(/[^\d.,]/g, '')
   if (s === '') return ''
-  // troca vírgula por ponto
   s = s.replace(',', '.')
-  // mantém só o último ponto
   const parts = s.split('.')
   if (parts.length > 2) {
     s = parts.slice(0, -1).join('') + '.' + parts[parts.length - 1]
@@ -50,7 +48,7 @@ function sanitizeDecimal(raw: string): string {
   return s
 }
 
-// Calcula data de fim: start_date + installments_total meses (mesmo dia)
+// Calcula data de fim (último vencimento): startDate + installments_total meses (mesmo dia)
 function calcEndDate(startDateStr: string, total: number): string | null {
   if (!startDateStr || !total || total <= 0) return null
   const d = new Date(startDateStr + 'T12:00:00')
@@ -79,23 +77,39 @@ function formatDateDDMMYYYY(iso: string): string {
 
 const schema = z
   .object({
-    type: z.enum(['financing_home', 'financing_car', 'personal_loan', 'credit_card', 'other']),
+    type: z.enum([
+      'financing',
+      'loan',
+      'credit_card',
+      'financing_home',
+      'financing_car',
+      'personal_loan',
+      'utility',
+      'subscription',
+      'rent',
+      'condo',
+      'other',
+    ]),
     description: z.string().min(2, 'Descrição muito curta').max(100),
-    total_amount: z.number().positive('Valor deve ser maior que zero'),
-    remaining_amount: z.number().positive('Valor deve ser maior que zero'),
-    installment_value: z.number().positive('Valor deve ser maior que zero'),
+    installment_value: z.number().positive('Valor da parcela deve ser maior que zero'),
     installments_total: z.number().int().min(1, 'Mínimo 1 parcela'),
-    installments_paid: z.number().int().min(0),
-    interest_rate: z.number().positive('Taxa deve ser positiva'),
+    installments_paid: z.number().int().min(0, 'Não pode ser negativo'),
+    total_amount: z.number().positive('Total deve ser maior que zero'),
+    remaining_amount: z.number().positive('Restante a pagar deve ser maior que zero'),
+    balance_due: z.number().positive('Saldo devedor deve ser maior que zero').optional().nullable(),
+    interest_rate: z.number().min(0, 'Taxa não pode ser negativa'),
+    cet: z.number().min(0, 'CET não pode ser negativo').optional().nullable(),
+    financed_amount: z
+      .number()
+      .positive('Valor financiado deve ser maior que zero')
+      .optional()
+      .nullable(),
+    amortization_system: z.enum(['PRICE', 'SAC', 'Livre']).optional().nullable(),
     due_day: z.number().int().min(1).max(31),
     start_date: z.string().min(1, 'Selecione uma data'),
   })
-  .refine((d) => d.remaining_amount <= d.total_amount, {
-    message: 'Restante > total',
-    path: ['remaining_amount'],
-  })
   .refine((d) => d.installments_paid <= d.installments_total, {
-    message: 'Pagas > total',
+    message: 'Parcelas pagas não podem superar o total',
     path: ['installments_paid'],
   })
 
@@ -106,6 +120,8 @@ interface DebtPrefill {
   remainingAmount?: number
   installmentValue?: number
   installmentsTotal?: number
+  installmentsPaid?: number
+  balanceDue?: number
   notes?: string
 }
 
@@ -129,27 +145,35 @@ export function DebtFormSheet({
   onSaved,
 }: Props) {
   const { categories } = useCategories(familyId)
+
+  // Campos básicos
   const [type, setType] = useState<DebtType>('financing_home')
   const [description, setDescription] = useState('')
-  const [totalAmount, setTotalAmount] = useState(0)
-  const [remainingAmount, setRemainingAmount] = useState(0)
-  const [installmentValue, setInstallmentValue] = useState(0)
-  const [installmentsTotal, setInstallmentsTotal] = useState(1)
-  const [installmentsPaid, setInstallmentsPaid] = useState(0)
-  const [interestRate, setInterestRate] = useState('')
-  const [dueDay, setDueDay] = useState(1)
+
+  // Valores
+  const [installmentValue, setInstallmentValue] = useState<number>(0)
+  const [installmentsTotalStr, setInstallmentsTotalStr] = useState<string>('')
+  const [installmentsPaidStr, setInstallmentsPaidStr] = useState<string>('0')
+  const [balanceDue, setBalanceDue] = useState<number>(0)
+
+  // Detalhes Financeiros (Avançado)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [amortizationSystem, setAmortizationSystem] = useState<AmortizationSystem>('PRICE')
+  const [interestRateStr, setInterestRateStr] = useState('')
+  const [cetStr, setCetStr] = useState('')
+  const [financedAmount, setFinancedAmount] = useState<number>(0)
+
+  // Pagamento
+  const [dueDay, setDueDay] = useState<number>(new Date().getDate())
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
   const [notes, setNotes] = useState('')
-  // strings controladas para inputs numéricos (evita bug do zero travado)
-  const [installmentsTotalStr, setInstallmentsTotalStr] = useState('1')
-  const [installmentsPaidStr, setInstallmentsPaidStr] = useState('0')
-  const [interestRateStr, setInterestRateStr] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Geração de despesa no fluxo de caixa (auto_create_transaction)
   const [generateExpense, setGenerateExpense] = useState(true)
   const [expenseCategory, setExpenseCategory] = useState<string>('')
+
+  const [saving, setSaving] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const expenseCategories = useMemo(
     () => categories.filter((c) => c.type === 'expense'),
@@ -160,39 +184,56 @@ export function DebtFormSheet({
     if (open) {
       if (editingDebt) {
         setType(editingDebt.type)
-        setDescription(editingDebt.description)
-        setTotalAmount(editingDebt.total_amount)
-        setRemainingAmount(editingDebt.remaining_amount)
-        setInstallmentValue(editingDebt.installment_value)
-        setInstallmentsTotal(editingDebt.installments_total)
-        setInstallmentsTotalStr(String(editingDebt.installments_total))
-        setInstallmentsPaid(editingDebt.installments_paid)
-        setInstallmentsPaidStr(String(editingDebt.installments_paid))
-        setInterestRate(String(editingDebt.interest_rate))
-        setInterestRateStr(String(editingDebt.interest_rate))
-        setDueDay(editingDebt.due_day)
-        setStartDate(editingDebt.start_date.split(' ')[0].split('T')[0])
+        setDescription(editingDebt.description || '')
+        setInstallmentValue(editingDebt.installment_value || 0)
+        setInstallmentsTotalStr(
+          editingDebt.installments_total ? String(editingDebt.installments_total) : '',
+        )
+        setInstallmentsPaidStr(
+          editingDebt.installments_paid != null ? String(editingDebt.installments_paid) : '0',
+        )
+        setBalanceDue(editingDebt.balance_due || 0)
+        setAmortizationSystem(editingDebt.amortization_system || 'PRICE')
+        setInterestRateStr(
+          editingDebt.interest_rate != null ? String(editingDebt.interest_rate) : '',
+        )
+        setCetStr(editingDebt.cet != null ? String(editingDebt.cet) : '')
+        setFinancedAmount(editingDebt.financed_amount || 0)
+        setDueDay(editingDebt.due_day || new Date().getDate())
+        setStartDate(
+          editingDebt.start_date
+            ? editingDebt.start_date.split(' ')[0].split('T')[0]
+            : new Date().toISOString().split('T')[0],
+        )
         setNotes(editingDebt.notes || '')
         setGenerateExpense(!!editingDebt.auto_create_transaction)
-        setExpenseCategory('')
+        setExpenseCategory(editingDebt.category_id || '')
+        if (editingDebt.amortization_system || editingDebt.cet || editingDebt.financed_amount) {
+          setShowAdvanced(true)
+        } else {
+          setShowAdvanced(false)
+        }
       } else {
         setType(prefill?.type || 'financing_home')
         setDescription(prefill?.description || '')
-        setTotalAmount(prefill?.totalAmount ?? 0)
-        setRemainingAmount(prefill?.remainingAmount ?? prefill?.totalAmount ?? 0)
         setInstallmentValue(prefill?.installmentValue ?? 0)
-        setInstallmentsTotal(prefill?.installmentsTotal ?? 1)
-        setInstallmentsTotalStr(String(prefill?.installmentsTotal ?? 1))
-        setInstallmentsPaid(0)
-        setInstallmentsPaidStr('0')
-        setInterestRate('')
+        setInstallmentsTotalStr(
+          prefill?.installmentsTotal ? String(prefill?.installmentsTotal) : '',
+        )
+        setInstallmentsPaidStr(
+          prefill?.installmentsPaid != null ? String(prefill?.installmentsPaid) : '0',
+        )
+        setBalanceDue(prefill?.balanceDue ?? 0)
+        setAmortizationSystem('PRICE')
         setInterestRateStr('')
-        setDueDay(1)
+        setCetStr('')
+        setFinancedAmount(0)
+        setDueDay(new Date().getDate())
         setStartDate(new Date().toISOString().split('T')[0])
         setNotes(prefill?.notes || '')
-        // Nova dívida: toggle ON por padrão
         setGenerateExpense(true)
         setExpenseCategory('')
+        setShowAdvanced(false)
       }
       setErrors({})
     }
@@ -209,111 +250,172 @@ export function DebtFormSheet({
     if (found) setExpenseCategory(found.id)
   }, [generateExpense, expenseCategory, expenseCategories])
 
-  // Handlers para inputs numéricos controlados (texto + inputMode numeric)
+  // Conversões numéricas dos campos de texto
+  const installmentsTotalNum = useMemo(() => {
+    if (!installmentsTotalStr) return 0
+    const n = parseInt(installmentsTotalStr, 10)
+    return isNaN(n) ? 0 : n
+  }, [installmentsTotalStr])
+
+  const installmentsPaidNum = useMemo(() => {
+    if (!installmentsPaidStr) return 0
+    const n = parseInt(installmentsPaidStr, 10)
+    return isNaN(n) ? 0 : n
+  }, [installmentsPaidStr])
+
+  // Auto-cálculos em tempo real
+  const installmentsRemaining = useMemo(() => {
+    if (installmentsTotalNum <= 0) return 0
+    return Math.max(0, installmentsTotalNum - installmentsPaidNum)
+  }, [installmentsTotalNum, installmentsPaidNum])
+
+  const somaDasPrestacoes = useMemo(() => {
+    return installmentValue * installmentsTotalNum
+  }, [installmentValue, installmentsTotalNum])
+
+  const jaPago = useMemo(() => {
+    return installmentValue * installmentsPaidNum
+  }, [installmentValue, installmentsPaidNum])
+
+  const restanteAPagar = useMemo(() => {
+    return installmentValue * installmentsRemaining
+  }, [installmentValue, installmentsRemaining])
+
+  // Handlers para inputs numéricos controlados
   const handleInstallmentsTotalChange = (raw: string) => {
     const s = sanitizeInt(raw)
     setInstallmentsTotalStr(s)
-    setInstallmentsTotal(s === '' ? 0 : parseInt(s, 10))
   }
+
   const handleInstallmentsPaidChange = (raw: string) => {
     const s = sanitizeInt(raw)
     setInstallmentsPaidStr(s)
-    setInstallmentsPaid(s === '' ? 0 : parseInt(s, 10))
   }
+
   const handleInterestRateChange = (raw: string) => {
     const s = sanitizeDecimal(raw)
     setInterestRateStr(s)
-    setInterestRate(s)
   }
 
-  // Cálculo automático de data de fim (mesmo dia, +installments_total meses)
+  const handleCetChange = (raw: string) => {
+    const s = sanitizeDecimal(raw)
+    setCetStr(s)
+  }
+
+  // Cálculo de data de término (último vencimento)
   const endDateStr = useMemo(
-    () => calcEndDate(startDate, installmentsTotal),
-    [startDate, installmentsTotal],
+    () => calcEndDate(startDate, installmentsTotalNum),
+    [startDate, installmentsTotalNum],
   )
-  // Resumo automático de total
-  const totalSummary = useMemo(() => {
-    if (installmentsTotal > 0 && installmentValue > 0) {
-      return installmentsTotal * installmentValue
-    }
-    return 0
-  }, [installmentsTotal, installmentValue])
 
   const handleSave = async () => {
-    const result = schema.safeParse({
+    const interestNum = interestRateStr ? Number(interestRateStr) : 0
+    const cetNum = cetStr ? Number(cetStr) : null
+    const financedNum = financedAmount > 0 ? financedAmount : null
+    const balanceDueNum = balanceDue > 0 ? balanceDue : null
+
+    // remaining_amount = restanteAPagar ou saldo devedor se preenchido
+    // total_amount = somaDasPrestacoes
+    const totalAmountValue = somaDasPrestacoes
+    const remainingAmountValue = balanceDueNum && balanceDueNum > 0 ? balanceDueNum : restanteAPagar
+
+    const validation = schema.safeParse({
       type,
       description,
-      total_amount: totalAmount,
-      remaining_amount: remainingAmount,
       installment_value: installmentValue,
-      installments_total: installmentsTotal,
-      installments_paid: installmentsPaid,
-      interest_rate: interestRate ? Number(interestRate) : 0,
+      installments_total: installmentsTotalNum,
+      installments_paid: installmentsPaidNum,
+      total_amount: totalAmountValue,
+      remaining_amount: remainingAmountValue,
+      balance_due: balanceDueNum,
+      interest_rate: interestNum,
+      cet: cetNum,
+      financed_amount: financedNum,
+      amortization_system: amortizationSystem,
       due_day: dueDay,
       start_date: startDate,
     })
-    if (!result.success) {
+
+    if (!validation.success) {
       const errs: Record<string, string> = {}
-      result.error.issues.forEach((i) => {
+      validation.error.issues.forEach((i) => {
         if (i.path[0]) errs[String(i.path[0])] = i.message
       })
       setErrors(errs)
       return
     }
+
     setSaving(true)
     try {
       const data = {
         family_id: familyId,
         owner_id: ownerId,
         type,
-        description,
-        total_amount: totalAmount,
-        remaining_amount: remainingAmount,
+        description: description.trim(),
+        total_amount: totalAmountValue,
+        remaining_amount: remainingAmountValue,
         installment_value: installmentValue,
-        installments_total: installmentsTotal,
-        installments_paid: installmentsPaid,
-        installments_remaining: installmentsTotal - installmentsPaid,
-        interest_rate: Number(interestRate),
+        installments_total: installmentsTotalNum,
+        installments_paid: installmentsPaidNum,
+        installments_remaining: installmentsRemaining,
+        balance_due: balanceDueNum,
+        interest_rate: interestNum,
+        cet: cetNum,
+        financed_amount: financedNum,
+        amortization_system: amortizationSystem,
         due_day: dueDay,
         start_date: new Date(startDate + 'T12:00:00').toISOString(),
-        is_active: true,
-        notes: notes || null,
+        is_active: installmentsRemaining > 0,
+        status: installmentsRemaining === 0 ? ('paid_off' as const) : ('active' as const),
+        notes: notes.trim() || null,
         auto_create_transaction: generateExpense,
         category_id: generateExpense && expenseCategory ? expenseCategory : null,
         frequency: 'monthly' as const,
         end_date: endDateStr ? new Date(endDateStr + 'T12:00:00').toISOString() : null,
       }
+
       if (editingDebt) {
         await updateDebt(editingDebt.id, data)
-        toast({ title: 'Dívida atualizada' })
+        toast({ title: 'Dívida atualizada com sucesso' })
       } else {
         await createDebt(data)
         toast({
           title: generateExpense
             ? 'Dívida cadastrada — despesas mensais automáticas ativadas'
-            : 'Dívida cadastrada',
+            : 'Dívida cadastrada com sucesso',
         })
       }
       onOpenChange(false)
       onSaved?.()
     } catch (err) {
-      toast({ variant: 'destructive', title: 'Erro', description: getPortugueseError(err) })
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao salvar',
+        description: getPortugueseError(err),
+      })
     } finally {
       setSaving(false)
     }
   }
 
+  const isSaveDisabled =
+    saving || !description.trim() || installmentValue <= 0 || installmentsTotalNum < 1
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-2xl">
-        <SheetHeader>
-          <SheetTitle>{editingDebt ? 'Editar Dívida' : 'Nova Dívida'}</SheetTitle>
+      <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-2xl p-6">
+        <SheetHeader className="mb-4">
+          <SheetTitle className="text-lg font-bold text-gray-900">
+            {editingDebt ? 'Editar Dívida' : 'Nova Dívida'}
+          </SheetTitle>
         </SheetHeader>
-        <div className="space-y-4 mt-4">
-          <div>
-            <Label className="text-xs font-semibold text-gray-700">Tipo</Label>
+
+        <div className="space-y-4">
+          {/* Identificação */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-gray-700 block mb-2">Tipo de dívida</Label>
             <Select value={type} onValueChange={(v) => setType(v as DebtType)}>
-              <SelectTrigger>
+              <SelectTrigger className="h-10 px-3 py-2 rounded-md text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -325,157 +427,329 @@ export function DebtFormSheet({
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label className="text-xs font-semibold text-gray-700">Descrição</Label>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-gray-700 block mb-2">Descrição</Label>
             <Input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              placeholder="Ex: Financiamento Imobiliário CAIXA"
               maxLength={100}
-              className={errors.description ? 'border-red-500' : ''}
+              className={cn(
+                'h-10 px-3 py-2 rounded-md text-sm',
+                errors.description && 'border-red-500',
+              )}
             />
-            {errors.description && (
-              <p className="text-xs text-red-500 mt-1">{errors.description}</p>
+            {errors.description && <p className="text-xs text-red-500">{errors.description}</p>}
+          </div>
+
+          {/* ── VALORES ── */}
+          <div className="mt-6 pt-2 border-t border-gray-100">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+              ── VALORES ──
+            </p>
+
+            <div className="space-y-3">
+              {/* a. Valor da parcela (full-width) */}
+              <div>
+                <Label className="text-xs font-semibold text-gray-700 block mb-2">
+                  Valor da parcela
+                </Label>
+                <CurrencyInput
+                  value={installmentValue}
+                  onChange={setInstallmentValue}
+                  emptyOnZero
+                  placeholder="R$ 0,00"
+                  error={errors.installment_value}
+                  className="h-10 text-sm"
+                />
+              </div>
+
+              {/* b. Total de parcelas e c. Parcelas já pagas (grid-cols-2) */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs font-semibold text-gray-700 block mb-2">
+                    Total de parcelas
+                  </Label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={installmentsTotalStr}
+                    onChange={(e) => handleInstallmentsTotalChange(e.target.value)}
+                    placeholder="0"
+                    className={cn(
+                      'h-10 px-3 py-2 rounded-md text-sm',
+                      errors.installments_total && 'border-red-500',
+                    )}
+                  />
+                  {errors.installments_total && (
+                    <p className="text-xs text-red-500 mt-1">{errors.installments_total}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold text-gray-700 block mb-2">
+                    Parcelas já pagas
+                  </Label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={installmentsPaidStr}
+                    onChange={(e) => handleInstallmentsPaidChange(e.target.value)}
+                    placeholder="0"
+                    className={cn(
+                      'h-10 px-3 py-2 rounded-md text-sm',
+                      errors.installments_paid && 'border-red-500',
+                    )}
+                  />
+                  {errors.installments_paid && (
+                    <p className="text-xs text-red-500 mt-1">{errors.installments_paid}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Cards auto-calculados: d, e, f, g */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-3 bg-gray-50 border border-gray-100 rounded-lg">
+                  <span className="text-[11px] font-medium text-gray-500 block">
+                    Parcelas restantes
+                  </span>
+                  <span className="text-sm font-bold text-gray-900 block mt-0.5">
+                    {installmentsRemaining}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-gray-50 border border-gray-100 rounded-lg">
+                  <span className="text-[11px] font-medium text-gray-500 block">
+                    Soma das prestações
+                  </span>
+                  <span className="text-sm font-bold text-gray-900 block mt-0.5 truncate">
+                    {formatBRL(somaDasPrestacoes)}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-lg">
+                  <span className="text-[11px] font-medium text-emerald-700 block">Já pago</span>
+                  <span className="text-sm font-bold text-emerald-800 block mt-0.5 truncate">
+                    {formatBRL(jaPago)}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-rose-50/70 border border-rose-100 rounded-lg">
+                  <span className="text-[11px] font-medium text-rose-700 block">
+                    Restante a pagar
+                  </span>
+                  <span className="text-sm font-bold text-rose-800 block mt-0.5 truncate">
+                    {formatBRL(restanteAPagar)}
+                  </span>
+                </div>
+              </div>
+
+              {/* h. Saldo devedor (full-width, opcional) */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs font-semibold text-gray-700">
+                    Saldo devedor para quitação
+                  </Label>
+                  <span className="text-[11px] text-gray-400">Opcional</span>
+                </div>
+                <CurrencyInput
+                  value={balanceDue}
+                  onChange={setBalanceDue}
+                  emptyOnZero
+                  placeholder="R$ 0,00"
+                  error={errors.balance_due}
+                  className="h-10 text-sm"
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Valor para quitação antecipada fornecido pelo banco (se não informado, usa o
+                  restante a pagar).
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ── PAGAMENTO ── */}
+          <div className="mt-6 pt-2 border-t border-gray-100">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+              ── PAGAMENTO ──
+            </p>
+
+            <div className="space-y-3">
+              {/* m. Dia de vencimento e n. Primeiro vencimento */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs font-semibold text-gray-700 block mb-2">
+                    Dia de vencimento
+                  </Label>
+                  <Select value={String(dueDay)} onValueChange={(v) => setDueDay(Number(v))}>
+                    <SelectTrigger className="h-10 px-3 py-2 rounded-md text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DAYS.map((d) => (
+                        <SelectItem key={d} value={String(d)}>
+                          Dia {d}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold text-gray-700 block mb-2">
+                    Primeiro vencimento
+                  </Label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className={cn(
+                      'h-10 px-3 py-2 rounded-md text-sm',
+                      errors.start_date && 'border-red-500',
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* o. Último vencimento (read-only, auto-calculado) */}
+              {endDateStr && (
+                <div className="p-3 bg-blue-50/80 border border-blue-100 rounded-lg flex items-center justify-between">
+                  <span className="text-xs font-medium text-blue-800">
+                    Último vencimento estimado:
+                  </span>
+                  <span className="text-xs font-bold text-blue-900">
+                    {formatDateDDMMYYYY(endDateStr)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── DETALHES FINANCEIROS (Avançado) ── */}
+          <div className="mt-6 pt-2 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((prev) => !prev)}
+              className="w-full flex items-center justify-between py-1 text-left group"
+            >
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider group-hover:text-gray-700">
+                ── DETALHES FINANCEIROS ── {showAdvanced ? '(Avançado)' : '(Opcional)'}
+              </p>
+              <div className="text-gray-400 group-hover:text-gray-600">
+                {showAdvanced ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </div>
+            </button>
+
+            {showAdvanced && (
+              <div className="space-y-3 mt-3 animate-in fade-in-50 duration-200">
+                {/* i. Sistema de amortização */}
+                <div>
+                  <Label className="text-xs font-semibold text-gray-700 block mb-2">
+                    Sistema de amortização
+                  </Label>
+                  <Select
+                    value={amortizationSystem}
+                    onValueChange={(v) => setAmortizationSystem(v as AmortizationSystem)}
+                  >
+                    <SelectTrigger className="h-10 px-3 py-2 rounded-md text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PRICE">Tabela PRICE (Parcelas fixas)</SelectItem>
+                      <SelectItem value="SAC">
+                        SAC (Amortização constante / parcelas decrescentes)
+                      </SelectItem>
+                      <SelectItem value="Livre">Livre / Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* j. Taxa de juros e k. CET a.a. (grid-cols-2) */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs font-semibold text-gray-700 block mb-2">
+                      Taxa de juros a.m. (%)
+                    </Label>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      value={interestRateStr}
+                      onChange={(e) => handleInterestRateChange(e.target.value)}
+                      placeholder="0,00%"
+                      className={cn(
+                        'h-10 px-3 py-2 rounded-md text-sm',
+                        errors.interest_rate && 'border-red-500',
+                      )}
+                    />
+                    {errors.interest_rate && (
+                      <p className="text-xs text-red-500 mt-1">{errors.interest_rate}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-semibold text-gray-700 block mb-2">
+                      CET a.a. (%)
+                    </Label>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      value={cetStr}
+                      onChange={(e) => handleCetChange(e.target.value)}
+                      placeholder="0,00%"
+                      className={cn(
+                        'h-10 px-3 py-2 rounded-md text-sm',
+                        errors.cet && 'border-red-500',
+                      )}
+                    />
+                    {errors.cet && <p className="text-xs text-red-500 mt-1">{errors.cet}</p>}
+                  </div>
+                </div>
+
+                {/* l. Valor financiado */}
+                <div>
+                  <Label className="text-xs font-semibold text-gray-700 block mb-2">
+                    Valor financiado original
+                  </Label>
+                  <CurrencyInput
+                    value={financedAmount}
+                    onChange={setFinancedAmount}
+                    emptyOnZero
+                    placeholder="R$ 0,00"
+                    error={errors.financed_amount}
+                    className="h-10 text-sm"
+                  />
+                </div>
+              </div>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs font-semibold text-gray-700">Valor total</Label>
-              <CurrencyInput
-                value={totalAmount}
-                onChange={(v) => {
-                  setTotalAmount(v)
-                  if (!editingDebt) setRemainingAmount(v)
-                }}
-                error={errors.total_amount}
-              />
-            </div>
-            <div>
-              <Label className="text-xs font-semibold text-gray-700">Valor restante</Label>
-              <CurrencyInput
-                value={remainingAmount}
-                onChange={setRemainingAmount}
-                error={errors.remaining_amount}
-              />
-            </div>
-          </div>
-          <div>
-            <Label className="text-xs font-semibold text-gray-700">Valor da parcela</Label>
-            <CurrencyInput
-              value={installmentValue}
-              onChange={setInstallmentValue}
-              error={errors.installment_value}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs font-semibold text-gray-700">Total de parcelas</Label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                value={installmentsTotalStr}
-                onChange={(e) => handleInstallmentsTotalChange(e.target.value)}
-                placeholder="Ex: 24"
-                className={errors.installments_total ? 'border-red-500' : ''}
-              />
-              {errors.installments_total && (
-                <p className="text-xs text-red-500 mt-1">{errors.installments_total}</p>
-              )}
-            </div>
-            <div>
-              <Label className="text-xs font-semibold text-gray-700">Parcelas pagas</Label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                value={installmentsPaidStr}
-                onChange={(e) => handleInstallmentsPaidChange(e.target.value)}
-                placeholder="Ex: 0"
-                className={errors.installments_paid ? 'border-red-500' : ''}
-              />
-              {errors.installments_paid && (
-                <p className="text-xs text-red-500 mt-1">{errors.installments_paid}</p>
-              )}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs font-semibold text-gray-700">Juros a.m. (%)</Label>
-              <Input
-                type="text"
-                inputMode="decimal"
-                value={interestRateStr}
-                onChange={(e) => handleInterestRateChange(e.target.value)}
-                placeholder="Ex: 1.5"
-                className={errors.interest_rate ? 'border-red-500' : ''}
-              />
-              {errors.interest_rate && (
-                <p className="text-xs text-red-500 mt-1">{errors.interest_rate}</p>
-              )}
-            </div>
-            <div>
-              <Label className="text-xs font-semibold text-gray-700">Dia de vencimento</Label>
-              <Select value={String(dueDay)} onValueChange={(v) => setDueDay(Number(v))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {DAYS.map((d) => (
-                    <SelectItem key={d} value={String(d)}>
-                      {d}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div>
-            <Label className="text-xs font-semibold text-gray-700">Data de início</Label>
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className={errors.start_date ? 'border-red-500' : ''}
-            />
-            {errors.start_date && <p className="text-xs text-red-500 mt-1">{errors.start_date}</p>}
-          </div>
 
-          {/* Cálculo automático de término */}
-          {endDateStr && (
-            <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2">
-              <p className="text-xs font-medium text-blue-800">
-                Término estimado: {formatDateDDMMYYYY(endDateStr)}
-              </p>
-            </div>
-          )}
-
-          {/* Resumo automático */}
-          {installmentsTotal > 0 && installmentValue > 0 && (
-            <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2">
-              <p className="text-sm font-semibold text-emerald-800">
-                {installmentsTotal}x de {formatBRL(installmentValue)} = {formatBRL(totalSummary)}{' '}
-                total
-              </p>
-            </div>
-          )}
-
-          <div>
-            <Label className="text-xs font-semibold text-gray-700">Observações</Label>
+          {/* Observações */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-gray-700 block mb-2">Observações</Label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
+              placeholder="Ex: Número do contrato, agência, condições..."
               rows={2}
               maxLength={500}
+              className="text-sm rounded-md px-3 py-2"
             />
           </div>
 
           {/* Geração de despesa no fluxo de caixa */}
-          <div className="space-y-3 p-3 border border-gray-200 rounded-xl bg-gray-50/60">
-            <div className="flex items-center justify-between">
+          <div className="space-y-3 p-3 border border-gray-200 rounded-xl bg-gray-50/70">
+            <div className="flex items-center justify-between gap-2">
               <div className="pr-2">
                 <p className="text-sm font-semibold text-gray-800">
                   Gerar despesa no fluxo de caixa
                 </p>
                 <p className="text-xs text-gray-500">
-                  Gera automaticamente uma despesa mensal (parcela) no fluxo de caixa.
+                  Gera automaticamente a parcela mensal no fluxo de contas a pagar.
                 </p>
               </div>
               <Switch checked={generateExpense} onCheckedChange={setGenerateExpense} />
@@ -483,9 +757,11 @@ export function DebtFormSheet({
 
             {generateExpense && (
               <div>
-                <Label className="text-xs font-semibold text-gray-700">Categoria</Label>
+                <Label className="text-xs font-semibold text-gray-700 block mb-2">
+                  Categoria da despesa
+                </Label>
                 <Select value={expenseCategory} onValueChange={setExpenseCategory}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10 px-3 py-2 rounded-md text-sm bg-white">
                     <SelectValue placeholder="Selecione uma categoria" />
                   </SelectTrigger>
                   <SelectContent>
@@ -500,16 +776,34 @@ export function DebtFormSheet({
             )}
           </div>
 
+          {/* Resumo verde no final com os 3 valores */}
+          {installmentsTotalNum > 0 && installmentValue > 0 && (
+            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 space-y-1.5">
+              <p className="text-xs font-bold text-emerald-900 uppercase tracking-wide">
+                Resumo do Contrato
+              </p>
+              <div className="text-xs text-emerald-800 space-y-1">
+                <div className="flex justify-between">
+                  <span>Total do contrato:</span>
+                  <span className="font-semibold">{formatBRL(somaDasPrestacoes)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Já pago:</span>
+                  <span className="font-semibold">{formatBRL(jaPago)}</span>
+                </div>
+                <div className="flex justify-between border-t border-emerald-200/70 pt-1 text-emerald-900">
+                  <span className="font-bold">Restante:</span>
+                  <span className="font-bold">{formatBRL(restanteAPagar)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Botão de Salvar */}
           <Button
             onClick={handleSave}
-            disabled={
-              saving ||
-              !description ||
-              totalAmount <= 0 ||
-              remainingAmount <= 0 ||
-              installmentValue <= 0
-            }
-            className="w-full bg-[#166534] hover:bg-[#15803D]"
+            disabled={isSaveDisabled}
+            className="w-full h-11 bg-[#166534] hover:bg-[#15803D] font-semibold text-white rounded-lg mt-2"
           >
             {saving ? (
               <>
@@ -517,7 +811,7 @@ export function DebtFormSheet({
                 Salvando...
               </>
             ) : (
-              'Salvar'
+              'Salvar dívida'
             )}
           </Button>
         </div>

@@ -503,6 +503,8 @@ export interface BillAlert {
   accounts: BillItem[]
 }
 
+export type AmortizationSystem = 'PRICE' | 'SAC' | 'Livre'
+
 export interface DebtRecord {
   id: string
   family_id: string
@@ -525,6 +527,10 @@ export interface DebtRecord {
   status?: 'active' | 'paid_off' | 'overdue'
   frequency?: 'monthly' | 'yearly' | 'weekly'
   auto_create_transaction?: boolean
+  amortization_system?: AmortizationSystem | null
+  cet?: number | null
+  financed_amount?: number | null
+  balance_due?: number | null
   created: string
   updated: string
   expand?: {

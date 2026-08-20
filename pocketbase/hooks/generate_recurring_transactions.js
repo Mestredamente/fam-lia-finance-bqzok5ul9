@@ -18,7 +18,7 @@ cronAdd('generate_recurring_transactions', '0 0 * * *', () => {
     try {
       debts = $app.findRecordsByFilter(
         'debts',
-        "status = 'active' && auto_create_transaction = true && is_active = true",
+        "status = 'active' && auto_create_transaction = true && is_active = true && due_day = " + d,
         'created',
         500,
         0,
@@ -41,9 +41,18 @@ cronAdd('generate_recurring_transactions', '0 0 * * *', () => {
       var installmentsTotal = debt.get('installments_total') || 0
       var installmentsPaid = debt.get('installments_paid') || 0
 
+      // Não gerar antes do início da dívida
+      var startStr = debt.getString('start_date')
+      if (startStr) {
+        var startDateCheck = new Date(startStr.split(' ')[0].split('T')[0] + 'T00:00:00')
+        if (now < startDateCheck) continue
+      }
+
+      // Só gerar para parcelas EM SER (não para as já quitadas)
       if (installmentsTotal > 0 && installmentsPaid >= installmentsTotal) {
         debt.set('status', 'paid_off')
         debt.set('is_active', false)
+        debt.set('installments_remaining', 0)
         $app.save(debt)
         continue
       }

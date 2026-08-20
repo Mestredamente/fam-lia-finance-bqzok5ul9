@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T02:24:03.128Z",
+  "generatedAt": "2026-08-20T02:34:12.367Z",
   "collections": [
     {
       "name": "users",
@@ -1369,6 +1369,31 @@
             "condo",
             "other"
           ]
+        },
+        {
+          "name": "amortization_system",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["PRICE", "SAC", "Livre"]
+        },
+        {
+          "name": "cet",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "financed_amount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "balance_due",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
