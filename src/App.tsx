@@ -9,6 +9,7 @@ import { AnnouncerProvider } from '@/hooks/use-announcer'
 import { OfflineQueueProvider } from '@/hooks/use-offline-queue'
 import { useSwUpdate } from '@/hooks/use-sw-update'
 import { useNotifications } from '@/hooks/use-notifications'
+import { PrivacyProvider } from '@/hooks/use-privacy'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { OfflineBanner } from '@/components/OfflineBanner'
 import { InstallPrompt } from '@/components/InstallPrompt'
@@ -29,6 +30,8 @@ const Cards = lazy(() => import('@/pages/Cards'))
 const CardDetail = lazy(() => import('@/pages/CardDetail'))
 const InvoiceReview = lazy(() => import('@/pages/InvoiceReview'))
 const Patrimony = lazy(() => import('@/pages/Patrimony'))
+const Investiments = lazy(() => import('@/pages/Investiments'))
+const Dividas = lazy(() => import('@/pages/Dividas'))
 const Consultora = lazy(() => import('@/pages/Consultora'))
 const FamilyManagement = lazy(() => import('@/pages/FamilyManagement'))
 const CategorizationRules = lazy(() => import('@/pages/CategorizationRules'))
@@ -144,138 +147,154 @@ function AppInner() {
     <ThemeProvider>
       <AnnouncerProvider>
         <OfflineQueueProvider>
-          <AuthProvider>
-            <NotificationChecker />
-            <BrowserRouter>
-              <SkipLink />
-              <OfflineBanner />
-              <InstallPrompt />
-              <TooltipProvider>
-                <Toaster />
-                <Sonner />
-                <NavigationGuard />
-                <Routes>
-                  <Route element={<Layout />}>
-                    <Route element={<PageTransitionWrapper />}>
-                      <Route path="/" element={<HomeRedirect />} />
-                      <Route path="/onboarding" element={withSuspense(Onboarding)} />
-                      <Route
-                        path="/dashboard"
-                        element={<ProtectedRoute>{withSuspense(Dashboard)}</ProtectedRoute>}
-                      />
-                      <Route
-                        path="/profile"
-                        element={<ProtectedRoute>{withSuspense(Profile)}</ProtectedRoute>}
-                      />
-                      <Route
-                        path="/transacoes"
-                        element={<ProtectedRoute>{withSuspense(Transactions)}</ProtectedRoute>}
-                      />
-                      <Route
-                        path="/cards"
-                        element={<ProtectedRoute>{withSuspense(Cards)}</ProtectedRoute>}
-                      />
-                      <Route
-                        path="/contas"
-                        element={<ProtectedRoute>{withSuspense(ContasAPagar)}</ProtectedRoute>}
-                      />
-                      <Route
-                        path="/notificacoes"
-                        element={<ProtectedRoute>{withSuspense(Notifications)}</ProtectedRoute>}
-                      />
-                      <Route
-                        path="/cards/:cardId"
-                        element={<ProtectedRoute>{withSuspense(CardDetail)}</ProtectedRoute>}
-                      />
-                      <Route
-                        path="/cards/:cardId/invoices/:invoiceId/review"
-                        element={<ProtectedRoute>{withSuspense(InvoiceReview)}</ProtectedRoute>}
-                      />
-                      <Route
-                        path="/casa"
-                        element={<ProtectedRoute>{withSuspense(Casa)}</ProtectedRoute>}
-                      />
-                      <Route
-                        path="/patrimonio"
-                        element={
-                          <ProtectedRoute>
-                            <PermissionRoute check={(p) => p.canViewPatrimony()}>
-                              {withSuspense(Patrimony)}
-                            </PermissionRoute>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/membros"
-                        element={
-                          <ProtectedRoute>
-                            <PermissionRoute check={(p) => p.canManageMembers()}>
-                              {withSuspense(MemberSettingsLazy)}
-                            </PermissionRoute>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/projections"
-                        element={<ProtectedRoute>{withSuspense(ProjectionsLazy)}</ProtectedRoute>}
-                      />
-                      <Route
-                        path="/consultora"
-                        element={<ProtectedRoute>{withSuspense(Consultora)}</ProtectedRoute>}
-                      />
-                      <Route
-                        path="/familia"
-                        element={<ProtectedRoute>{withSuspense(FamilyManagement)}</ProtectedRoute>}
-                      />
-                      <Route
-                        path="/regras-categorizacao"
-                        element={
-                          <ProtectedRoute>{withSuspense(CategorizationRules)}</ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/categorias"
-                        element={<ProtectedRoute>{withSuspense(Categories)}</ProtectedRoute>}
-                      />
-                      <Route
-                        path="/orcamentos"
-                        element={
-                          <ProtectedRoute>
-                            <PermissionRoute check={(p) => p.canViewBudgets()}>
-                              {withSuspense(Budgets)}
-                            </PermissionRoute>
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/evolucao"
-                        element={<ProtectedRoute>{withSuspense(MonthlyEvolution)}</ProtectedRoute>}
-                      />
-                      <Route
-                        path="/challenges"
-                        element={<ProtectedRoute>{withSuspense(Challenges)}</ProtectedRoute>}
-                      />
-                      <Route
-                        path="/diagnostic-invoice"
-                        element={<ProtectedRoute>{withSuspense(DiagnosticInvoice)}</ProtectedRoute>}
-                      />
-                      <Route
-                        path="/recorrentes"
-                        element={
-                          <ProtectedRoute>{withSuspense(RecurringTransactions)}</ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/metas"
-                        element={<ProtectedRoute>{withSuspense(SavingsGoals)}</ProtectedRoute>}
-                      />
+          <PrivacyProvider>
+            <AuthProvider>
+              <NotificationChecker />
+              <BrowserRouter>
+                <SkipLink />
+                <OfflineBanner />
+                <InstallPrompt />
+                <TooltipProvider>
+                  <Toaster />
+                  <Sonner />
+                  <NavigationGuard />
+                  <Routes>
+                    <Route element={<Layout />}>
+                      <Route element={<PageTransitionWrapper />}>
+                        <Route path="/" element={<HomeRedirect />} />
+                        <Route path="/onboarding" element={withSuspense(Onboarding)} />
+                        <Route
+                          path="/dashboard"
+                          element={<ProtectedRoute>{withSuspense(Dashboard)}</ProtectedRoute>}
+                        />
+                        <Route
+                          path="/profile"
+                          element={<ProtectedRoute>{withSuspense(Profile)}</ProtectedRoute>}
+                        />
+                        <Route
+                          path="/transacoes"
+                          element={<ProtectedRoute>{withSuspense(Transactions)}</ProtectedRoute>}
+                        />
+                        <Route
+                          path="/cards"
+                          element={<ProtectedRoute>{withSuspense(Cards)}</ProtectedRoute>}
+                        />
+                        <Route
+                          path="/contas"
+                          element={<ProtectedRoute>{withSuspense(ContasAPagar)}</ProtectedRoute>}
+                        />
+                        <Route
+                          path="/notificacoes"
+                          element={<ProtectedRoute>{withSuspense(Notifications)}</ProtectedRoute>}
+                        />
+                        <Route
+                          path="/cards/:cardId"
+                          element={<ProtectedRoute>{withSuspense(CardDetail)}</ProtectedRoute>}
+                        />
+                        <Route
+                          path="/cards/:cardId/invoices/:invoiceId/review"
+                          element={<ProtectedRoute>{withSuspense(InvoiceReview)}</ProtectedRoute>}
+                        />
+                        <Route
+                          path="/casa"
+                          element={<ProtectedRoute>{withSuspense(Casa)}</ProtectedRoute>}
+                        />
+                        <Route
+                          path="/patrimonio"
+                          element={
+                            <ProtectedRoute>
+                              <PermissionRoute check={(p) => p.canViewPatrimony()}>
+                                {withSuspense(Patrimony)}
+                              </PermissionRoute>
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/investimentos"
+                          element={<ProtectedRoute>{withSuspense(Investiments)}</ProtectedRoute>}
+                        />
+                        <Route
+                          path="/dividas"
+                          element={<ProtectedRoute>{withSuspense(Dividas)}</ProtectedRoute>}
+                        />
+                        <Route
+                          path="/membros"
+                          element={
+                            <ProtectedRoute>
+                              <PermissionRoute check={(p) => p.canManageMembers()}>
+                                {withSuspense(MemberSettingsLazy)}
+                              </PermissionRoute>
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/projections"
+                          element={<ProtectedRoute>{withSuspense(ProjectionsLazy)}</ProtectedRoute>}
+                        />
+                        <Route
+                          path="/consultora"
+                          element={<ProtectedRoute>{withSuspense(Consultora)}</ProtectedRoute>}
+                        />
+                        <Route
+                          path="/familia"
+                          element={
+                            <ProtectedRoute>{withSuspense(FamilyManagement)}</ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/regras-categorizacao"
+                          element={
+                            <ProtectedRoute>{withSuspense(CategorizationRules)}</ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/categorias"
+                          element={<ProtectedRoute>{withSuspense(Categories)}</ProtectedRoute>}
+                        />
+                        <Route
+                          path="/orcamentos"
+                          element={
+                            <ProtectedRoute>
+                              <PermissionRoute check={(p) => p.canViewBudgets()}>
+                                {withSuspense(Budgets)}
+                              </PermissionRoute>
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/evolucao"
+                          element={
+                            <ProtectedRoute>{withSuspense(MonthlyEvolution)}</ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/challenges"
+                          element={<ProtectedRoute>{withSuspense(Challenges)}</ProtectedRoute>}
+                        />
+                        <Route
+                          path="/diagnostic-invoice"
+                          element={
+                            <ProtectedRoute>{withSuspense(DiagnosticInvoice)}</ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/recorrentes"
+                          element={
+                            <ProtectedRoute>{withSuspense(RecurringTransactions)}</ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="/metas"
+                          element={<ProtectedRoute>{withSuspense(SavingsGoals)}</ProtectedRoute>}
+                        />
+                      </Route>
                     </Route>
-                  </Route>
-                  <Route path="*" element={<SmartCatchAll />} />
-                </Routes>
-              </TooltipProvider>
-            </BrowserRouter>
-          </AuthProvider>
+                    <Route path="*" element={<SmartCatchAll />} />
+                  </Routes>
+                </TooltipProvider>
+              </BrowserRouter>
+            </AuthProvider>
+          </PrivacyProvider>
         </OfflineQueueProvider>
       </AnnouncerProvider>
     </ThemeProvider>

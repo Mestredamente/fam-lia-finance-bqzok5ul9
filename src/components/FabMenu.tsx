@@ -1,17 +1,11 @@
-import { useEffect, useState } from 'react'
-import { Plus, Sparkles, SlidersHorizontal, Download, Loader2, X } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Plus, FileText, Upload, CreditCard, FileSpreadsheet, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
-import { FileSpreadsheet, FileText } from 'lucide-react'
 
 export interface FabMenuAction {
-  type: 'transaction' | 'scenario' | 'customize' | 'export'
-}
-
-interface Props {
-  open: boolean
-  onClose: () => void
-  onAction: (a: FabMenuAction) => void
+  type: 'transaction' | 'scenario' | 'customize' | 'export' | 'invoice' | 'ddc' | 'bill'
 }
 
 interface ExportSheetProps {
@@ -24,7 +18,6 @@ interface ExportSheetProps {
 
 /**
  * Bottom sheet for the "Exportar" option — slides up from the bottom
- * with a dark overlay (provided by the Drawer primitive).
  */
 export function ExportBottomSheet({ open, onClose, onCSV, onPDF, exporting }: ExportSheetProps) {
   return (
@@ -76,107 +69,176 @@ export function ExportBottomSheet({ open, onClose, onCSV, onPDF, exporting }: Ex
 }
 
 /**
- * Expanding FAB menu for mobile. Renders a vertical stack of 4 options
- * above the FAB position with a staggered fade-in + slide-up animation,
- * and a transparent backdrop to close on outside tap.
+ * Global Desktop FAB menu (lg+) & Mobile compatibility.
+ * When open, displays 4 actions:
+ * 1. "Nova transação" -> dispatch event 'ff-open-transaction-form'
+ * 2. "Importar fatura" -> navigate('/cards') + dispatch 'ff-open-invoice-form'
+ * 3. "Importar DDC" -> dispatch event 'ff-open-ddc-import'
+ * 4. "Pagar conta" -> navigate('/contas')
  */
-export function FabMenu({ open, onClose, onAction }: Props) {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => {
-    if (open) {
-      // next tick to trigger transition
-      const t = requestAnimationFrame(() => setMounted(true))
-      return () => cancelAnimationFrame(t)
+export function FabMenu({
+  open: controlledOpen,
+  onClose: controlledOnClose,
+  onAction: controlledOnAction,
+}: {
+  open?: boolean
+  onClose?: () => void
+  onAction?: (a: FabMenuAction) => void
+} = {}) {
+  const navigate = useNavigate()
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined
+  const isOpen = isControlled ? controlledOpen : internalOpen
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const handleClose = () => {
+    if (isControlled && controlledOnClose) {
+      controlledOnClose()
     } else {
-      setMounted(false)
+      setInternalOpen(false)
     }
-  }, [open])
+  }
 
-  if (!open) return null
+  const toggleOpen = () => {
+    if (isControlled) {
+      if (isOpen && controlledOnClose) controlledOnClose()
+    } else {
+      setInternalOpen((v) => !v)
+    }
+  }
 
-  const items = [
+  const handleAction = (type: FabMenuAction['type']) => {
+    handleClose()
+    if (controlledOnAction) {
+      controlledOnAction({ type })
+    }
+
+    if (type === 'transaction') {
+      window.dispatchEvent(new CustomEvent('ff-open-transaction-form'))
+    } else if (type === 'invoice') {
+      navigate('/cards')
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('ff-open-invoice-form'))
+      }, 250)
+    } else if (type === 'ddc') {
+      window.dispatchEvent(new CustomEvent('ff-open-ddc-import'))
+    } else if (type === 'bill') {
+      navigate('/contas')
+    }
+  }
+
+  // Close on outside click
+  useEffect(() => {
+    if (!isOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        handleClose()
+      }
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose()
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
+
+  const menuItems = [
     {
       key: 'transaction' as const,
-      label: 'Nova Transação',
+      label: 'Nova transação',
       icon: Plus,
-      primary: true,
-      delay: 0,
+      color: 'bg-emerald-100 text-[#166534] dark:bg-emerald-950/60 dark:text-emerald-400',
     },
     {
-      key: 'scenario' as const,
-      label: 'Simular Cenários',
-      icon: Sparkles,
-      primary: false,
-      delay: 50,
+      key: 'invoice' as const,
+      label: 'Importar fatura',
+      icon: FileText,
+      color: 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400',
     },
     {
-      key: 'customize' as const,
-      label: 'Personalizar',
-      icon: SlidersHorizontal,
-      primary: false,
-      delay: 100,
+      key: 'ddc' as const,
+      label: 'Importar DDC',
+      icon: Upload,
+      color: 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-400',
     },
     {
-      key: 'export' as const,
-      label: 'Exportar',
-      icon: Download,
-      primary: false,
-      delay: 150,
+      key: 'bill' as const,
+      label: 'Pagar conta',
+      icon: CreditCard,
+      color: 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400',
     },
   ]
 
   return (
-    <>
-      {/* transparent backdrop — closes the menu on outside tap */}
+    <div ref={containerRef} className="hidden lg:block">
+      {/* Semi-transparent backdrop when open */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30 transition-opacity animate-fade-in"
+          onClick={handleClose}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Action options popup */}
       <div
-        className="fixed inset-0 z-40 bg-black/30 lg:hidden"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-      <div className="fixed bottom-24 right-4 z-50 flex flex-col items-end gap-2 lg:hidden">
-        <button
-          onClick={onClose}
-          className="lg:hidden mb-1 w-8 h-8 rounded-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 shadow flex items-center justify-center text-gray-500"
-          aria-label="Fechar menu"
-        >
-          <X className="h-4 w-4" />
-        </button>
-        {items.map((item) => {
+        className={cn(
+          'fixed bottom-24 right-8 z-40 flex flex-col items-end gap-2.5 transition-all duration-200 pointer-events-none',
+          isOpen
+            ? 'opacity-100 translate-y-0 pointer-events-auto scale-100'
+            : 'opacity-0 translate-y-4 scale-95',
+        )}
+      >
+        {menuItems.map((item, idx) => {
           const Icon = item.icon
           return (
             <button
               key={item.key}
-              onClick={() => {
-                onClose()
-                onAction({ type: item.key })
-              }}
+              onClick={() => handleAction(item.key)}
               style={{
-                transitionDelay: `${mounted ? item.delay : 0}ms`,
-                opacity: mounted ? 1 : 0,
-                transform: mounted ? 'translateY(0)' : 'translateY(12px)',
+                transitionDelay: isOpen ? `${idx * 40}ms` : '0ms',
               }}
-              className={cn(
-                'flex items-center gap-2.5 pl-3 pr-4 py-2.5 rounded-full bg-card dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg transition-all duration-200 active:scale-95',
-                item.primary && 'ring-2 ring-[#166534]/30',
-              )}
+              className="flex items-center gap-3 pl-3.5 pr-4 py-2.5 rounded-full bg-white dark:bg-card border border-gray-200 dark:border-gray-700 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all text-left"
             >
               <span
                 className={cn(
-                  'w-7 h-7 rounded-full flex items-center justify-center shrink-0',
-                  item.primary
-                    ? 'bg-[#166534] text-white'
-                    : 'bg-emerald-100 text-[#166534] dark:bg-emerald-900/40',
+                  'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
+                  item.color,
                 )}
               >
                 <Icon className="h-4 w-4" />
               </span>
-              <span className="text-sm font-medium text-foreground whitespace-nowrap">
+              <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 whitespace-nowrap">
                 {item.label}
               </span>
             </button>
           )
         })}
       </div>
-    </>
+
+      {/* Main Trigger Button (Desktop) */}
+      <button
+        onClick={toggleOpen}
+        aria-label={isOpen ? 'Fechar menu de ações' : 'Adicionar / Ações rápidas'}
+        aria-expanded={isOpen}
+        className={cn(
+          'fixed bottom-8 right-8 z-40 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shadow-xl ring-4 ring-white/60 dark:ring-gray-900/60 transition-all duration-300 active:scale-95 cursor-pointer',
+        )}
+      >
+        <Plus
+          className={cn(
+            'h-6 w-6 transition-transform duration-300',
+            isOpen ? 'rotate-45 text-white' : 'rotate-0',
+          )}
+          aria-hidden="true"
+        />
+      </button>
+    </div>
   )
 }

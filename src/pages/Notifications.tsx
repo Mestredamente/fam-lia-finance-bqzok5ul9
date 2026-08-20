@@ -15,10 +15,19 @@ import {
 import { useNotificationsStore, type AppNotification } from '@/stores/notifications'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { toast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 
 export interface NotificationPrefs {
@@ -97,11 +106,26 @@ export default function NotificationsPage() {
   const navigate = useNavigate()
   const [tab, setTab] = useState<TabKey>('todas')
   const [prefs, setPrefs] = useState<NotificationPrefs>(loadNotificationPrefs)
+  const [tempPrefs, setTempPrefs] = useState<NotificationPrefs>(loadNotificationPrefs)
+  const [configOpen, setConfigOpen] = useState(false)
 
-  const handleTogglePref = (key: keyof NotificationPrefs, checked: boolean) => {
-    const updated = { ...prefs, [key]: checked }
-    setPrefs(updated)
-    saveNotificationPrefs(updated)
+  const openConfigDialog = () => {
+    setTempPrefs(loadNotificationPrefs())
+    setConfigOpen(true)
+  }
+
+  const handleToggleTempPref = (key: keyof NotificationPrefs, checked: boolean) => {
+    setTempPrefs((prev) => ({ ...prev, [key]: checked }))
+  }
+
+  const handleSavePrefs = () => {
+    setPrefs(tempPrefs)
+    saveNotificationPrefs(tempPrefs)
+    setConfigOpen(false)
+    toast({
+      title: 'Preferências salvas',
+      description: 'Suas configurações de alertas foram atualizadas.',
+    })
   }
 
   const counts = useMemo(() => {
@@ -205,15 +229,26 @@ export default function NotificationsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center text-[#166534] dark:text-emerald-400">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center text-[#166534] dark:text-emerald-400 shrink-0">
             <Bell className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-foreground">
-              Notificações
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Notificações</h1>
+              {/* Settings Cog Modal Trigger */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={openConfigDialog}
+                className="h-8 w-8 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 rounded-lg"
+                title="Configurações de notificações"
+                aria-label="Abrir configurações de notificações"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Fique por dentro dos seus alertas
+              Fique por dentro dos seus alertas e avisos
             </p>
           </div>
         </div>
@@ -368,165 +403,175 @@ export default function NotificationsPage() {
         </div>
       )}
 
-      {/* Configurações Section */}
-      <Card className="border border-gray-100 dark:border-gray-800 shadow-subtle rounded-2xl bg-white dark:bg-card mt-8">
-        <CardHeader className="p-5 pb-3">
-          <div className="flex items-center gap-2">
-            <Settings className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-            <CardTitle className="text-base font-semibold text-gray-900 dark:text-foreground">
+      {/* Settings Modal (Dialog) */}
+      <Dialog open={configOpen} onOpenChange={setConfigOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold">
+              <Settings className="h-5 w-5 text-[#166534] dark:text-emerald-400" />
               Configurações de Alertas
-            </CardTitle>
-          </div>
-          <CardDescription className="text-xs text-gray-500 dark:text-gray-400">
-            Escolha quais tipos de notificações e alertas você deseja receber.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-5 pt-0 space-y-4 divide-y divide-gray-100 dark:divide-gray-800">
-          <div className="pt-3 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="pref-vencidas" className="text-sm font-medium">
-                Contas vencidas
-              </Label>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Alertar imediatamente sobre contas com vencimento expirado
-              </p>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Escolha quais tipos de notificações e alertas automáticos você deseja receber.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 divide-y divide-gray-100 dark:divide-gray-800">
+            <div className="pt-2 flex items-center justify-between">
+              <div className="space-y-0.5 pr-3">
+                <Label htmlFor="pref-vencidas" className="text-sm font-medium">
+                  Contas vencidas
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Alertar imediatamente sobre contas com vencimento expirado
+                </p>
+              </div>
+              <Switch
+                id="pref-vencidas"
+                checked={tempPrefs.contas_vencidas}
+                onCheckedChange={(c) => handleToggleTempPref('contas_vencidas', c)}
+              />
             </div>
-            <Switch
-              id="pref-vencidas"
-              checked={prefs.contas_vencidas}
-              onCheckedChange={(c) => handleTogglePref('contas_vencidas', c)}
-            />
+
+            <div className="pt-3 flex items-center justify-between">
+              <div className="space-y-0.5 pr-3">
+                <Label htmlFor="pref-vencer" className="text-sm font-medium">
+                  Contas a vencer
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Avisos 3 dias antes, na véspera e no dia do vencimento
+                </p>
+              </div>
+              <Switch
+                id="pref-vencer"
+                checked={tempPrefs.contas_a_vencer}
+                onCheckedChange={(c) => handleToggleTempPref('contas_a_vencer', c)}
+              />
+            </div>
+
+            <div className="pt-3 flex items-center justify-between">
+              <div className="space-y-0.5 pr-3">
+                <Label htmlFor="pref-faturas" className="text-sm font-medium">
+                  Faturas fechadas
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Avisar quando a fatura do cartão fechar para conferência
+                </p>
+              </div>
+              <Switch
+                id="pref-faturas"
+                checked={tempPrefs.faturas_fechadas}
+                onCheckedChange={(c) => handleToggleTempPref('faturas_fechadas', c)}
+              />
+            </div>
+
+            <div className="pt-3 flex items-center justify-between">
+              <div className="space-y-0.5 pr-3">
+                <Label htmlFor="pref-orc80" className="text-sm font-medium">
+                  Orçamento 80%
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Aviso preventivo quando uma categoria atingir 80% do teto
+                </p>
+              </div>
+              <Switch
+                id="pref-orc80"
+                checked={tempPrefs.orcamento_80}
+                onCheckedChange={(c) => handleToggleTempPref('orcamento_80', c)}
+              />
+            </div>
+
+            <div className="pt-3 flex items-center justify-between">
+              <div className="space-y-0.5 pr-3">
+                <Label htmlFor="pref-orc100" className="text-sm font-medium">
+                  Orçamento 100%
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Alerta urgente quando o limite da categoria for ultrapassado
+                </p>
+              </div>
+              <Switch
+                id="pref-orc100"
+                checked={tempPrefs.orcamento_100}
+                onCheckedChange={(c) => handleToggleTempPref('orcamento_100', c)}
+              />
+            </div>
+
+            <div className="pt-3 flex items-center justify-between">
+              <div className="space-y-0.5 pr-3">
+                <Label htmlFor="pref-recorrentes" className="text-sm font-medium">
+                  Recorrentes geradas
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Confirmar quando uma transação recorrente for lançada
+                </p>
+              </div>
+              <Switch
+                id="pref-recorrentes"
+                checked={tempPrefs.recorrentes_geradas}
+                onCheckedChange={(c) => handleToggleTempPref('recorrentes_geradas', c)}
+              />
+            </div>
+
+            <div className="pt-3 flex items-center justify-between">
+              <div className="space-y-0.5 pr-3">
+                <Label htmlFor="pref-ultima" className="text-sm font-medium">
+                  Última parcela
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Notificar quando um parcelamento ou financiamento chegar ao fim
+                </p>
+              </div>
+              <Switch
+                id="pref-ultima"
+                checked={tempPrefs.ultima_parcela}
+                onCheckedChange={(c) => handleToggleTempPref('ultima_parcela', c)}
+              />
+            </div>
+
+            <div className="pt-3 flex items-center justify-between">
+              <div className="space-y-0.5 pr-3">
+                <Label htmlFor="pref-rotativo" className="text-sm font-medium">
+                  Saldo rotativo
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Alerta de juros ao pagar valor parcial da fatura
+                </p>
+              </div>
+              <Switch
+                id="pref-rotativo"
+                checked={tempPrefs.saldo_rotativo}
+                onCheckedChange={(c) => handleToggleTempPref('saldo_rotativo', c)}
+              />
+            </div>
+
+            <div className="pt-3 flex items-center justify-between">
+              <div className="space-y-0.5 pr-3">
+                <Label htmlFor="pref-resumo" className="text-sm font-medium">
+                  Resumo semanal
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Receber compilado dos gastos e metas todo domingo
+                </p>
+              </div>
+              <Switch
+                id="pref-resumo"
+                checked={tempPrefs.resumo_semanal}
+                onCheckedChange={(c) => handleToggleTempPref('resumo_semanal', c)}
+              />
+            </div>
           </div>
 
-          <div className="pt-3 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="pref-vencer" className="text-sm font-medium">
-                Contas a vencer
-              </Label>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Avisos 3 dias antes, na véspera e no dia do vencimento
-              </p>
-            </div>
-            <Switch
-              id="pref-vencer"
-              checked={prefs.contas_a_vencer}
-              onCheckedChange={(c) => handleTogglePref('contas_a_vencer', c)}
-            />
-          </div>
-
-          <div className="pt-3 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="pref-faturas" className="text-sm font-medium">
-                Faturas fechadas
-              </Label>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Avisar quando a fatura do cartão fechar para conferência
-              </p>
-            </div>
-            <Switch
-              id="pref-faturas"
-              checked={prefs.faturas_fechadas}
-              onCheckedChange={(c) => handleTogglePref('faturas_fechadas', c)}
-            />
-          </div>
-
-          <div className="pt-3 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="pref-orc80" className="text-sm font-medium">
-                Orçamento 80%
-              </Label>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Aviso preventivo quando uma categoria atingir 80% do teto
-              </p>
-            </div>
-            <Switch
-              id="pref-orc80"
-              checked={prefs.orcamento_80}
-              onCheckedChange={(c) => handleTogglePref('orcamento_80', c)}
-            />
-          </div>
-
-          <div className="pt-3 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="pref-orc100" className="text-sm font-medium">
-                Orçamento 100%
-              </Label>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Alerta urgente quando o limite da categoria for ultrapassado
-              </p>
-            </div>
-            <Switch
-              id="pref-orc100"
-              checked={prefs.orcamento_100}
-              onCheckedChange={(c) => handleTogglePref('orcamento_100', c)}
-            />
-          </div>
-
-          <div className="pt-3 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="pref-recorrentes" className="text-sm font-medium">
-                Recorrentes geradas
-              </Label>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Confirmar quando uma transação recorrente for lançada
-              </p>
-            </div>
-            <Switch
-              id="pref-recorrentes"
-              checked={prefs.recorrentes_geradas}
-              onCheckedChange={(c) => handleTogglePref('recorrentes_geradas', c)}
-            />
-          </div>
-
-          <div className="pt-3 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="pref-ultima" className="text-sm font-medium">
-                Última parcela
-              </Label>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Notificar quando um parcelamento ou financiamento chegar ao fim
-              </p>
-            </div>
-            <Switch
-              id="pref-ultima"
-              checked={prefs.ultima_parcela}
-              onCheckedChange={(c) => handleTogglePref('ultima_parcela', c)}
-            />
-          </div>
-
-          <div className="pt-3 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="pref-rotativo" className="text-sm font-medium">
-                Saldo rotativo
-              </Label>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Alerta de juros ao pagar valor parcial da fatura
-              </p>
-            </div>
-            <Switch
-              id="pref-rotativo"
-              checked={prefs.saldo_rotativo}
-              onCheckedChange={(c) => handleTogglePref('saldo_rotativo', c)}
-            />
-          </div>
-
-          <div className="pt-3 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="pref-resumo" className="text-sm font-medium">
-                Resumo semanal
-              </Label>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Receber compilado dos gastos e metas todo domingo
-              </p>
-            </div>
-            <Switch
-              id="pref-resumo"
-              checked={prefs.resumo_semanal}
-              onCheckedChange={(c) => handleTogglePref('resumo_semanal', c)}
-            />
-          </div>
-        </CardContent>
-      </Card>
+          <DialogFooter className="pt-3">
+            <Button variant="outline" onClick={() => setConfigOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSavePrefs} className="bg-[#166534] hover:bg-[#15803D]">
+              Salvar preferências
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

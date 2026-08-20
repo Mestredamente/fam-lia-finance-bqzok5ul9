@@ -8,13 +8,8 @@ import { Sidebar } from '@/components/Sidebar'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { OnboardingTour } from '@/components/OnboardingTour'
 import { PullToRefresh } from '@/components/PullToRefresh'
+import { FabMenu } from '@/components/FabMenu'
 
-/**
- * The mobile central FAB (in BottomNav) opens the same expanding FAB menu the
- * Dashboard renders. Rather than coupling BottomNav to Dashboard internals,
- * we broadcast a window event that the Dashboard listens for — so the FAB in
- * the bottom nav and the (desktop-only) standalone FAB share one menu.
- */
 const FAB_OPEN_EVENT = 'ff-open-fab-menu'
 
 export default function Layout() {
@@ -73,6 +68,7 @@ export default function Layout() {
           </PullToRefresh>
         </main>
       </div>
+      <FabMenu />
       <BottomNav onFabClick={handleFabClick} />
       <OnboardingTour />
     </div>

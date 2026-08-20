@@ -702,18 +702,6 @@ export default function Dashboard() {
 
       {orderedCards}
 
-      {/* Standalone FAB — desktop only. On mobile the central FAB in the bottom
-          nav opens the expanding FabMenu instead. */}
-      <button
-        data-tour="add-transaction"
-        onClick={openForm}
-        aria-label="Adicionar transação"
-        className="hidden lg:flex fixed bottom-8 right-8 w-14 h-14 rounded-full bg-[#166534] hover:bg-[#15803D] text-white items-center justify-center shadow-lg transition-transform active:scale-95 z-20"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
-        <Plus className="h-6 w-6" aria-hidden="true" />
-      </button>
-
       {/* Mobile-only expanding FAB menu + sheets */}
       <FabMenu
         open={showFabMenu && isMobile}
