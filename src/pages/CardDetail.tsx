@@ -256,14 +256,30 @@ export default function CardDetail() {
           {invoices.map((inv) => {
             const monthDate = new Date(inv.month_ref.split(' ')[0] + 'T00:00:00')
             const status = invoiceStatusConfig[inv.status] || invoiceStatusConfig.pending
-            const parseStatus = getParseStatus(inv)
+            const isSettled = inv.status === 'paid' || inv.status === 'partial'
+            const rawParseStatus = getParseStatus(inv)
+            // Se a fatura é paga ou parcial, não mostra badge nem mensagem de erro residual de parse
+            const parseStatus =
+              isSettled && (rawParseStatus === 'error' || rawParseStatus === 'processing')
+                ? 'none'
+                : rawParseStatus
             const parseConfig = parseStatusConfig[parseStatus]
-            const hasTimeout = timeoutErrorIds.has(inv.id) && parseStatus === 'processing'
-            const effectiveParseStatus: ParseStatus = hasTimeout ? 'error' : parseStatus
+            const hasTimeout =
+              !isSettled && timeoutErrorIds.has(inv.id) && parseStatus === 'processing'
+            const effectiveParseStatus: ParseStatus = isSettled
+              ? 'none'
+              : hasTimeout
+                ? 'error'
+                : parseStatus
             const effectiveParseConfig = hasTimeout ? parseStatusConfig.error : parseConfig
-            const errorMessage = hasTimeout
-              ? getErrorConfig('timeout').body
-              : getErrorConfig(detectErrorCode(getParseError(inv))).body
+            const errorMessage = isSettled
+              ? null
+              : hasTimeout
+                ? getErrorConfig('timeout').body
+                : (inv.status === 'pending' || (inv.status as string) === 'processing') &&
+                    effectiveParseStatus === 'error'
+                  ? getErrorConfig(detectErrorCode(getParseError(inv))).body
+                  : null
             return (
               <Card
                 key={inv.id}

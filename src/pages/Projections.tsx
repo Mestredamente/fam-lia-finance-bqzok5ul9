@@ -7,6 +7,8 @@ import {
   Calendar,
   AlertCircle,
   Repeat,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -63,6 +65,11 @@ export default function Projections() {
   const { investments, loading: investmentsLoading } = useInvestments(family?.id)
   const { recurring, loading: recurringLoading } = useRecurringTransactions(family?.id)
   const [filter, setFilter] = useState<'all' | 'card' | 'debt' | 'investment'>('all')
+  const [horizon, setHorizon] = useState<'12m' | '3y' | '5y' | 'all'>('12m')
+  const [expandedYears, setExpandedYears] = useState<Set<string>>(() => {
+    const currentYear = new Date().getFullYear().toString()
+    return new Set([currentYear])
+  })
   const [monthlyIncome, setMonthlyIncome] = useState(0)
 
   const isDark = useTheme().resolvedTheme === 'dark'
@@ -204,6 +211,69 @@ export default function Projections() {
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b))
   }, [filteredInstallments])
 
+  // Filtra monthlyMap de acordo com o horizonte selecionado
+  const displayedMonthlyMap = useMemo(() => {
+    if (horizon === 'all') return monthlyMap
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() // 0-based
+    const maxMonths = horizon === '12m' ? 12 : horizon === '3y' ? 36 : 60
+
+    return monthlyMap.filter(([key]) => {
+      const [yStr, mStr] = key.split('-')
+      const y = parseInt(yStr, 10)
+      const m = parseInt(mStr, 10) - 1
+      const diffMonths = (y - currentYear) * 12 + (m - currentMonth)
+      return diffMonths >= 0 && diffMonths < maxMonths
+    })
+  }, [monthlyMap, horizon])
+
+  // Agrupa os meses exibidos por ano
+  const groupedByYear = useMemo(() => {
+    const groups: {
+      year: string
+      months: [string, { total: number; count: number }][]
+      total: number
+    }[] = []
+    const mapByYear: Record<string, [string, { total: number; count: number }][]> = {}
+
+    for (const entry of displayedMonthlyMap) {
+      const year = entry[0].split('-')[0]
+      if (!mapByYear[year]) {
+        mapByYear[year] = []
+      }
+      mapByYear[year].push(entry)
+    }
+
+    for (const year of Object.keys(mapByYear).sort()) {
+      const months = mapByYear[year]
+      const total = months.reduce((sum, [, d]) => sum + d.total, 0)
+      groups.push({ year, months, total })
+    }
+
+    return groups
+  }, [displayedMonthlyMap])
+
+  const toggleYear = (year: string) => {
+    setExpandedYears((prev) => {
+      const next = new Set(prev)
+      if (next.has(year)) {
+        next.delete(year)
+      } else {
+        next.add(year)
+      }
+      return next
+    })
+  }
+
+  const scrollToYear = (year: string) => {
+    setExpandedYears((prev) => new Set(prev).add(year))
+    const el = document.getElementById(`year-section-${year}`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
   const totalFuture = filteredInstallments.reduce((s, t) => s + t.amount, 0)
   const totalInstallments = filteredInstallments.length
   const maxValue = monthlyMap.reduce((m, [, d]) => Math.max(m, d.total), 0)
@@ -326,57 +396,150 @@ export default function Projections() {
               </CardContent>
             </Card>
 
-            <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white dark:bg-card">
-              <CardContent className="p-5 space-y-3">
-                {monthlyMap.map(([key, data]) => {
-                  const widthPct = maxValue > 0 ? (data.total / maxValue) * 100 : 0
-                  // Na aba "Todos", calcula a composição de tipos do mês para exibir badges.
-                  const monthItems = filteredInstallments.filter(
-                    (t) => monthKey(t.transaction_date) === key,
-                  )
-                  const kinds = new Set(monthItems.map(classifyItem))
-                  return (
-                    <div key={key} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-medium text-gray-700 dark:text-gray-300">
-                            {getMonthName(parseInt(key.split('-')[1], 10) - 1)} {key.split('-')[0]}
-                          </span>
-                          {filter === 'all' && kinds.has('investment') && (
-                            <Badge className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                              Investimento
-                            </Badge>
-                          )}
-                          {filter === 'all' && kinds.has('debt') && (
-                            <Badge className="text-[10px] bg-red-100 text-red-700 hover:bg-red-100">
-                              Dívida
-                            </Badge>
-                          )}
-                          {filter === 'all' && kinds.has('card') && (
-                            <Badge className="text-[10px] bg-blue-100 text-blue-700 hover:bg-blue-100">
-                              Cartão
-                            </Badge>
-                          )}
-                        </span>
-                        <span className="text-gray-600">
-                          {formatBRL(data.total)} ({data.count}{' '}
-                          {data.count === 1 ? 'parcela' : 'parcelas'})
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden">
-                        <div
-                          className={cn(
-                            'h-full transition-all duration-500',
-                            isInvestmentTab ? 'bg-emerald-500' : 'bg-amber-500',
-                          )}
-                          style={{ width: `${widthPct}%` }}
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
-              </CardContent>
-            </Card>
+            {/* Filtro de horizonte e navegação rápida de anos */}
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <Tabs value={horizon} onValueChange={(v) => setHorizon(v as typeof horizon)}>
+                  <TabsList className="h-8">
+                    <TabsTrigger value="12m" className="text-xs px-2.5 py-1">
+                      12 meses
+                    </TabsTrigger>
+                    <TabsTrigger value="3y" className="text-xs px-2.5 py-1">
+                      3 anos
+                    </TabsTrigger>
+                    <TabsTrigger value="5y" className="text-xs px-2.5 py-1">
+                      5 anos
+                    </TabsTrigger>
+                    <TabsTrigger value="all" className="text-xs px-2.5 py-1">
+                      Tudo
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
+                {groupedByYear.length > 1 && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs text-gray-400">Ir para:</span>
+                    {groupedByYear.map((g) => (
+                      <button
+                        key={g.year}
+                        onClick={() => scrollToYear(g.year)}
+                        className="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 hover:bg-indigo-50 hover:text-indigo-600 dark:bg-gray-800 dark:hover:bg-indigo-950/40 text-gray-700 dark:text-gray-300 transition-colors"
+                      >
+                        {g.year}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {groupedByYear.length === 0 ? (
+                <Card className="border-dashed border-gray-200 dark:border-gray-700 rounded-2xl">
+                  <CardContent className="p-6 text-center text-xs text-gray-500 dark:text-gray-400">
+                    Nenhuma parcela no horizonte selecionado (
+                    {horizon === '12m'
+                      ? '12 meses'
+                      : horizon === '3y'
+                        ? '3 anos'
+                        : horizon === '5y'
+                          ? '5 anos'
+                          : 'Tudo'}
+                    ).
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {groupedByYear.map((group) => {
+                    const isExpanded = expandedYears.has(group.year)
+                    return (
+                      <Card
+                        key={group.year}
+                        id={`year-section-${group.year}`}
+                        className="border border-gray-100 dark:border-gray-800 shadow-subtle rounded-2xl bg-white dark:bg-card overflow-hidden scroll-mt-20"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleYear(group.year)}
+                          className="w-full p-4 flex items-center justify-between hover:bg-gray-50/75 dark:hover:bg-gray-800/40 transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-gray-500" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-gray-500" />
+                            )}
+                            <span className="font-bold text-sm text-gray-900 dark:text-foreground">
+                              {group.year}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              ({group.months.length} {group.months.length === 1 ? 'mês' : 'meses'})
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-xs text-gray-400 mr-2">Total anual:</span>
+                            <span className="font-bold text-sm text-gray-900 dark:text-foreground">
+                              {formatBRL(group.total)}
+                            </span>
+                          </div>
+                        </button>
+
+                        {isExpanded && (
+                          <CardContent className="p-5 pt-1 space-y-3 border-t border-gray-100 dark:border-gray-800/60">
+                            {group.months.map(([key, data]) => {
+                              const widthPct = maxValue > 0 ? (data.total / maxValue) * 100 : 0
+                              // Na aba "Todos", calcula a composição de tipos do mês para exibir badges.
+                              const monthItems = filteredInstallments.filter(
+                                (t) => monthKey(t.transaction_date) === key,
+                              )
+                              const kinds = new Set(monthItems.map(classifyItem))
+                              return (
+                                <div key={key} className="space-y-1">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="font-medium text-gray-700 dark:text-gray-300">
+                                        {getMonthName(parseInt(key.split('-')[1], 10) - 1)}{' '}
+                                        {key.split('-')[0]}
+                                      </span>
+                                      {filter === 'all' && kinds.has('investment') && (
+                                        <Badge className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                                          Investimento
+                                        </Badge>
+                                      )}
+                                      {filter === 'all' && kinds.has('debt') && (
+                                        <Badge className="text-[10px] bg-red-100 text-red-700 hover:bg-red-100">
+                                          Dívida
+                                        </Badge>
+                                      )}
+                                      {filter === 'all' && kinds.has('card') && (
+                                        <Badge className="text-[10px] bg-blue-100 text-blue-700 hover:bg-blue-100">
+                                          Cartão
+                                        </Badge>
+                                      )}
+                                    </span>
+                                    <span className="text-gray-600 dark:text-gray-400">
+                                      {formatBRL(data.total)} ({data.count}{' '}
+                                      {data.count === 1 ? 'parcela' : 'parcelas'})
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden">
+                                    <div
+                                      className={cn(
+                                        'h-full transition-all duration-500',
+                                        isInvestmentTab ? 'bg-emerald-500' : 'bg-amber-500',
+                                      )}
+                                      style={{ width: `${widthPct}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </CardContent>
+                        )}
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </>
         )}
       </section>

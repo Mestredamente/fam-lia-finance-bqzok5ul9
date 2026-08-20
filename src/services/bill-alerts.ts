@@ -21,9 +21,9 @@ export function generateBillAlerts(contas: BillItem[]): BillAlert[] {
   const horizon = new Date(today)
   horizon.setDate(horizon.getDate() + 3)
 
-  const overdue = contas.filter((c) => c.status === 'vencida')
+  const overdue = contas.filter((c) => c.status === 'vencida' && !c.transactionId)
   const upcoming = contas.filter((c) => {
-    if (c.status !== 'a_vencer') return false
+    if (c.status !== 'a_vencer' || c.transactionId) return false
     const due = new Date(c.dueDate)
     const d = new Date(due.getFullYear(), due.getMonth(), due.getDate())
     return d <= horizon

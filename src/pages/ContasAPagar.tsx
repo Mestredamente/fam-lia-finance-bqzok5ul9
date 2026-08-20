@@ -120,7 +120,7 @@ export default function ContasAPagar() {
   const visible = useMemo(() => {
     switch (tab) {
       case 'a_vencer':
-        return contas.filter((c) => c.status === 'a_vencer' || c.status === 'vencida')
+        return contas.filter((c) => c.status === 'a_vencer' || c.status === 'futura')
       case 'vencidas':
         return contas.filter((c) => c.status === 'vencida')
       case 'pagas':

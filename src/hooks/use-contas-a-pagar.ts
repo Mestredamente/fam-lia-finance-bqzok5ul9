@@ -82,6 +82,17 @@ export function useContasAPagar(familyId: string | undefined) {
         if (t.invoice_id) txByInvoice.set(t.invoice_id, t)
       }
 
+      console.log('[useContasAPagar] Total transações no mês:', monthTx.length, {
+        recurringMatches: txByRecurring.size,
+        investmentMatches: txByInvestment.size,
+        debtMatches: txByDebt.size,
+        invoiceMatches: txByInvoice.size,
+        mappedRecurringIds: Array.from(txByRecurring.keys()),
+        mappedInvestmentIds: Array.from(txByInvestment.keys()),
+        mappedDebtIds: Array.from(txByDebt.keys()),
+        mappedInvoiceIds: Array.from(txByInvoice.keys()),
+      })
+
       const items: BillItem[] = []
 
       // ── Recurring transactions ──
@@ -96,6 +107,13 @@ export function useContasAPagar(familyId: string | undefined) {
         if (!day || day < 1 || day > 31) continue
         const dueDate = computeDueDate(day, now)
         const paidTx = txByRecurring.get(r.id)
+        if (!paidTx) {
+          console.log('[useContasAPagar] Sem match em transação para recurring:', {
+            originId: r.id,
+            description: r.description,
+            mappedIds: Array.from(txByRecurring.keys()),
+          })
+        }
         const status = paidTx ? 'paga' : deriveStatus(dueDate, now)
         items.push({
           id: `recurring-${r.id}`,
@@ -122,7 +140,18 @@ export function useContasAPagar(familyId: string | undefined) {
         if (!dueDay || dueDay < 1 || dueDay > 31) continue
         const dueDate = computeDueDate(dueDay, now)
         const paidTx = txByInvestment.get(inv.id)
-        const status = paidTx ? 'paga' : deriveStatus(dueDate, now)
+        const isPaidByStatus = inv.status === 'paid_off'
+        if (!paidTx) {
+          console.log('[useContasAPagar] Sem match em transação para investment:', {
+            originId: inv.id,
+            name: inv.name,
+            invStatus: inv.status,
+            isPaidByStatus,
+            mappedIds: Array.from(txByInvestment.keys()),
+          })
+        }
+        const isPaid = !!paidTx || isPaidByStatus
+        const status = isPaid ? 'paga' : deriveStatus(dueDate, now)
         items.push({
           id: `investment-${inv.id}`,
           description: inv.name,
@@ -142,12 +171,25 @@ export function useContasAPagar(familyId: string | undefined) {
       // ── Debts ──
       for (const d of debts) {
         if (!d.is_active) continue
-        if (d.status === 'paid_off') continue
+        const isPaidByStatus =
+          d.status === 'paid_off' ||
+          (d.installments_total > 0 && d.installments_paid >= d.installments_total)
+        if (isPaidByStatus) continue
         const dueDay = d.due_day
         if (!dueDay || dueDay < 1 || dueDay > 31) continue
         const dueDate = computeDueDate(dueDay, now)
         const paidTx = txByDebt.get(d.id)
-        const status = paidTx ? 'paga' : deriveStatus(dueDate, now)
+        if (!paidTx) {
+          console.log('[useContasAPagar] Sem match em transação para debt:', {
+            originId: d.id,
+            description: d.description,
+            debtStatus: d.status,
+            isPaidByStatus,
+            mappedIds: Array.from(txByDebt.keys()),
+          })
+        }
+        const isPaid = !!paidTx || isPaidByStatus
+        const status = isPaid ? 'paga' : deriveStatus(dueDate, now)
         const total = d.installments_total ?? 0
         const paid = d.installments_paid ?? 0
         items.push({
@@ -166,10 +208,8 @@ export function useContasAPagar(familyId: string | undefined) {
         })
       }
 
-      // ── Card invoices (unpaid or partially paid) ──
+      // ── Card invoices (unpaid, partially paid, or paid in month) ──
       for (const inv of invoices) {
-        // Skip invoices that are fully paid via the payment flow.
-        if (inv.status === 'paid') continue
         // Only show invoices with a positive amount.
         if (!inv.total_amount || inv.total_amount <= 0) continue
 
@@ -183,15 +223,27 @@ export function useContasAPagar(familyId: string | undefined) {
         if (!dueDate) continue
 
         // Skip invoices whose due date is before the start of the current
-        // month AND are not "partial" (fully stale, already-paid-history).
-        // Partial invoices stay visible so the user can settle the rotativo.
-        if (inv.status !== 'partial') {
+        // month AND are not "partial" or "paid" in the current month.
+        if (inv.status !== 'partial' && inv.status !== 'paid') {
           const startOfCurrentMonth = new Date(year, month, 1)
           if (dueDate < startOfCurrentMonth) continue
         }
 
         const paidTx = txByInvoice.get(inv.id)
-        const status: BillStatus = paidTx
+        const isPaidByInvoiceStatus = inv.status === 'paid'
+        if (!paidTx) {
+          console.log('[useContasAPagar] Sem match em transação para invoice:', {
+            originId: inv.id,
+            cardName,
+            invoiceStatus: inv.status,
+            isPaidByInvoiceStatus,
+            mappedIds: Array.from(txByInvoice.keys()),
+          })
+        }
+
+        // Se a fatura é status='paid' ou encontramos transação correspondente, é paga
+        const isPaid = !!paidTx || isPaidByInvoiceStatus
+        const status: BillStatus = isPaid
           ? 'paga'
           : inv.status === 'partial'
             ? 'a_vencer'
@@ -209,7 +261,7 @@ export function useContasAPagar(familyId: string | undefined) {
           originId: inv.id,
           extraInfo: inv.status === 'partial' ? 'Pagamento parcial' : undefined,
           type: 'expense',
-          paidDate: paidTx?.transaction_date,
+          paidDate: paidTx?.transaction_date || inv.paid_at || undefined,
           transactionId: paidTx?.id,
           cardId: inv.card_id,
           cardName,
