@@ -101,7 +101,28 @@ export default function Dashboard() {
   const generatePdf = useGeneratePdf(pdfCaptureRef)
   const { installments: futureInstallments } = useFutureInstallments(family?.id)
   const { contas: bills } = useContasAPagar(family?.id)
-  const billAlerts = useMemo(() => generateBillAlerts(bills), [bills])
+  const billAlerts = useMemo(() => {
+    const alerts = generateBillAlerts(bills)
+    // Filter only bill-specific alerts for the dashboard top banners
+    const overdue = alerts.filter((a) => a.type === 'bill_overdue')
+    const upcoming = alerts.filter((a) => a.type === 'bill_due')
+    const result: Array<{ type: 'overdue' | 'upcoming'; count: number; total: number }> = []
+    if (overdue.length > 0) {
+      result.push({
+        type: 'overdue',
+        count: overdue.length,
+        total: overdue.reduce((sum, item) => sum + (item.amount || 0), 0),
+      })
+    }
+    if (upcoming.length > 0) {
+      result.push({
+        type: 'upcoming',
+        count: upcoming.length,
+        total: upcoming.reduce((sum, item) => sum + (item.amount || 0), 0),
+      })
+    }
+    return result
+  }, [bills])
 
   // Holds the AI-generated emotional insights surfaced by the
   // EmotionalSpendingCard so they can be included in the PDF export. Using a

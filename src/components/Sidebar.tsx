@@ -18,6 +18,7 @@ import {
   Users,
   CalendarClock,
   Target,
+  Bell,
   type LucideIcon,
 } from 'lucide-react'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -51,6 +52,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Transações', path: '/transacoes', icon: List },
       { label: 'Cartões', path: '/cards', icon: CreditCard },
       { label: 'Contas a Pagar', path: '/contas', icon: CalendarClock },
+      { label: 'Notificações', path: '/notificacoes', icon: Bell },
       { label: 'Orçamentos', path: '/orcamentos', icon: Wallet, perm: 'canViewBudgets' },
     ],
   },

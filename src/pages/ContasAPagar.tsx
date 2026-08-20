@@ -9,6 +9,7 @@ import {
   Loader2,
   Pencil,
   CreditCard,
+  Trash2,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useContasAPagar, buildBillPaymentPayload } from '@/hooks/use-contas-a-pagar'
@@ -22,6 +23,16 @@ import { TransactionFormSheet, type TransactionPrefill } from '@/components/Tran
 import { InvestmentDetailSheet } from '@/components/InvestmentDetailSheet'
 import { DebtDetailSheet } from '@/components/DebtDetailSheet'
 import { InvoicePaymentDialog } from '@/components/InvoicePaymentDialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import pb from '@/lib/pocketbase/client'
 import { getInvestmentsByFamilyId } from '@/services/investments'
 import { getDebtsByFamilyId } from '@/services/debts'
@@ -103,6 +114,10 @@ export default function ContasAPagar() {
   const [showInvDetail, setShowInvDetail] = useState(false)
   const [detailDebt, setDetailDebt] = useState<DebtRecord | null>(null)
   const [showDebtDetail, setShowDebtDetail] = useState(false)
+
+  // ── Delete confirmation ──
+  const [billToDelete, setBillToDelete] = useState<BillItem | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Pending pay action per item (avoids duplicate creates on double-click).
   const [payingId, setPayingId] = useState<string | null>(null)
@@ -235,6 +250,37 @@ export default function ContasAPagar() {
     [family, navigate],
   )
 
+  const handleConfirmDelete = useCallback(async () => {
+    if (!billToDelete) return
+    setDeleting(true)
+    try {
+      if (billToDelete.source === 'recurring') {
+        await pb
+          .collection('recurring_transactions')
+          .update(billToDelete.originId, { active: false })
+        toast({ title: 'Recorrente desativada. Não gerará mais contas.' })
+      } else if (billToDelete.source === 'debt') {
+        await pb
+          .collection('debts')
+          .update(billToDelete.originId, { status: 'cancelled', is_active: false })
+        toast({ title: 'Dívida cancelada.' })
+      } else if (billToDelete.source === 'investment') {
+        await pb.collection('investments').update(billToDelete.originId, { is_active: false })
+        toast({ title: 'Investimento concluído.' })
+      }
+      setBillToDelete(null)
+      await refetch()
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao excluir',
+        description: err instanceof Error ? err.message : undefined,
+      })
+    } finally {
+      setDeleting(false)
+    }
+  }, [billToDelete, refetch])
+
   if (!family) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -335,6 +381,7 @@ export default function ContasAPagar() {
             onMarkPaid={handleMarkPaid}
             onPayNow={handlePayNow}
             onViewDetail={handleViewDetail}
+            onDelete={(bill) => setBillToDelete(bill)}
           />
           <BillGroup
             title="Esta semana"
@@ -344,6 +391,7 @@ export default function ContasAPagar() {
             onMarkPaid={handleMarkPaid}
             onPayNow={handlePayNow}
             onViewDetail={handleViewDetail}
+            onDelete={(bill) => setBillToDelete(bill)}
           />
           <BillGroup
             title="Próximas"
@@ -353,6 +401,7 @@ export default function ContasAPagar() {
             onMarkPaid={handleMarkPaid}
             onPayNow={handlePayNow}
             onViewDetail={handleViewDetail}
+            onDelete={(bill) => setBillToDelete(bill)}
           />
           <BillGroup
             title="Pagas este mês"
@@ -362,6 +411,7 @@ export default function ContasAPagar() {
             onMarkPaid={handleMarkPaid}
             onPayNow={handlePayNow}
             onViewDetail={handleViewDetail}
+            onDelete={(bill) => setBillToDelete(bill)}
             readonly
           />
         </div>
@@ -443,6 +493,44 @@ export default function ContasAPagar() {
           setShowDebtDetail(false)
         }}
       />
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog
+        open={Boolean(billToDelete)}
+        onOpenChange={(open) => {
+          if (!open) setBillToDelete(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {billToDelete?.source === 'recurring'
+                ? 'Excluir conta recorrente?'
+                : billToDelete?.source === 'debt'
+                  ? 'Cancelar esta dívida?'
+                  : 'Concluir este investimento?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {billToDelete?.source === 'recurring' &&
+                'Excluir esta conta recorrente? Ela não gerará mais transações futuras. Transações já criadas não serão afetadas.'}
+              {billToDelete?.source === 'debt' &&
+                'Cancelar esta dívida? Ela não aparecerá mais em Contas a Pagar. Parcelas já pagas permanecem no histórico.'}
+              {billToDelete?.source === 'investment' &&
+                'Concluir este investimento? Ele não aparecerá mais em Contas a Pagar.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleting ? 'Excluindo...' : 'Confirmar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -505,6 +593,7 @@ function BillGroup({
   onMarkPaid,
   onPayNow,
   onViewDetail,
+  onDelete,
   readonly,
 }: {
   title: string
@@ -514,6 +603,7 @@ function BillGroup({
   onMarkPaid: (bill: BillItem) => void
   onPayNow: (bill: BillItem) => void
   onViewDetail: (bill: BillItem) => void
+  onDelete: (bill: BillItem) => void
   readonly?: boolean
 }) {
   if (items.length === 0) return null
@@ -535,6 +625,7 @@ function BillGroup({
             onMarkPaid={() => onMarkPaid(bill)}
             onPayNow={() => onPayNow(bill)}
             onViewDetail={() => onViewDetail(bill)}
+            onDelete={() => onDelete(bill)}
             readonly={readonly}
           />
         ))}
@@ -549,6 +640,7 @@ function BillRow({
   onMarkPaid,
   onPayNow,
   onViewDetail,
+  onDelete,
   readonly,
 }: {
   bill: BillItem
@@ -556,6 +648,7 @@ function BillRow({
   onMarkPaid: () => void
   onPayNow: () => void
   onViewDetail: () => void
+  onDelete: () => void
   readonly?: boolean
 }) {
   const Icon = SOURCE_ICON[bill.source]
@@ -694,6 +787,18 @@ function BillRow({
                   title="Ver detalhe"
                 >
                   <Receipt className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              {bill.source !== 'invoice' && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={onDelete}
+                  className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40"
+                  aria-label="Excluir"
+                  title="Excluir"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               )}
             </div>

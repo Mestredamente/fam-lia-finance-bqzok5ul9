@@ -496,11 +496,59 @@ export interface BillSummary {
   countVencidas: number
 }
 
+export type BillAlertType =
+  | 'overdue'
+  | 'upcoming'
+  | 'invoice_ready'
+  | 'budget_warning'
+  | 'budget_exceeded'
+  | 'last_installment'
+  | 'rotativo'
+
 export interface BillAlert {
-  type: 'overdue' | 'upcoming'
+  type: BillAlertType
   count: number
   total: number
   accounts: BillItem[]
+}
+
+export type AppAlertType =
+  | 'bill_overdue'
+  | 'bill_due'
+  | 'invoice_ready'
+  | 'budget_warning'
+  | 'budget_exceeded'
+  | 'last_installment'
+  | 'rotativo'
+
+export interface AppAlert {
+  type: AppAlertType
+  title: string
+  description: string
+  amount?: number
+  actionUrl: string
+  actionLabel: string
+  priority: 'high' | 'medium' | 'low'
+  iconColor: string
+  createdAt?: string
+}
+
+export type NotificationAlert = AppAlert
+
+export interface BudgetAlertInput {
+  categoryId: string
+  categoryName: string
+  spent: number
+  limit: number
+}
+
+export interface InvoiceAlertInput {
+  id: string
+  cardName: string
+  cardId?: string
+  totalAmount: number
+  status: string
+  createdAt: string
 }
 
 export type AmortizationSystem = 'PRICE' | 'SAC' | 'Livre'
