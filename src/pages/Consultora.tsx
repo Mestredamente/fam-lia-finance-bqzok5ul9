@@ -373,11 +373,20 @@ export default function Consultora() {
     sendMessage(suggestion)
   }
 
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')
+  const isLastErrorFromAudio = lastUserMsg?.isAudio === true
+
   const handleRetry = () => {
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')
-    if (lastUserMsg) {
-      setMessages((prev) => prev.slice(0, -1))
-      sendMessage(lastUserMsg.content)
+    const lastMsg = [...messages].reverse().find((m) => m.role === 'user')
+    if (lastMsg) {
+      if (lastMsg.isAudio) {
+        // Se for áudio, não reenviar como texto; iniciar gravação
+        setError(false)
+        handleStartMic()
+      } else {
+        setMessages((prev) => prev.slice(0, -1))
+        sendMessage(lastMsg.content)
+      }
     }
   }
 
@@ -403,7 +412,8 @@ export default function Consultora() {
       family_id: family.id,
       user_id: member?.id || '',
       role: 'user',
-      content: '🎤 Mensagem de áudio enviada',
+      content: '🎤 Áudio enviado',
+      isAudio: true,
       created: new Date().toISOString(),
       updated: new Date().toISOString(),
     }
@@ -619,20 +629,52 @@ export default function Consultora() {
           <div className="space-y-2 animate-fade-in">
             <ChatMessage
               role="assistant"
-              content="Desculpe, tive um problema ao processar sua solicitação. Pode tentar novamente?"
+              content={
+                isLastErrorFromAudio
+                  ? 'Desculpe, não consegui processar seu áudio. O que deseja fazer?'
+                  : 'Desculpe, tive um problema ao processar sua solicitação. Pode tentar novamente?'
+              }
               userName={user?.name}
               userAvatar={user?.avatar}
               userId={user?.id}
             />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRetry}
-              className="ml-10 border-gray-300 text-gray-600"
-            >
-              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-              Tentar novamente
-            </Button>
+            {isLastErrorFromAudio ? (
+              <div className="ml-10 flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setError(false)
+                    handleStartMic()
+                  }}
+                  className="border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+                >
+                  <Mic className="h-3.5 w-3.5 mr-1.5" />
+                  Gravar novamente
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setError(false)
+                    inputRef.current?.focus()
+                  }}
+                  className="border-gray-300 text-gray-600 hover:bg-gray-50"
+                >
+                  Digitar texto
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRetry}
+                className="ml-10 border-gray-300 text-gray-600"
+              >
+                <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                Tentar novamente
+              </Button>
+            )}
           </div>
         )}
       </div>

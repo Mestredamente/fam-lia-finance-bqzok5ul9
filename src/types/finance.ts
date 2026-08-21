@@ -360,6 +360,7 @@ export interface AIConversationRecord {
   user_id: string
   role: 'user' | 'assistant'
   content: string
+  isAudio?: boolean
   created: string
   updated: string
 }
