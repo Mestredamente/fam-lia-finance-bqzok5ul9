@@ -34,6 +34,7 @@ import { seedDefaultCategories } from '@/services/categories'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
+import { formatBRL } from '@/lib/utils'
 
 const step1Schema = z.object({
   name: z.string().min(2, 'Nome muito curto'),

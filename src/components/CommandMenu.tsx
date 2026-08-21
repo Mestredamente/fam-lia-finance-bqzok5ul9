@@ -37,7 +37,7 @@ interface SearchResultTx {
   id: string
   description: string
   amount: number
-  type: 'income' | 'expense'
+  type: 'income' | 'expense' | 'transfer'
   transaction_date: string
 }
 

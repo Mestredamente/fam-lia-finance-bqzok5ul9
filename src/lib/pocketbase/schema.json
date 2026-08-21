@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-21T02:26:54.030Z",
+  "generatedAt": "2026-08-21T02:55:16.947Z",
   "collections": [
     {
       "name": "users",
@@ -2271,6 +2271,79 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_accounts_family_id ON accounts (family_id)"]
+    },
+    {
+      "name": "ai_action_logs",
+      "type": "base",
+      "apiRules": {
+        "list": "user_id.user_id = @request.auth.id || family_id.created_by = @request.auth.id",
+        "view": "user_id.user_id = @request.auth.id || family_id.created_by = @request.auth.id",
+        "create": "@request.auth.id != ''",
+        "update": null,
+        "delete": "family_id.created_by = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "family_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "families"
+        },
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "members"
+        },
+        {
+          "name": "action_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["create_challenge", "create_task"]
+        },
+        {
+          "name": "params",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["confirmed", "cancelled", "failed"]
+        },
+        {
+          "name": "created_record_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_ai_action_logs_family ON ai_action_logs (family_id)",
+        "CREATE INDEX idx_ai_action_logs_user ON ai_action_logs (user_id)",
+        "CREATE INDEX idx_ai_action_logs_created ON ai_action_logs (created)",
+        "CREATE INDEX idx_ai_action_logs_status ON ai_action_logs (status)"
+      ]
     }
   ]
 }

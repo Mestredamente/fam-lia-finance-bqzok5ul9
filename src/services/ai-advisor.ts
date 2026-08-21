@@ -1,7 +1,7 @@
 import pb from '@/lib/pocketbase/client'
 import type { AIInsight } from '@/types/finance'
 
-interface ChatContextMessage {
+export interface ChatContextMessage {
   role: string
   content: string
 }
@@ -18,6 +18,23 @@ export interface ChatResponse {
 
 export interface AdvisorErrorResponse {
   error: string
+}
+
+export interface FinancialActionResponse {
+  success: boolean
+  executable: boolean
+  action?: 'create_challenge' | 'create_task'
+  params?: Record<string, unknown>
+  summary?: string
+  response?: string // quando executable=false
+  error?: string
+}
+
+export interface ConfirmActionResponse {
+  success: boolean
+  created?: { id: string; [key: string]: unknown }
+  message?: string
+  error?: string
 }
 
 export const getInsights = (
@@ -44,6 +61,40 @@ export const chat = (
       type: 'chat',
       message,
       context: context || [],
+    }),
+    headers: { 'Content-Type': 'application/json' },
+  })
+
+export const executeAction = (
+  familyId: string,
+  memberId: string,
+  message: string,
+  context?: ChatContextMessage[],
+): Promise<FinancialActionResponse | AdvisorErrorResponse> =>
+  pb.send('/backend/v1/financial-actions', {
+    method: 'POST',
+    body: JSON.stringify({
+      family_id: familyId,
+      user_id: memberId,
+      message,
+      context: context || [],
+    }),
+    headers: { 'Content-Type': 'application/json' },
+  })
+
+export const confirmAction = (
+  action: string,
+  params: Record<string, unknown>,
+  familyId: string,
+  memberId: string,
+): Promise<ConfirmActionResponse> =>
+  pb.send('/backend/v1/financial-actions/confirm', {
+    method: 'POST',
+    body: JSON.stringify({
+      action,
+      params,
+      family_id: familyId,
+      user_id: memberId,
     }),
     headers: { 'Content-Type': 'application/json' },
   })
