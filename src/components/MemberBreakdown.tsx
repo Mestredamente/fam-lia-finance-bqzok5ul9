@@ -1,9 +1,11 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { MemberRecord } from '@/types/finance'
-import { formatBRL, cn } from '@/lib/utils'
+import { cn } from '@/lib/utils'
+import { usePrivacy } from '@/hooks/use-privacy'
 import { getMemberAvatarUrl } from '@/lib/member-utils'
 import type { MemberSummary } from '@/hooks/use-monthly-summary'
+import { Users } from 'lucide-react'
 
 interface MemberBreakdownProps {
   members: MemberRecord[]
@@ -34,6 +36,8 @@ export function MemberBreakdown({
   loading,
   onMemberClick,
 }: MemberBreakdownProps) {
+  const { formatCurrency } = usePrivacy()
+
   const activeMembers = members.filter((m) => m.is_active)
 
   if (loading) {
@@ -64,8 +68,86 @@ export function MemberBreakdown({
     return { m, income, expenses, balance }
   })
 
+  const totalIncome = rows.reduce((s, r) => s + r.income, 0)
+  const totalExpenses = rows.reduce((s, r) => s + r.expenses, 0)
+  const totalBalance = totalIncome - totalExpenses
+
   return (
     <div className="w-full">
+      {/* TOTAL FAMÍLIA — linha de total consolidado no topo do card.
+          Fundo levemente destacado (bg-primary/5), fonte bold. Visível em
+          mobile e desktop. */}
+      <div className="mb-3 rounded-lg bg-primary/5 border border-primary/10 p-2.5">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Users className="h-3.5 w-3.5 text-primary" />
+          <span className="text-xs font-bold uppercase tracking-wide text-primary">
+            Total Família
+          </span>
+        </div>
+        {/* Mobile: grid 3 colunas */}
+        <div className="grid grid-cols-3 gap-2 sm:hidden">
+          <div className="min-w-0">
+            <span className="block whitespace-nowrap text-[10px] uppercase text-muted-foreground">
+              Rec.
+            </span>
+            <span className="block truncate text-xs font-bold tabular-nums text-green-600 dark:text-green-500">
+              {formatCurrency(totalIncome)}
+            </span>
+          </div>
+          <div className="min-w-0">
+            <span className="block whitespace-nowrap text-[10px] uppercase text-muted-foreground">
+              Desp.
+            </span>
+            <span className="block truncate text-xs font-bold tabular-nums text-red-600 dark:text-red-400">
+              {formatCurrency(totalExpenses)}
+            </span>
+          </div>
+          <div className="min-w-0">
+            <span className="block whitespace-nowrap text-[10px] uppercase text-muted-foreground">
+              Saldo
+            </span>
+            <span
+              className={cn(
+                'block truncate text-xs font-bold tabular-nums',
+                totalBalance >= 0
+                  ? 'text-green-600 dark:text-green-500'
+                  : 'text-red-600 dark:text-red-400',
+              )}
+            >
+              {formatCurrency(totalBalance)}
+            </span>
+          </div>
+        </div>
+        {/* Desktop: linha única alinhada à direita */}
+        <div className="hidden sm:flex sm:items-center sm:justify-end sm:gap-6">
+          <div className="text-right">
+            <span className="block text-[10px] uppercase text-muted-foreground">Receitas</span>
+            <span className="block text-sm font-bold tabular-nums text-green-600 dark:text-green-500">
+              {formatCurrency(totalIncome)}
+            </span>
+          </div>
+          <div className="text-right">
+            <span className="block text-[10px] uppercase text-muted-foreground">Despesas</span>
+            <span className="block text-sm font-bold tabular-nums text-red-600 dark:text-red-400">
+              {formatCurrency(totalExpenses)}
+            </span>
+          </div>
+          <div className="text-right">
+            <span className="block text-[10px] uppercase text-muted-foreground">Saldo</span>
+            <span
+              className={cn(
+                'block text-sm font-bold tabular-nums',
+                totalBalance >= 0
+                  ? 'text-green-600 dark:text-green-500'
+                  : 'text-red-600 dark:text-red-400',
+              )}
+            >
+              {formatCurrency(totalBalance)}
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* MOBILE: stacked cards (< 640px) */}
       <div className="flex flex-col gap-2 sm:hidden">
         {rows.map(({ m, income, expenses, balance }) => {
@@ -88,14 +170,13 @@ export function MemberBreakdown({
                 <span className="block truncate text-sm font-medium leading-tight">
                   {shortName}
                 </span>
-
                 <div className="mt-1 grid grid-cols-3 gap-2">
                   <div className="min-w-0">
                     <span className="block whitespace-nowrap text-xs text-muted-foreground">
                       Rec.
                     </span>
                     <span className="block truncate text-xs font-medium tabular-nums text-green-600 dark:text-green-500">
-                      {formatBRL(income)}
+                      {formatCurrency(income)}
                     </span>
                   </div>
                   <div className="min-w-0">
@@ -103,7 +184,7 @@ export function MemberBreakdown({
                       Desp.
                     </span>
                     <span className="block truncate text-xs font-medium tabular-nums text-red-600 dark:text-red-400">
-                      {formatBRL(expenses)}
+                      {formatCurrency(expenses)}
                     </span>
                   </div>
                   <div className="min-w-0">
@@ -118,10 +199,10 @@ export function MemberBreakdown({
                           : 'text-red-600 dark:text-red-400',
                       )}
                     >
-                      {formatBRL(balance)}
+                      {formatCurrency(balance)}
                     </span>
                   </div>
-                </div>
+                </div>{' '}
               </div>
             </button>
           )
@@ -162,10 +243,10 @@ export function MemberBreakdown({
                   </div>
                 </td>
                 <td className="text-xs font-medium text-right tabular-nums px-2 py-2 text-green-600 dark:text-green-500">
-                  {formatBRL(income)}
+                  {formatCurrency(income)}
                 </td>
                 <td className="text-xs font-medium text-right tabular-nums px-2 py-2 text-red-600 dark:text-red-400">
-                  {formatBRL(expenses)}
+                  {formatCurrency(expenses)}
                 </td>
                 <td
                   className={cn(
@@ -175,7 +256,7 @@ export function MemberBreakdown({
                       : 'text-red-600 dark:text-red-400',
                   )}
                 >
-                  {formatBRL(balance)}
+                  {formatCurrency(balance)}
                 </td>
               </tr>
             )
