@@ -165,7 +165,7 @@ export interface FixedBill {
 
 export type CategoryType = 'expense' | 'income' | 'investment' | 'debt'
 
-export type TransactionType = 'expense' | 'income'
+export type TransactionType = 'expense' | 'income' | 'transfer'
 
 export type TransactionSource =
   | 'manual'
@@ -189,6 +189,8 @@ export interface TransactionRecord {
   is_shared: boolean
   is_fixed: boolean
   source: TransactionSource
+  account_id?: string | null
+  transfer_to_account_id?: string | null
   invoice_item_id?: string | null
   status?: 'pending' | 'paid'
   purchase_date?: string | null
@@ -212,6 +214,8 @@ export interface TransactionRecord {
     owner_id?: MemberRecord
     category_id?: CategoryRecord
     recurring_id?: RecurringTransaction
+    account_id?: import('./accounts').Account
+    transfer_to_account_id?: import('./accounts').Account
   }
 }
 

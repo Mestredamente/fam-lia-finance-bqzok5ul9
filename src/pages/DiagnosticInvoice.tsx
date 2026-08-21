@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { formatBRL } from '@/lib/utils'
 import { AlertCircle, CheckCircle2, Loader2, Bug, Clock, FileText } from 'lucide-react'
 import {
   runParseInvoiceDiagnostic,
@@ -215,8 +216,8 @@ export default function DiagnosticInvoice() {
                     {String((bodyObj as Record<string, unknown>).items_count)}
                   </div>
                   <div>
-                    <span className="font-semibold">Total:</span> R${' '}
-                    {Number((bodyObj as Record<string, unknown>).total).toFixed(2)}
+                    <span className="font-semibold">Total:</span>{' '}
+                    {formatBRL(Number((bodyObj as Record<string, unknown>).total || 0))}
                   </div>
                   <div>
                     <span className="font-semibold">Confiança:</span>{' '}

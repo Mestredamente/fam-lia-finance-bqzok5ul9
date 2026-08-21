@@ -19,7 +19,7 @@ import { getTransactionsByMember } from '@/services/transactions'
 import { toast } from '@/hooks/use-toast'
 import { getPortugueseError } from '@/lib/error-utils'
 import { EMOTION_LIST, TRIGGER_SUGGESTIONS } from '@/lib/wellness-constants'
-import { cn } from '@/lib/utils'
+import { cn, formatBRL } from '@/lib/utils'
 import type { EmotionalJournalRecord, TransactionRecord, EmotionType } from '@/types/finance'
 
 const schema = z.object({
@@ -203,7 +203,7 @@ export function EmotionalDiaryFormSheet({
                   <SelectItem value="none">Nenhuma</SelectItem>
                   {transactions.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
-                      {t.description} — R$ {t.amount.toFixed(2)}
+                      {t.description} — {formatBRL(t.amount)}
                     </SelectItem>
                   ))}
                 </SelectContent>

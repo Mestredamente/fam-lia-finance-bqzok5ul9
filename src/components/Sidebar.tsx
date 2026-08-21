@@ -51,6 +51,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Transações', path: '/transacoes', icon: List },
       { label: 'Cartões', path: '/cards', icon: CreditCard },
+      { label: 'Contas', path: '/contas-bancarias', icon: Wallet },
       { label: 'Contas a Pagar', path: '/contas', icon: CalendarClock },
       { label: 'Orçamentos', path: '/orcamentos', icon: Wallet, perm: 'canViewBudgets' },
     ],
@@ -60,6 +61,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Balanço', path: '/patrimonio', icon: PiggyBank, perm: 'canViewPatrimony' },
       { label: 'Investimentos', path: '/investimentos', icon: TrendingUp },
+      { label: 'Dívidas', path: '/dividas', icon: FileText },
     ],
   },
   {
@@ -67,7 +69,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Projeções', path: '/projections', icon: CalendarClock },
       { label: 'Metas', path: '/metas', icon: Target },
-      { label: 'Dívidas', path: '/dividas', icon: FileText },
       { label: 'Tarefas', path: '/casa', icon: CheckSquare },
       { label: 'Desafios', path: '/challenges', icon: Trophy },
     ],

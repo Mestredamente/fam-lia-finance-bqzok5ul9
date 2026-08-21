@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-21T02:10:20.615Z",
+  "generatedAt": "2026-08-21T02:26:54.030Z",
   "collections": [
     {
       "name": "users",
@@ -631,7 +631,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["expense", "income"]
+          "selectValues": ["expense", "income", "transfer"]
         },
         {
           "name": "investment_id",
@@ -680,6 +680,20 @@
           "required": false,
           "system": false,
           "collectionRef": "credit_cards"
+        },
+        {
+          "name": "account_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "accounts"
+        },
+        {
+          "name": "transfer_to_account_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "accounts"
         }
       ],
       "indexes": [
@@ -688,7 +702,9 @@
         "CREATE INDEX idx_transactions_category_id ON transactions (category_id)",
         "CREATE INDEX `idx_transactions_transaction_date` ON `transactions` (transaction_date)",
         "CREATE INDEX `idx_transactions_recurring_id` ON `transactions` (recurring_id)",
-        "CREATE INDEX `idx_transactions_investment_id` ON `transactions` (investment_id)"
+        "CREATE INDEX `idx_transactions_investment_id` ON `transactions` (investment_id)",
+        "CREATE INDEX `idx_transactions_account_id` ON `transactions` (account_id)",
+        "CREATE INDEX `idx_transactions_transfer_to_account_id` ON `transactions` (transfer_to_account_id)"
       ]
     },
     {
@@ -2177,6 +2193,84 @@
         "CREATE INDEX idx_savings_goals_status ON savings_goals (status)",
         "CREATE INDEX idx_savings_goals_deadline ON savings_goals (deadline)"
       ]
+    },
+    {
+      "name": "accounts",
+      "type": "base",
+      "apiRules": {
+        "list": "family_id.created_by = @request.auth.id || @request.auth.id != \"\"",
+        "view": "family_id.created_by = @request.auth.id || @request.auth.id != \"\"",
+        "create": "@request.auth.id != ''",
+        "update": "family_id.created_by = @request.auth.id || @request.auth.id != \"\"",
+        "delete": "family_id.created_by = @request.auth.id || @request.auth.id != \"\""
+      },
+      "fields": [
+        {
+          "name": "family_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "families"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["checking", "savings", "wallet", "investment"]
+        },
+        {
+          "name": "bank",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "initial_balance",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "color",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "icon",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_accounts_family_id ON accounts (family_id)"]
     }
   ]
 }

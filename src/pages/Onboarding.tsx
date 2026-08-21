@@ -675,7 +675,7 @@ export default function Onboarding() {
                         </button>
                       </div>
                       <p className="text-xs text-gray-500">
-                        {bill.type} · R$ {bill.installment_value.toFixed(2)} · Dia {bill.due_day}
+                        {bill.type} · {formatBRL(bill.installment_value)} · Dia {bill.due_day}
                       </p>
                     </div>
                   ))}

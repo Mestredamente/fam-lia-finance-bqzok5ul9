@@ -20,6 +20,7 @@ import { CurrencyInput } from '@/components/CurrencyInput'
 import { CategoryPicker } from '@/components/CategoryPicker'
 import { useCategories } from '@/hooks/use-categories'
 import { useCategorizationRules } from '@/hooks/use-categorization-rules'
+import { useAccounts } from '@/hooks/use-accounts'
 import { useAnnouncer } from '@/hooks/use-announcer'
 import { findMatchingCategory } from '@/lib/auto-categorize'
 import {
@@ -36,6 +37,7 @@ import { getPortugueseError } from '@/lib/error-utils'
 import { cn, formatBRL } from '@/lib/utils'
 import type {
   TransactionRecord,
+  TransactionType,
   TransactionEmotion,
   RecurringType,
   RecurringFrequency,
@@ -162,10 +164,11 @@ const schema = z
 type PaymentMode = 'once' | 'installment' | 'recurring'
 
 export interface TransactionPrefill {
-  type?: 'expense' | 'income'
+  type?: TransactionType
   amount?: number
   description?: string
   categoryId?: string | null
+  accountId?: string | null
 }
 
 interface Props {
@@ -190,10 +193,13 @@ export function TransactionFormSheet({
   prefill,
 }: Props) {
   const { categories } = useCategories(familyId)
-  const [type, setType] = useState<'expense' | 'income'>('expense')
+  const { activeAccounts } = useAccounts(familyId)
+  const [type, setType] = useState<TransactionType>('expense')
   const [amount, setAmount] = useState(0)
   const [description, setDescription] = useState('')
   const [categoryId, setCategoryId] = useState<string | null>(null)
+  const [accountId, setAccountId] = useState<string | null>(null)
+  const [transferToAccountId, setTransferToAccountId] = useState<string | null>(null)
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [time, setTime] = useState(nowHHMM)
   const [isShared, setIsShared] = useState(false)
@@ -382,7 +388,9 @@ export function TransactionFormSheet({
         setType(editingTransaction.type)
         setAmount(editingTransaction.amount)
         setDescription(editingTransaction.description)
-        setCategoryId(editingTransaction.category_id)
+        setCategoryId(editingTransaction.category_id || null)
+        setAccountId(editingTransaction.account_id || null)
+        setTransferToAccountId(editingTransaction.transfer_to_account_id || null)
         setDate(editingTransaction.transaction_date.split(' ')[0].split('T')[0])
         const timePart = editingTransaction.transaction_date.split('T')[1]?.split(' ')[0]
         setTime(timePart ? timePart.slice(0, 5) : '12:00')
@@ -441,6 +449,8 @@ export function TransactionFormSheet({
         setAmount(0)
         setDescription('')
         setCategoryId(null)
+        setAccountId(null)
+        setTransferToAccountId(null)
         setDate(todayISO)
         setTime(nowHHMM())
         setIsShared(false)
@@ -466,6 +476,7 @@ export function TransactionFormSheet({
           if (typeof prefill.amount === 'number') setAmount(prefill.amount)
           if (prefill.description) setDescription(prefill.description)
           if (prefill.categoryId) setCategoryId(prefill.categoryId)
+          if (prefill.accountId) setAccountId(prefill.accountId)
         }
       }
       setErrors({})
@@ -613,20 +624,36 @@ export function TransactionFormSheet({
   }
 
   const handleSave = async () => {
-    const result = schema.safeParse({
-      type,
-      amount,
-      description,
-      category_id: categoryId || '',
-      transaction_date: date,
-    })
-    if (!result.success) {
+    // Validação especial para transferências
+    if (type === 'transfer') {
       const errs: Record<string, string> = {}
-      result.error.issues.forEach((i) => {
-        errs[String(i.path[0])] = i.message
+      if (amount <= 0) errs.amount = 'Valor deve ser maior que zero'
+      if (!description.trim()) errs.description = 'Descrição é obrigatória'
+      if (!accountId) errs.account_id = 'Selecione a conta de origem'
+      if (!transferToAccountId) errs.transfer_to_account_id = 'Selecione a conta de destino'
+      if (accountId && transferToAccountId && accountId === transferToAccountId) {
+        errs.transfer_to_account_id = 'Contas de origem e destino devem ser diferentes'
+      }
+      if (Object.keys(errs).length > 0) {
+        setErrors(errs)
+        return
+      }
+    } else {
+      const result = schema.safeParse({
+        type,
+        amount,
+        description,
+        category_id: categoryId || '',
+        transaction_date: date,
       })
-      setErrors(errs)
-      return
+      if (!result.success) {
+        const errs: Record<string, string> = {}
+        result.error.issues.forEach((i) => {
+          errs[String(i.path[0])] = i.message
+        })
+        setErrors(errs)
+        return
+      }
     }
     setSaving(true)
     try {
@@ -661,19 +688,24 @@ export function TransactionFormSheet({
 
       const isInstallment =
         type === 'expense' && paymentMode === 'installment' && installmentTotal != null
+      // Se for transferência e não houver categoryId, pegamos a primeira categoria de despesa/outros ou omitimos
+      const defaultCatId = categoryId || categories[0]?.id || ''
+
       const data = {
         family_id: familyId,
         owner_id: ownerId,
         type,
         amount,
         description,
-        category_id: categoryId!,
+        category_id: defaultCatId,
+        account_id: accountId || null,
+        transfer_to_account_id: type === 'transfer' ? transferToAccountId || null : null,
         transaction_date: new Date(`${date}T${time || '12:00'}:00`).toISOString(),
         is_shared: isShared,
         is_fixed: isFixed,
         source: 'manual' as const,
-        emotion: emotion || null,
-        emotion_note: emotionNote || null,
+        emotion: type === 'transfer' ? null : emotion || null,
+        emotion_note: type === 'transfer' ? null : emotionNote || null,
         is_installment: isInstallment,
         installment_current: isInstallment ? (installmentCurrent ?? 1) : null,
         installment_total: isInstallment ? installmentTotal : null,
@@ -715,9 +747,10 @@ export function TransactionFormSheet({
     }
   }
 
-  const typeLabel = type === 'income' ? 'receita' : 'despesa'
-  const typeAction = type === 'income' ? 'registrar' : 'gastar'
-  const emotions = EMOTIONS_BY_TYPE[type]
+  const typeLabel =
+    type === 'income' ? 'receita' : type === 'transfer' ? 'transferência' : 'despesa'
+  const typeAction = type === 'income' ? 'registrar' : type === 'transfer' ? 'transferir' : 'gastar'
+  const emotions = type === 'transfer' ? [] : EMOTIONS_BY_TYPE[type as 'expense' | 'income']
 
   // Show the suggested badge only when the current category came from an
   // auto-suggestion (and the user hasn't replaced it).
@@ -732,8 +765,8 @@ export function TransactionFormSheet({
         </SheetHeader>
         <div className="overflow-y-auto flex-1 px-0">
           <div className="space-y-4 mt-4">
-            {/* 1. Tipo (Despesa/Receita) */}
-            <div className="grid grid-cols-2 gap-2">
+            {/* 1. Tipo (Despesa / Receita / Transferência) */}
+            <div className="grid grid-cols-3 gap-2">
               {[
                 {
                   value: 'expense' as const,
@@ -749,14 +782,26 @@ export function TransactionFormSheet({
                   bg: 'bg-emerald-50',
                   border: 'border-[#22C55E]',
                 },
+                {
+                  value: 'transfer' as const,
+                  label: 'Transferir',
+                  color: 'text-blue-600',
+                  bg: 'bg-blue-50',
+                  border: 'border-blue-500',
+                },
               ].map((t) => (
                 <button
                   key={t.value}
                   type="button"
                   disabled={!!editingTransaction}
-                  onClick={() => setType(t.value)}
+                  onClick={() => {
+                    setType(t.value)
+                    if (t.value === 'transfer' && paymentMode !== 'once') {
+                      setPaymentMode('once')
+                    }
+                  }}
                   className={cn(
-                    'py-3 rounded-xl border-2 font-bold text-sm transition-all',
+                    'py-2.5 rounded-xl border-2 font-bold text-xs sm:text-sm transition-all',
                     type === t.value
                       ? `${t.bg} ${t.border} ${t.color}`
                       : 'border-gray-200 bg-white text-gray-500',
@@ -822,283 +867,382 @@ export function TransactionFormSheet({
               </div>
             </div>
 
-            {/* 4. Como pagar */}
-            <div className="space-y-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 p-3 border border-gray-100 dark:border-gray-800">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
-                  Como pagar
+            {/* Conta Bancária / Transferência */}
+            {type === 'transfer' ? (
+              <div className="space-y-3 p-3 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 rounded-xl">
+                <span className="text-xs font-bold text-blue-900 dark:text-blue-300 uppercase tracking-wider block">
+                  Contas da Transferência
                 </span>
-                {suggestedInstallment && (
-                  <Badge className="bg-violet-100 text-violet-700 border-0 gap-1 text-[10px]">
-                    <Sparkles className="h-2.5 w-2.5" /> Sugerido
-                  </Badge>
-                )}
-              </div>
-              <RadioGroup
-                value={paymentMode}
-                onValueChange={(v) => {
-                  // Track manual payment-mode overrides so auto-parcelado
-                  // doesn't re-activate after the user picks "À vista" or
-                  // "Recorrente". Manually choosing "Parcelado" re-enables
-                  // the helpful auto-fill of the installment total.
-                  userTouchedPaymentMode.current = v !== 'installment'
-                  setPaymentMode(v as PaymentMode)
-                }}
-                className="grid grid-cols-3 gap-2"
-              >
-                {(
-                  [
-                    { value: 'once', label: 'À vista' },
-                    { value: 'installment', label: 'Parcelado' },
-                    { value: 'recurring', label: 'Recorrente' },
-                  ] as const
-                ).map((opt) => (
-                  <Label
-                    key={opt.value}
-                    className={cn(
-                      'flex items-center justify-center gap-1.5 p-2.5 rounded-lg border cursor-pointer hover:bg-accent text-sm font-medium',
-                      paymentMode === opt.value &&
-                        'border-[#166534] bg-[#166534]/5 text-[#166534] dark:text-emerald-400',
-                      editingTransaction && opt.value === 'recurring' && 'opacity-50',
-                    )}
-                  >
-                    <RadioGroupItem value={opt.value} id={`pay-${opt.value}`} className="sr-only" />
-                    <span>{opt.label}</span>
-                  </Label>
-                ))}
-              </RadioGroup>
-
-              {/* Parcelado */}
-              {paymentMode === 'installment' && (
-                <div className="space-y-3 rounded-xl bg-white dark:bg-card p-3 border border-violet-100 dark:border-violet-900/40">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label
-                        htmlFor="tx-installment-total"
-                        className="text-xs font-semibold text-gray-700 dark:text-gray-200"
-                      >
-                        Total de parcelas
-                      </label>
-                      <Input
-                        id="tx-installment-total"
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="0"
-                        value={installmentTotalStr}
-                        onChange={(e) => {
-                          userTouchedInstallment.current = true
-                          setInstallmentTotalStr(sanitizeIntInput(e.target.value, 1, 120))
-                        }}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="tx-installment-current"
-                        className="text-xs font-semibold text-gray-700 dark:text-gray-200"
-                      >
-                        Parcela atual
-                      </label>
-                      <Input
-                        id="tx-installment-current"
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="1"
-                        value={installmentCurrentStr}
-                        onChange={(e) =>
-                          setInstallmentCurrentStr(sanitizeIntInput(e.target.value, 1, 120))
-                        }
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="tx-installment-value"
-                        className="text-xs font-semibold text-gray-700 dark:text-gray-200"
-                      >
-                        Valor da parcela
-                      </label>
-                      <Input
-                        id="tx-installment-value"
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="auto"
-                        value={
-                          installmentValueStr === '' && installmentValue != null
-                            ? installmentValue.toFixed(2).replace('.', ',')
-                            : installmentValueStr
-                        }
-                        onChange={(e) =>
-                          setInstallmentValueStr(e.target.value.replace(/[^\d.,]/g, ''))
-                        }
-                        className="mt-1 bg-gray-50 dark:bg-gray-900/40"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="tx-installment-due-day"
-                        className="text-xs font-semibold text-gray-700 dark:text-gray-200"
-                      >
-                        Dia de vencimento
-                      </label>
-                      <Input
-                        id="tx-installment-due-day"
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="1"
-                        value={installmentDueDayStr}
-                        onChange={(e) =>
-                          setInstallmentDueDayStr(sanitizeIntInput(e.target.value, 1, 31))
-                        }
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="tx-installment-start"
-                        className="text-xs font-semibold text-gray-700 dark:text-gray-200"
-                      >
-                        Data de início
-                      </label>
-                      <Input
-                        id="tx-installment-start"
-                        type="date"
-                        value={installmentStartDate}
-                        onChange={(e) => setInstallmentStartDate(e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">
-                        Término estimado
-                      </label>
-                      <div className="mt-1 h-9 px-3 flex items-center rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 text-sm text-gray-500 dark:text-gray-400">
-                        {installmentEndDate || '—'}
-                      </div>
-                    </div>
-                  </div>
-                  {installmentTotal != null && installmentValue != null && amount > 0 && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      <Layers className="h-3 w-3 inline mr-1" />
-                      {installmentTotal}x de {formatBRL(installmentValue)} = {formatBRL(amount)}{' '}
-                      total
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Recorrente */}
-              {paymentMode === 'recurring' && (
-                <div className="space-y-3 rounded-xl bg-white dark:bg-card p-3 border border-sky-100 dark:border-sky-900/40">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <Label
-                      htmlFor="tx-frequency"
+                      htmlFor="tx-source-account"
                       className="text-xs font-semibold text-gray-700 dark:text-gray-200"
                     >
-                      Frequência
+                      Conta Origem (debitar) *
                     </Label>
                     <Select
-                      value={frequency}
-                      onValueChange={(v) => setFrequency(v as RecurringFrequency)}
+                      value={accountId || 'none'}
+                      onValueChange={(v) => setAccountId(v === 'none' ? null : v)}
                     >
-                      <SelectTrigger id="tx-frequency" className="mt-1">
-                        <SelectValue placeholder="Frequência" />
+                      <SelectTrigger id="tx-source-account" className="mt-1 bg-white dark:bg-card">
+                        <SelectValue placeholder="Selecione a origem" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="monthly">Mensal</SelectItem>
-                        <SelectItem value="weekly">Semanal</SelectItem>
-                        <SelectItem value="yearly">Anual</SelectItem>
+                        <SelectItem value="none">Selecione uma conta</SelectItem>
+                        {activeAccounts.map((acc) => (
+                          <SelectItem key={acc.id} value={acc.id}>
+                            {acc.name} ({formatBRL(acc.current_balance || 0)})
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                    {errors.account_id && (
+                      <p className="text-xs text-red-500 mt-1">{errors.account_id}</p>
+                    )}
                   </div>
-                  {frequency === 'monthly' && (
-                    <div>
-                      <Label
-                        htmlFor="tx-day-of-month"
-                        className="text-xs font-semibold text-gray-700 dark:text-gray-200"
-                      >
-                        Dia do mês
-                      </Label>
-                      <Input
-                        id="tx-day-of-month"
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="1"
-                        value={dayOfMonthStr}
-                        onChange={(e) => setDayOfMonthStr(sanitizeIntInput(e.target.value, 1, 31))}
-                        className="mt-1"
-                      />
-                    </div>
-                  )}
+
                   <div>
                     <Label
-                      htmlFor="tx-recurring-start"
+                      htmlFor="tx-dest-account"
                       className="text-xs font-semibold text-gray-700 dark:text-gray-200"
                     >
-                      Início
+                      Conta Destino (creditar) *
                     </Label>
-                    <Input
-                      id="tx-recurring-start"
-                      type="date"
-                      value={recurringStartDate}
-                      onChange={(e) => setRecurringStartDate(e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  {/* Toggle "Sem data de fim" — clicável E desclicável */}
-                  <div className="flex items-center justify-between rounded-lg border border-gray-100 dark:border-gray-800 px-3 py-2">
-                    <Label
-                      htmlFor="tx-no-end"
-                      className="text-xs font-medium text-gray-700 dark:text-gray-200 cursor-pointer"
+                    <Select
+                      value={transferToAccountId || 'none'}
+                      onValueChange={(v) => setTransferToAccountId(v === 'none' ? null : v)}
                     >
-                      Sem data de fim
-                    </Label>
-                    <Switch
-                      id="tx-no-end"
-                      checked={noEndDate}
-                      onCheckedChange={(checked) => setNoEndDate(!!checked)}
-                    />
+                      <SelectTrigger id="tx-dest-account" className="mt-1 bg-white dark:bg-card">
+                        <SelectValue placeholder="Selecione o destino" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Selecione uma conta</SelectItem>
+                        {activeAccounts.map((acc) => (
+                          <SelectItem key={acc.id} value={acc.id}>
+                            {acc.name} ({formatBRL(acc.current_balance || 0)})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.transfer_to_account_id && (
+                      <p className="text-xs text-red-500 mt-1">{errors.transfer_to_account_id}</p>
+                    )}
                   </div>
-                  {!noEndDate && (
+                </div>
+              </div>
+            ) : (
+              <div>
+                <Label
+                  htmlFor="tx-account"
+                  className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                >
+                  Conta Bancária (opcional)
+                </Label>
+                <Select
+                  value={accountId || 'none'}
+                  onValueChange={(v) => setAccountId(v === 'none' ? null : v)}
+                >
+                  <SelectTrigger id="tx-account" className="mt-1">
+                    <SelectValue placeholder="Nenhuma conta vinculada" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma conta vinculada</SelectItem>
+                    {activeAccounts.map((acc) => (
+                      <SelectItem key={acc.id} value={acc.id}>
+                        {acc.name} ({formatBRL(acc.current_balance || 0)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* 4. Como pagar */}
+            {type !== 'transfer' && (
+              <div className="space-y-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 p-3 border border-gray-100 dark:border-gray-800">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">
+                    Como pagar
+                  </span>
+                  {suggestedInstallment && (
+                    <Badge className="bg-violet-100 text-violet-700 border-0 gap-1 text-[10px]">
+                      <Sparkles className="h-2.5 w-2.5" /> Sugerido
+                    </Badge>
+                  )}
+                </div>
+                <RadioGroup
+                  value={paymentMode}
+                  onValueChange={(v) => {
+                    // Track manual payment-mode overrides so auto-parcelado
+                    // doesn't re-activate after the user picks "À vista" or
+                    // "Recorrente". Manually choosing "Parcelado" re-enables
+                    // the helpful auto-fill of the installment total.
+                    userTouchedPaymentMode.current = v !== 'installment'
+                    setPaymentMode(v as PaymentMode)
+                  }}
+                  className="grid grid-cols-3 gap-2"
+                >
+                  {(
+                    [
+                      { value: 'once', label: 'À vista' },
+                      { value: 'installment', label: 'Parcelado' },
+                      { value: 'recurring', label: 'Recorrente' },
+                    ] as const
+                  ).map((opt) => (
+                    <Label
+                      key={opt.value}
+                      className={cn(
+                        'flex items-center justify-center gap-1.5 p-2.5 rounded-lg border cursor-pointer hover:bg-accent text-sm font-medium',
+                        paymentMode === opt.value &&
+                          'border-[#166534] bg-[#166534]/5 text-[#166534] dark:text-emerald-400',
+                        editingTransaction && opt.value === 'recurring' && 'opacity-50',
+                      )}
+                    >
+                      <RadioGroupItem
+                        value={opt.value}
+                        id={`pay-${opt.value}`}
+                        className="sr-only"
+                      />
+                      <span>{opt.label}</span>
+                    </Label>
+                  ))}
+                </RadioGroup>
+
+                {/* Parcelado */}
+                {paymentMode === 'installment' && (
+                  <div className="space-y-3 rounded-xl bg-white dark:bg-card p-3 border border-violet-100 dark:border-violet-900/40">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label
+                          htmlFor="tx-installment-total"
+                          className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                        >
+                          Total de parcelas
+                        </label>
+                        <Input
+                          id="tx-installment-total"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="0"
+                          value={installmentTotalStr}
+                          onChange={(e) => {
+                            userTouchedInstallment.current = true
+                            setInstallmentTotalStr(sanitizeIntInput(e.target.value, 1, 120))
+                          }}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="tx-installment-current"
+                          className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                        >
+                          Parcela atual
+                        </label>
+                        <Input
+                          id="tx-installment-current"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="1"
+                          value={installmentCurrentStr}
+                          onChange={(e) =>
+                            setInstallmentCurrentStr(sanitizeIntInput(e.target.value, 1, 120))
+                          }
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="tx-installment-value"
+                          className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                        >
+                          Valor da parcela
+                        </label>
+                        <Input
+                          id="tx-installment-value"
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="auto"
+                          value={
+                            installmentValueStr === '' && installmentValue != null
+                              ? installmentValue.toFixed(2).replace('.', ',')
+                              : installmentValueStr
+                          }
+                          onChange={(e) =>
+                            setInstallmentValueStr(e.target.value.replace(/[^\d.,]/g, ''))
+                          }
+                          className="mt-1 bg-gray-50 dark:bg-gray-900/40"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="tx-installment-due-day"
+                          className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                        >
+                          Dia de vencimento
+                        </label>
+                        <Input
+                          id="tx-installment-due-day"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="1"
+                          value={installmentDueDayStr}
+                          onChange={(e) =>
+                            setInstallmentDueDayStr(sanitizeIntInput(e.target.value, 1, 31))
+                          }
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="tx-installment-start"
+                          className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                        >
+                          Data de início
+                        </label>
+                        <Input
+                          id="tx-installment-start"
+                          type="date"
+                          value={installmentStartDate}
+                          onChange={(e) => setInstallmentStartDate(e.target.value)}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                          Término estimado
+                        </label>
+                        <div className="mt-1 h-9 px-3 flex items-center rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 text-sm text-gray-500 dark:text-gray-400">
+                          {installmentEndDate || '—'}
+                        </div>
+                      </div>
+                    </div>
+                    {installmentTotal != null && installmentValue != null && amount > 0 && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        <Layers className="h-3 w-3 inline mr-1" />
+                        {installmentTotal}x de {formatBRL(installmentValue)} = {formatBRL(amount)}{' '}
+                        total
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Recorrente */}
+                {paymentMode === 'recurring' && (
+                  <div className="space-y-3 rounded-xl bg-white dark:bg-card p-3 border border-sky-100 dark:border-sky-900/40">
                     <div>
                       <Label
-                        htmlFor="tx-recurring-end"
+                        htmlFor="tx-frequency"
                         className="text-xs font-semibold text-gray-700 dark:text-gray-200"
                       >
-                        Data de fim
+                        Frequência
+                      </Label>
+                      <Select
+                        value={frequency}
+                        onValueChange={(v) => setFrequency(v as RecurringFrequency)}
+                      >
+                        <SelectTrigger id="tx-frequency" className="mt-1">
+                          <SelectValue placeholder="Frequência" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="monthly">Mensal</SelectItem>
+                          <SelectItem value="weekly">Semanal</SelectItem>
+                          <SelectItem value="yearly">Anual</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {frequency === 'monthly' && (
+                      <div>
+                        <Label
+                          htmlFor="tx-day-of-month"
+                          className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                        >
+                          Dia do mês
+                        </Label>
+                        <Input
+                          id="tx-day-of-month"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="1"
+                          value={dayOfMonthStr}
+                          onChange={(e) =>
+                            setDayOfMonthStr(sanitizeIntInput(e.target.value, 1, 31))
+                          }
+                          className="mt-1"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <Label
+                        htmlFor="tx-recurring-start"
+                        className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                      >
+                        Início
                       </Label>
                       <Input
-                        id="tx-recurring-end"
+                        id="tx-recurring-start"
                         type="date"
-                        value={recurringEndDate}
-                        onChange={(e) => setRecurringEndDate(e.target.value)}
+                        value={recurringStartDate}
+                        onChange={(e) => setRecurringStartDate(e.target.value)}
                         className="mt-1"
                       />
                     </div>
-                  )}
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    <Repeat className="h-3 w-3 inline mr-1" />
-                    {formatBRL(amount)}
-                    {frequency === 'monthly'
-                      ? '/mês'
-                      : frequency === 'weekly'
-                        ? '/semana'
-                        : '/ano'}{' '}
-                    até {noEndDate ? 'indefinido' : recurringEndDate || '—'}
-                  </p>
-                </div>
-              )}
+                    {/* Toggle "Sem data de fim" — clicável E desclicável */}
+                    <div className="flex items-center justify-between rounded-lg border border-gray-100 dark:border-gray-800 px-3 py-2">
+                      <Label
+                        htmlFor="tx-no-end"
+                        className="text-xs font-medium text-gray-700 dark:text-gray-200 cursor-pointer"
+                      >
+                        Sem data de fim
+                      </Label>
+                      <Switch
+                        id="tx-no-end"
+                        checked={noEndDate}
+                        onCheckedChange={(checked) => setNoEndDate(!!checked)}
+                      />
+                    </div>
+                    {!noEndDate && (
+                      <div>
+                        <Label
+                          htmlFor="tx-recurring-end"
+                          className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                        >
+                          Data de fim
+                        </Label>
+                        <Input
+                          id="tx-recurring-end"
+                          type="date"
+                          value={recurringEndDate}
+                          onChange={(e) => setRecurringEndDate(e.target.value)}
+                          className="mt-1"
+                        />
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <Repeat className="h-3 w-3 inline mr-1" />
+                      {formatBRL(amount)}
+                      {frequency === 'monthly'
+                        ? '/mês'
+                        : frequency === 'weekly'
+                          ? '/semana'
+                          : '/ano'}{' '}
+                      até {noEndDate ? 'indefinido' : recurringEndDate || '—'}
+                    </p>
+                  </div>
+                )}
 
-              {paymentMode === 'recurring' && editingTransaction && (
-                <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 p-3 text-xs text-amber-700 dark:text-amber-300">
-                  <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                  <span>
-                    Esta transação foi gerada por uma recorrente. Para alterar a recorrência,
-                    edite-a na página de Recorrentes.
-                  </span>
-                </div>
-              )}
-            </div>
+                {paymentMode === 'recurring' && editingTransaction && (
+                  <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 p-3 text-xs text-amber-700 dark:text-amber-300">
+                    <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                    <span>
+                      Esta transação foi gerada por uma recorrente. Para alterar a recorrência,
+                      edite-a na página de Recorrentes.
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* 5. Detalhes */}
             <div className="space-y-3">
@@ -1112,7 +1256,13 @@ export function TransactionFormSheet({
                 </label>
                 <Input
                   id="tx-description"
-                  placeholder={type === 'income' ? 'Salário' : 'Supermercado'}
+                  placeholder={
+                    type === 'income'
+                      ? 'Salário'
+                      : type === 'transfer'
+                        ? 'Transferência entre contas'
+                        : 'Supermercado'
+                  }
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   maxLength={100}
@@ -1132,113 +1282,117 @@ export function TransactionFormSheet({
                 )}
               </div>
 
-              <div>
-                <label htmlFor="tx-category" className="text-xs font-semibold text-gray-700">
-                  Categoria
-                </label>
-                {showSuggestedBadge && (
-                  <Badge className="ml-2 bg-blue-100 text-blue-700 border-0 gap-1 text-[10px] align-middle">
-                    <Sparkles className="h-2.5 w-2.5" /> Sugerido
-                  </Badge>
-                )}
-                <div className="mt-1">
-                  <CategoryPicker
-                    categories={categories}
-                    selectedId={categoryId}
-                    onSelect={(id) => {
-                      userTouchedCategory.current = true
-                      setCategoryId(id)
-                    }}
-                    familyId={familyId}
-                    type={type}
-                    aria-required="true"
-                  />
-                </div>
-                {errors.category_id && (
-                  <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
-                    {errors.category_id}
-                  </p>
-                )}
-                {inlineWarning && (
-                  <div
-                    role="status"
-                    className={cn(
-                      'mt-2 flex items-start gap-2 rounded-lg p-2.5 text-xs',
-                      inlineWarning.exceeded
-                        ? 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300'
-                        : 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 text-amber-700 dark:text-amber-300',
-                    )}
-                  >
-                    <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                    <span>
-                      {inlineWarning.exceeded
-                        ? `🚫 Esta categoria ESTOUROU o orçamento! ${formatBRL(
-                            inlineWarning.spent,
-                          )} de ${formatBRL(inlineWarning.limit)}.`
-                        : `⚠️ Esta categoria está em ${Math.round(
-                            inlineWarning.pct,
-                          )}% do orçamento (${formatBRL(inlineWarning.spent)} de ${formatBRL(
-                            inlineWarning.limit,
-                          )}). Restam ${formatBRL(Math.max(inlineWarning.remaining, 0))}.`}
-                    </span>
+              {type !== 'transfer' && (
+                <div>
+                  <label htmlFor="tx-category" className="text-xs font-semibold text-gray-700">
+                    Categoria
+                  </label>
+                  {showSuggestedBadge && (
+                    <Badge className="ml-2 bg-blue-100 text-blue-700 border-0 gap-1 text-[10px] align-middle">
+                      <Sparkles className="h-2.5 w-2.5" /> Sugerido
+                    </Badge>
+                  )}
+                  <div className="mt-1">
+                    <CategoryPicker
+                      categories={categories}
+                      selectedId={categoryId}
+                      onSelect={(id) => {
+                        userTouchedCategory.current = true
+                        setCategoryId(id)
+                      }}
+                      familyId={familyId}
+                      type={type === 'income' ? 'income' : 'expense'}
+                      aria-required="true"
+                    />
                   </div>
-                )}
-              </div>
+                  {errors.category_id && (
+                    <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
+                      {errors.category_id}
+                    </p>
+                  )}
+                  {inlineWarning && (
+                    <div
+                      role="status"
+                      className={cn(
+                        'mt-2 flex items-start gap-2 rounded-lg p-2.5 text-xs',
+                        inlineWarning.exceeded
+                          ? 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300'
+                          : 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 text-amber-700 dark:text-amber-300',
+                      )}
+                    >
+                      <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <span>
+                        {inlineWarning.exceeded
+                          ? `🚫 Esta categoria ESTOUROU o orçamento! ${formatBRL(
+                              inlineWarning.spent,
+                            )} de ${formatBRL(inlineWarning.limit)}.`
+                          : `⚠️ Esta categoria está em ${Math.round(
+                              inlineWarning.pct,
+                            )}% do orçamento (${formatBRL(inlineWarning.spent)} de ${formatBRL(
+                              inlineWarning.limit,
+                            )}). Restam ${formatBRL(Math.max(inlineWarning.remaining, 0))}.`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
-              <div>
-                <span className="text-xs font-semibold text-gray-700">
-                  Como você se sentiu com esta {typeLabel}?
-                </span>
-                <p className="text-[11px] text-gray-400 mb-2">Opcional</p>
-                <div
-                  className={cn('grid gap-2', type === 'income' ? 'grid-cols-4' : 'grid-cols-3')}
-                  role="group"
-                  aria-label={`Emoção da ${typeLabel}`}
-                >
-                  {emotions.map((e) => {
-                    const selected = emotion === e.value
-                    return (
-                      <button
-                        key={e.value}
-                        type="button"
-                        onClick={() => setEmotion(selected ? null : e.value)}
-                        aria-pressed={selected}
-                        aria-label={e.label}
-                        className={cn(
-                          'flex flex-col items-center justify-center gap-1 py-2 rounded-xl border-2 transition-all',
-                          selected
-                            ? 'border-[#166534] bg-emerald-50'
-                            : 'border-gray-200 bg-white hover:border-gray-300',
-                        )}
-                      >
-                        <span className="text-2xl leading-none" aria-hidden="true">
-                          {e.emoji}
-                        </span>
-                        <span
+              {type !== 'transfer' && (
+                <div>
+                  <span className="text-xs font-semibold text-gray-700">
+                    Como você se sentiu com esta {typeLabel}?
+                  </span>
+                  <p className="text-[11px] text-gray-400 mb-2">Opcional</p>
+                  <div
+                    className={cn('grid gap-2', type === 'income' ? 'grid-cols-4' : 'grid-cols-3')}
+                    role="group"
+                    aria-label={`Emoção da ${typeLabel}`}
+                  >
+                    {emotions.map((e) => {
+                      const selected = emotion === e.value
+                      return (
+                        <button
+                          key={e.value}
+                          type="button"
+                          onClick={() => setEmotion(selected ? null : e.value)}
+                          aria-pressed={selected}
+                          aria-label={e.label}
                           className={cn(
-                            'text-[10px] font-medium leading-tight text-center',
-                            selected ? 'text-[#166534]' : 'text-gray-500',
+                            'flex flex-col items-center justify-center gap-1 py-2 rounded-xl border-2 transition-all',
+                            selected
+                              ? 'border-[#166534] bg-emerald-50'
+                              : 'border-gray-200 bg-white hover:border-gray-300',
                           )}
                         >
-                          {e.label}
-                        </span>
-                      </button>
-                    )
-                  })}
+                          <span className="text-2xl leading-none" aria-hidden="true">
+                            {e.emoji}
+                          </span>
+                          <span
+                            className={cn(
+                              'text-[10px] font-medium leading-tight text-center',
+                              selected ? 'text-[#166534]' : 'text-gray-500',
+                            )}
+                          >
+                            {e.label}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <Textarea
+                    placeholder={`O que te motivou a ${typeAction}?`}
+                    value={emotionNote}
+                    onChange={(e) => setEmotionNote(e.target.value)}
+                    maxLength={200}
+                    rows={2}
+                    className="mt-2 text-sm resize-none"
+                    aria-label={`Nota sobre a emoção da ${typeLabel}`}
+                  />
+                  <p className="text-[11px] text-gray-400 mt-0.5 text-right">
+                    {emotionNote.length}/200
+                  </p>
                 </div>
-                <Textarea
-                  placeholder={`O que te motivou a ${typeAction}?`}
-                  value={emotionNote}
-                  onChange={(e) => setEmotionNote(e.target.value)}
-                  maxLength={200}
-                  rows={2}
-                  className="mt-2 text-sm resize-none"
-                  aria-label={`Nota sobre a emoção da ${typeLabel}`}
-                />
-                <p className="text-[11px] text-gray-400 mt-0.5 text-right">
-                  {emotionNote.length}/200
-                </p>
-              </div>
+              )}
             </div>
 
             {/* 6. Compartilhada com a família */}
@@ -1256,7 +1410,12 @@ export function TransactionFormSheet({
         <div className="sticky bottom-0 bg-white dark:bg-card border-t border-gray-100 dark:border-gray-800 pt-3 px-0 pb-1 shrink-0">
           <Button
             onClick={handleSave}
-            disabled={saving || amount <= 0 || !description || !categoryId}
+            disabled={
+              saving ||
+              amount <= 0 ||
+              !description ||
+              (type === 'transfer' ? !accountId || !transferToAccountId : !categoryId)
+            }
             className="w-full bg-[#166534] hover:bg-[#15803D]"
           >
             {saving ? (

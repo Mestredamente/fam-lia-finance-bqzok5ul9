@@ -68,10 +68,11 @@ import {
 } from '@/components/DashboardPdfExport'
 import { useFutureInstallments } from '@/hooks/use-future-installments'
 import { useContasAPagar } from '@/hooks/use-contas-a-pagar'
+import { useAccounts } from '@/hooks/use-accounts'
 import { generateBillAlerts } from '@/services/bill-alerts'
 import { toast } from '@/hooks/use-toast'
-import { AlertTriangle, ArrowRight } from 'lucide-react'
-import { Card } from '@/components/ui/card'
+import { AlertTriangle, ArrowRight, Landmark } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { useNavigate } from 'react-router-dom'
 
 export default function Dashboard() {
@@ -101,6 +102,7 @@ export default function Dashboard() {
   const generatePdf = useGeneratePdf(pdfCaptureRef)
   const { installments: futureInstallments } = useFutureInstallments(family?.id)
   const { contas: bills } = useContasAPagar(family?.id)
+  const { totalBalance: totalAccountsBalance, activeAccounts } = useAccounts(family?.id)
   const billAlerts = useMemo(() => {
     const alerts = generateBillAlerts(bills)
     // Filter only bill-specific alerts for the dashboard top banners
@@ -213,25 +215,53 @@ export default function Dashboard() {
       switch (id) {
         case 'summary':
           return (
-            <UnifiedHealthCard
-              familyId={family.id}
-              totalReceitas={summary.totalReceitas}
-              totalDespesas={summary.totalDespesas}
-              saldo={summary.saldo}
-              porcentagemGasta={summary.porcentagemGasta}
-              loading={loading}
-              error={error}
-              onRetry={refetch}
-              isFutureMonth={
-                year > new Date().getFullYear() ||
-                (year === new Date().getFullYear() && month > new Date().getMonth())
-              }
-              prevReceitas={prevMonth?.income}
-              prevDespesas={prevMonth?.expenses}
-              prevSaldo={prevMonth?.saldo}
-              prevMonthLabel={prevMonth?.label}
-              hasComparison={hasComparison}
-            />
+            <div className="space-y-3">
+              <UnifiedHealthCard
+                familyId={family.id}
+                totalReceitas={summary.totalReceitas}
+                totalDespesas={summary.totalDespesas}
+                saldo={summary.saldo}
+                porcentagemGasta={summary.porcentagemGasta}
+                loading={loading}
+                error={error}
+                onRetry={refetch}
+                isFutureMonth={
+                  year > new Date().getFullYear() ||
+                  (year === new Date().getFullYear() && month > new Date().getMonth())
+                }
+                prevReceitas={prevMonth?.income}
+                prevDespesas={prevMonth?.expenses}
+                prevSaldo={prevMonth?.saldo}
+                prevMonthLabel={prevMonth?.label}
+                hasComparison={hasComparison}
+              />
+              {/* Card Total em Contas */}
+              <Card
+                onClick={() => navigate('/contas-bancarias')}
+                className="cursor-pointer border border-emerald-100 dark:border-emerald-950/50 bg-gradient-to-r from-emerald-50/70 via-white to-emerald-50/30 dark:from-emerald-950/20 dark:via-card dark:to-emerald-950/10 hover:border-emerald-300 dark:hover:border-emerald-800 rounded-2xl shadow-subtle transition-all"
+              >
+                <CardContent className="p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-[#166534] text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <Landmark className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        Total em Contas ({activeAccounts.length}{' '}
+                        {activeAccounts.length === 1 ? 'ativa' : 'ativas'})
+                      </p>
+                      <p className="text-lg font-extrabold text-[#166534] dark:text-emerald-400 truncate">
+                        {formatBRL(totalAccountsBalance)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs font-semibold text-[#166534] dark:text-emerald-400 shrink-0">
+                    <span>Ver contas</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )
         case 'expensesByCategory':
           return (
