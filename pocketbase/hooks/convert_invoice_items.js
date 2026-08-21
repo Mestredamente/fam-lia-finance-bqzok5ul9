@@ -19,6 +19,11 @@ routerAdd(
       return str
     }
 
+    function normalizeDescription(str) {
+      if (!str) return ''
+      return str.trim().toUpperCase().replace(/\s+/g, ' ')
+    }
+
     try {
       var body = e.requestInfo().body || {}
       var invoiceId = body.invoice_id || ''
@@ -142,57 +147,121 @@ routerAdd(
 
         $app.logger().info('CONVERT: item ' + itemId + ' transaction_date = ' + effectiveTxDate)
 
-        var tx = new Record(txCol)
-        tx.set('family_id', familyId)
-        tx.set('owner_id', ownerId)
-        if (catId) {
-          tx.set('category_id', catId)
-        }
-        tx.set('type', 'expense')
-        tx.set('amount', amount)
-        tx.set('description', description)
-        tx.set('transaction_date', effectiveTxDate)
-        if (purchaseDate) {
-          tx.set('purchase_date', purchaseDate)
-        }
-        tx.set('is_shared', false)
-        tx.set('is_fixed', false)
-        tx.set('source', 'invoice_import')
-        tx.set('invoice_item_id', itemId)
-        tx.set('status', 'pending')
+        var normDesc = normalizeDescription(description)
+        var txMonth = effectiveTxDate.substring(0, 7) // YYYY-MM
+        var existingTx = null
 
-        var itemEmotion = itemEmotions[itemId] || ''
-        if (itemEmotion && VALID_EMOTIONS.indexOf(itemEmotion) !== -1) {
-          tx.set('emotion', itemEmotion)
-          tx.set('emotion_note', '')
-        } else {
-          tx.set('emotion', '')
-          tx.set('emotion_note', '')
-        }
-
+        // 1. Verificar se já existe transação equivalente para o mesmo invoice_id
         try {
-          $app.save(tx)
-        } catch (saveErr) {
-          $app
-            .logger()
-            .error(
-              'CONVERT_INVOICE_ITEMS: failed to create transaction',
-              'item_id',
-              itemId,
-              'error',
-              String(saveErr),
+          var candidateTxs = $app.findRecordsByFilter(
+            'transactions',
+            'family_id = "' + familyId + '" && invoice_id = "' + invoiceId + '"',
+            'created',
+            200,
+            0,
+          )
+          for (var cti = 0; cti < candidateTxs.length; cti++) {
+            var cTx = candidateTxs[cti]
+            if (
+              normalizeDescription(cTx.getString('description')) === normDesc &&
+              Math.abs(cTx.getFloat('amount') - amount) < 0.001
+            ) {
+              existingTx = cTx
+              break
+            }
+          }
+        } catch (_) {}
+
+        // 2. Se não encontrou por invoice_id, verificar por source='invoice_import' + descrição + valor + mês + family_id
+        if (!existingTx) {
+          try {
+            var monthTxs = $app.findRecordsByFilter(
+              'transactions',
+              'family_id = "' +
+                familyId +
+                '" && source = "invoice_import" && transaction_date >= "' +
+                txMonth +
+                '-01" && transaction_date <= "' +
+                txMonth +
+                '-31"',
+              'created',
+              200,
+              0,
             )
-          errors.push({
-            item_id: itemId,
-            description: description,
-            error: String(saveErr.message || saveErr),
-            index: j,
-          })
-          continue
+            for (var mti = 0; mti < monthTxs.length; mti++) {
+              var mTx = monthTxs[mti]
+              if (
+                normalizeDescription(mTx.getString('description')) === normDesc &&
+                Math.abs(mTx.getFloat('amount') - amount) < 0.001
+              ) {
+                existingTx = mTx
+                break
+              }
+            }
+          } catch (_) {}
+        }
+
+        var tx = null
+        if (existingTx) {
+          tx = existingTx
+          $app.logger().info('Duplicata pulada: ' + description + ' ' + amount)
+        } else {
+          tx = new Record(txCol)
+          tx.set('family_id', familyId)
+          tx.set('owner_id', ownerId)
+          if (catId) {
+            tx.set('category_id', catId)
+          }
+          tx.set('type', 'expense')
+          tx.set('amount', amount)
+          tx.set('description', description)
+          tx.set('transaction_date', effectiveTxDate)
+          if (purchaseDate) {
+            tx.set('purchase_date', purchaseDate)
+          }
+          tx.set('is_shared', false)
+          tx.set('is_fixed', false)
+          tx.set('source', 'invoice_import')
+          tx.set('invoice_item_id', itemId)
+          tx.set('invoice_id', invoiceId)
+          if (cardId) {
+            tx.set('card_id', cardId)
+          }
+          tx.set('status', 'pending')
+
+          var itemEmotion = itemEmotions[itemId] || ''
+          if (itemEmotion && VALID_EMOTIONS.indexOf(itemEmotion) !== -1) {
+            tx.set('emotion', itemEmotion)
+            tx.set('emotion_note', '')
+          } else {
+            tx.set('emotion', '')
+            tx.set('emotion_note', '')
+          }
+
+          try {
+            $app.save(tx)
+          } catch (saveErr) {
+            $app
+              .logger()
+              .error(
+                'CONVERT_INVOICE_ITEMS: failed to create transaction',
+                'item_id',
+                itemId,
+                'error',
+                String(saveErr),
+              )
+            errors.push({
+              item_id: itemId,
+              description: description,
+              error: String(saveErr.message || saveErr),
+              index: j,
+            })
+            continue
+          }
         }
 
         var isInst = item.get('is_installment')
-        if (isInst) {
+        if (isInst && !existingTx) {
           var instCurrent = item.get('installment_current') || 1
           var instTotal = item.get('installment_total') || 1
           var remaining = instTotal - instCurrent

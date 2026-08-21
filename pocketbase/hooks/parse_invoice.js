@@ -153,7 +153,61 @@ routerAdd(
         500,
         0,
       )
-      for (var oi = 0; oi < oldItems.length; oi++) $app.delete(oldItems[oi])
+      for (var oi = 0; oi < oldItems.length; oi++) {
+        var oldItemId = oldItems[oi].id
+        try {
+          $app.delete(oldItems[oi])
+        } catch (_) {}
+      }
+
+      // Limpeza de transações órfãs associadas à fatura cujo invoice_item_id não existe mais
+      try {
+        var orphanTxs = $app.findRecordsByFilter(
+          'transactions',
+          'source = "invoice_import" && invoice_id = "' + invoiceId + '"',
+          '',
+          500,
+          0,
+        )
+        for (var oti = 0; oti < orphanTxs.length; oti++) {
+          var oTx = orphanTxs[oti]
+          var oItemId = oTx.getString('invoice_item_id')
+          var itemStillExists = false
+          if (oItemId) {
+            try {
+              $app.findRecordById('invoice_items', oItemId)
+              itemStillExists = true
+            } catch (_) {
+              itemStillExists = false
+            }
+          }
+          if (!itemStillExists) {
+            $app
+              .logger()
+              .info('Transação órfã removida: ' + oTx.id + ' ' + oTx.getString('description'))
+            // Deletar parcelas futuras associadas (future_installment com parent_transaction_id = oTx.id)
+            try {
+              var futureInstallments = $app.findRecordsByFilter(
+                'transactions',
+                'parent_transaction_id = "' + oTx.id + '"',
+                '',
+                500,
+                0,
+              )
+              for (var fti = 0; fti < futureInstallments.length; fti++) {
+                try {
+                  $app.delete(futureInstallments[fti])
+                } catch (_) {}
+              }
+            } catch (_) {}
+            try {
+              $app.delete(oTx)
+            } catch (_) {}
+          }
+        }
+      } catch (orphErr) {
+        $app.logger().error('Erro ao verificar transações órfãs na fatura: ' + String(orphErr))
+      }
     } catch (_) {}
 
     var fileUrl = pbUrl + '/api/files/invoices/' + invoiceId + '/' + fileName
@@ -224,7 +278,7 @@ routerAdd(
     $app.logger().info('Base64 encoded', 'payload_size', b64.length, 'invoice_id', invoiceId)
 
     var sysPrompt =
-      'Você é um assistente financeiro especializado em faturas de cartão de crédito brasileiras. Extraia TODAS as transações individuais da fatura que sejam COMPRAS. IGNORE cabeçalhos, rodapés, totais, taxas, juros, multas, impostos, pagamentos, pagamentos anteriores, créditos, estornos e qualquer entrada que não seja uma compra. Para cada transação, extraia: description (nome CONCISO do estabelecimento com data, ex: "MERCADO X 12/05", preservando parcelas como "2/3"), amount (valor numérico sem "R$" ou vírgulas, use ponto decimal, deve ser POSITIVO), date (data no formato YYYY-MM-DD, ou null se não visível). Se houver valores em moeda estrangeira com taxa de conversão visível, converta para BRL. Se não houver taxa, use o valor original. MANTENHA as descrições curtas (apenas nome do estabelecimento e data) para reduzir o tamanho da resposta e evitar truncamento.\n\nNÃO inclua: pagamentos, pagamentos anteriores, créditos, estornos, taxas, juros, anuidade, encargos.\n\nPara cada item, identifique se é uma compra parcelada. Se for, extraia: is_installment: true, installment_current: número da parcela atual (ex: 2 de 2/10), installment_total: total de parcelas (ex: 10 de 2/10). Se não for parcelada, is_installment: false.\n\nEstrutura esperada da resposta: { items: [ { description: string, amount: number, date: string, is_installment: boolean, installment_current: number | null, installment_total: number | null } ] }\n\nIMPORTANTE: Não inclua markdown formatting. Não use ```json ou ```. Retorne apenas o JSON puro.\n\nResponda APENAS com JSON válido, sem markdown, sem texto explicativo, sem blocos de código. Comece com { e termine com }. Não use crases.'
+      'Você é um assistente financeiro especializado em faturas de cartão de crédito brasileiras. Extraia TODAS as transações individuais da fatura que sejam COMPRAS. IGNORE cabeçalhos, rodapés, totais, taxas, juros, multas, impostos, pagamentos, pagamentos anteriores, créditos, estornos e qualquer entrada que não seja uma compra. Para cada transação, extraia: description (nome CONCISO do estabelecimento com data, ex: "MERCADO X 12/05", preservando parcelas como "2/3"), amount (valor numérico sem "R$" ou vírgulas, use ponto decimal, deve ser POSITIVO), date (data no formato YYYY-MM-DD, ou null se não visível). Se houver valores em moeda estrangeira com taxa de conversão visível, converta para BRL. Se não houver taxa, use o valor original. MANTENHA as descrições curtas (apenas nome do estabelecimento e data) para reduzir o tamanho da resposta e evitar truncamento.\n\nNÃO inclua: pagamentos, pagamentos anteriores, créditos, estornos, taxas, juros, anuidade, encargos.\n\nPara cada item, identifique se é uma compra parcelada. Se for, extraia: is_installment: true, installment_current: número da parcela atual (ex: 2 de 2/10), installment_total: total de parcelas (ex: 10 de 2/10). Se não for parcelada, is_installment: false.\n\nIMPORTANTE — ANTI-DUPLICAÇÃO:\n- Se o mesmo item (mesma descrição + mesmo valor + mesma data) aparecer no RESUMO e no DETALHAMENTO da fatura, extraia APENAS UMA VEZ.\n- NÃO duplique itens.\n- Extraia APENAS da listagem detalhada de compras (por data). IGNORE a seção de resumo/consolidado.\n- Se uma compra parcelada aparecer na seção \'Parcelas deste mês\' E na listagem cronológica, extraia APENAS UMA VEZ.\n- Verifique se cada item extraído é ÚNICO: descrição + valor + data não podem se repetir na lista de saída.\n- Antes de retornar, revise a lista e remova qualquer duplicata.\n\nEstrutura esperada da resposta: { items: [ { description: string, amount: number, date: string, is_installment: boolean, installment_current: number | null, installment_total: number | null } ] }\n\nIMPORTANTE: Não inclua markdown formatting. Não use ```json ou ```. Retorne apenas o JSON puro.\n\nResponda APENAS com JSON válido, sem markdown, sem texto explicativo, sem blocos de código. Comece com { e termine com }. Não use crases.'
 
     var geminiBody = JSON.stringify({
       contents: [
@@ -775,9 +829,22 @@ routerAdd(
       })
     }
 
-    var validItems = []
+    function normalizeDescription(str) {
+      if (!str) return ''
+      return str.trim().toUpperCase().replace(/\s+/g, ' ')
+    }
+
+    function isDateNear(d1, d2) {
+      if (!d1 || !d2) return d1 === d2
+      var t1 = new Date(d1 + 'T00:00:00').getTime()
+      var t2 = new Date(d2 + 'T00:00:00').getTime()
+      if (isNaN(t1) || isNaN(t2)) return d1 === d2
+      var diffDays = Math.abs(t1 - t2) / (1000 * 60 * 60 * 24)
+      return diffDays <= 1.01
+    }
+
+    var rawValidItems = []
     var invalidItems = []
-    var totalExtracted = 0
 
     for (var m = 0; m < parsed.items.length; m++) {
       var it = parsed.items[m]
@@ -827,7 +894,7 @@ routerAdd(
           typeof it.installment_total === 'number' && !isNaN(it.installment_total)
             ? it.installment_total
             : null
-        validItems.push({
+        rawValidItems.push({
           description: desc,
           amount: amt,
           date: itemDate,
@@ -835,7 +902,52 @@ routerAdd(
           installment_current: instCurrent,
           installment_total: instTotal,
         })
-        totalExtracted += amt
+      }
+    }
+
+    // Validação pós-Gemini: Dedup de itens idênticos (mesma descrição normalizada + mesmo valor + mesma data ±1 dia)
+    var validItems = []
+    var totalExtracted = 0
+
+    for (var rvi = 0; rvi < rawValidItems.length; rvi++) {
+      var candidate = rawValidItems[rvi]
+      var normCandidateDesc = normalizeDescription(candidate.description)
+      var isDuplicate = false
+
+      for (var vIdx = 0; vIdx < validItems.length; vIdx++) {
+        var existing = validItems[vIdx]
+        var normExistingDesc = normalizeDescription(existing.description)
+        if (
+          normCandidateDesc === normExistingDesc &&
+          Math.abs(candidate.amount - existing.amount) < 0.001 &&
+          isDateNear(candidate.date, existing.date)
+        ) {
+          isDuplicate = true
+          $app
+            .logger()
+            .info(
+              'Duplicata removida: ' +
+                candidate.description +
+                ' ' +
+                candidate.amount +
+                ' ' +
+                (candidate.date || 'sem data'),
+            )
+          diagInfo.logs.push(
+            'Duplicata removida: ' +
+              candidate.description +
+              ' ' +
+              candidate.amount +
+              ' ' +
+              (candidate.date || 'sem data'),
+          )
+          break
+        }
+      }
+
+      if (!isDuplicate) {
+        validItems.push(candidate)
+        totalExtracted += candidate.amount
       }
     }
 
