@@ -149,36 +149,50 @@ export function InvoiceFormSheet({ open, onOpenChange, cardId, familyId, onSaved
           <SheetTitle>Nova Fatura</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 mt-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/60 dark:bg-emerald-950/20 dark:border-emerald-900/40 space-y-2">
             <div>
-              <Label className="text-xs font-semibold text-gray-700">Mês</Label>
-              <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MONTHS.map((m, i) => (
-                    <SelectItem key={i} value={String(i)}>
-                      {m}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                A qual mês corresponde esta fatura?
+              </Label>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                Isso define a data das transações geradas
+              </p>
             </div>
-            <div>
-              <Label className="text-xs font-semibold text-gray-700">Ano</Label>
-              <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map((y) => (
-                    <SelectItem key={y} value={String(y)}>
-                      {y}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div>
+                <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Mês
+                </Label>
+                <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
+                  <SelectTrigger className="bg-white dark:bg-card">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTHS.map((m, i) => (
+                      <SelectItem key={i} value={String(i)}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Ano
+                </Label>
+                <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+                  <SelectTrigger className="bg-white dark:bg-card">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map((y) => (
+                      <SelectItem key={y} value={String(y)}>
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <div>

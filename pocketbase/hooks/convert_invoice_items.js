@@ -55,17 +55,10 @@ routerAdd(
 
       var invoiceMonthRef = invoice.getString('month_ref') || ''
       if (invoiceMonthRef.length > 10) invoiceMonthRef = invoiceMonthRef.substring(0, 10)
-      var txDate = invoiceMonthRef.substring(0, 7) + '-01'
-
-      $app
-        .logger()
-        .info(
-          'CONVERT_INVOICE_ITEMS: using invoice month_ref as transaction_date',
-          'month_ref',
-          txDate,
-          'invoice_id',
-          invoiceId,
-        )
+      var defaultMonthDate = ''
+      if (invoiceMonthRef && invoiceMonthRef.length >= 7) {
+        defaultMonthDate = invoiceMonthRef.substring(0, 7) + '-01'
+      }
 
       var txCol = $app.findCollectionByNameOrId('transactions')
       var count = 0
@@ -127,7 +120,27 @@ routerAdd(
         var purchaseDate = item.getString('transaction_date') || ''
         if (purchaseDate.length > 10) purchaseDate = purchaseDate.substring(0, 10)
 
-        $app.logger().info('CONVERT: item ' + itemId + ' transaction_date = ' + txDate)
+        // Prioridade 1: item.transaction_date (data individual extraída da fatura)
+        // Prioridade 2: invoice.month_ref (fallback do mês da fatura)
+        // Se nenhuma data disponível: lançar erro e NÃO criar a transação (nunca usar new Date())
+        var effectiveTxDate = ''
+        if (purchaseDate) {
+          effectiveTxDate = purchaseDate
+        } else if (defaultMonthDate) {
+          effectiveTxDate = defaultMonthDate
+        }
+
+        if (!effectiveTxDate) {
+          errors.push({
+            item_id: itemId,
+            description: description,
+            error: 'Nenhuma data disponível para a transação (nem no item nem no mês da fatura)',
+            index: j,
+          })
+          continue
+        }
+
+        $app.logger().info('CONVERT: item ' + itemId + ' transaction_date = ' + effectiveTxDate)
 
         var tx = new Record(txCol)
         tx.set('family_id', familyId)
@@ -138,7 +151,7 @@ routerAdd(
         tx.set('type', 'expense')
         tx.set('amount', amount)
         tx.set('description', description)
-        tx.set('transaction_date', txDate)
+        tx.set('transaction_date', effectiveTxDate)
         if (purchaseDate) {
           tx.set('purchase_date', purchaseDate)
         }
@@ -185,7 +198,7 @@ routerAdd(
           var remaining = instTotal - instCurrent
           if (remaining > 0) {
             for (var fi2 = 1; fi2 <= remaining; fi2++) {
-              var baseDate = new Date(txDate + 'T00:00:00')
+              var baseDate = new Date(effectiveTxDate + 'T00:00:00')
               baseDate.setMonth(baseDate.getMonth() + fi2)
               var fm = baseDate.getMonth() + 1
               var futureDateStr =

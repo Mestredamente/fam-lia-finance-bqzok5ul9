@@ -1,5 +1,15 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Loader2, Clock, AlertTriangle, Info, Sparkles, Repeat, Layers, Pencil } from 'lucide-react'
+import {
+  Loader2,
+  Clock,
+  AlertTriangle,
+  Info,
+  Sparkles,
+  Repeat,
+  Layers,
+  Pencil,
+  Calendar,
+} from 'lucide-react'
 import { z } from 'zod'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
@@ -260,6 +270,41 @@ export function TransactionFormSheet({
     familyId,
     !editingTransaction && !userTouchedCategory.current,
   )
+
+  const MONTH_NAMES_PT = [
+    'janeiro',
+    'fevereiro',
+    'março',
+    'abril',
+    'maio',
+    'junho',
+    'julho',
+    'agosto',
+    'setembro',
+    'outubro',
+    'novembro',
+    'dezembro',
+  ]
+
+  // Detect when the selected date is in a different month than the current month
+  const differentMonthWarning = useMemo(() => {
+    if (!date) return null
+    const parts = date.split('-')
+    if (parts.length < 2) return null
+    const txYear = parseInt(parts[0], 10)
+    const txMonth = parseInt(parts[1], 10) - 1 // 0-indexed
+    if (isNaN(txYear) || isNaN(txMonth) || txMonth < 0 || txMonth > 11) return null
+
+    const today = new Date()
+    const currentYear = today.getFullYear()
+    const currentMonth = today.getMonth()
+
+    if (txYear !== currentYear || txMonth !== currentMonth) {
+      const monthName = MONTH_NAMES_PT[txMonth]
+      return `📅 Atenção: você está lançando uma transação de ${monthName}${txYear !== currentYear ? ` de ${txYear}` : ''}. Confirmar?`
+    }
+    return null
+  }, [date])
 
   // Derived numeric values (null when empty / invalid).
   const installmentTotal = useMemo(() => {
@@ -917,41 +962,52 @@ export function TransactionFormSheet({
             </div>
 
             {/* 3. Data */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="tx-date" className="text-xs font-semibold text-gray-700">
-                  Data
-                </label>
-                <Input
-                  id="tx-date"
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  aria-required="true"
-                  className={cn('mt-1', errors.transaction_date && 'border-red-500')}
-                />
-                {errors.transaction_date && (
-                  <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
-                    {errors.transaction_date}
-                  </p>
-                )}
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="tx-date" className="text-xs font-semibold text-gray-700">
+                    Data
+                  </label>
+                  <Input
+                    id="tx-date"
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    aria-required="true"
+                    className={cn('mt-1', errors.transaction_date && 'border-red-500')}
+                  />
+                  {errors.transaction_date && (
+                    <p role="alert" aria-live="assertive" className="text-xs text-red-500 mt-1">
+                      {errors.transaction_date}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label
+                    htmlFor="tx-time"
+                    className="flex items-center gap-1 text-xs font-semibold text-gray-700"
+                  >
+                    <Clock className="h-3 w-3" />
+                    Horário
+                  </label>
+                  <Input
+                    id="tx-time"
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
               </div>
-              <div>
-                <label
-                  htmlFor="tx-time"
-                  className="flex items-center gap-1 text-xs font-semibold text-gray-700"
+              {differentMonthWarning && (
+                <div
+                  role="status"
+                  className="flex items-center gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 p-2.5 text-xs text-amber-800 dark:text-amber-200"
                 >
-                  <Clock className="h-3 w-3" />
-                  Horário
-                </label>
-                <Input
-                  id="tx-time"
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
+                  <Calendar className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <span>{differentMonthWarning}</span>
+                </div>
+              )}
             </div>
 
             {/* Conta Bancária / Transferência */}
