@@ -13,7 +13,10 @@
 // own (parent_transaction_id points only to the mother), so the cascade
 // terminates — no infinite recursion.
 onRecordAfterDeleteSuccess((e) => {
-  var deletedId = e.record.getId()
+  var deletedId = e.record
+    ? e.record.id || (typeof e.record.getId === 'function' ? e.record.getId() : '')
+    : ''
+  if (!deletedId) return
 
   var children = []
   try {

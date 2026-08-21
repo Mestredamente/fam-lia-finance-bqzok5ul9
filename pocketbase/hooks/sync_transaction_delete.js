@@ -25,7 +25,7 @@ onRecordAfterDeleteSuccess((e) => {
   var tx = e.record
   if (!tx) return
 
-  var txId = tx.getId()
+  var txId = tx.id || (typeof tx.getId === 'function' ? tx.getId() : '')
 
   // ── (a) Investment sync ───────────────────────────────────────────────
   var invId = ''
