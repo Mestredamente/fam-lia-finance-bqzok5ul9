@@ -36,26 +36,12 @@ import {
 import pb from '@/lib/pocketbase/client'
 import { getInvestmentsByFamilyId } from '@/services/investments'
 import { getDebtsByFamilyId } from '@/services/debts'
-import { formatBRL, cn } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { usePrivacy } from '@/hooks/use-privacy'
 import { toast } from '@/hooks/use-toast'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import type {
-  BillItem,
-  BillStatus,
-  BillSource,
-  InvestmentRecord,
-  DebtRecord,
-} from '@/types/finance'
+import type { BillItem, BillStatus, InvestmentRecord, DebtRecord } from '@/types/finance'
 
 type TabValue = 'a_vencer' | 'vencidas' | 'pagas' | 'todas'
-type SourceFilterValue = 'all' | BillSource
 
 const TAB_BY_QUERY: Record<string, TabValue> = {
   a_vencer: 'a_vencer',
@@ -101,7 +87,6 @@ export default function ContasAPagar() {
   const queryTab = searchParams.get('tab')
   const initialTab = TAB_BY_QUERY[queryTab || ''] || 'a_vencer'
   const [tab, setTab] = useState<TabValue>(initialTab)
-  const [sourceFilter, setSourceFilter] = useState<SourceFilterValue>('all')
 
   // Keep the active tab in sync with the URL (so dashboard alerts can deep-link).
   useEffect(() => {
@@ -153,30 +138,19 @@ export default function ContasAPagar() {
   )
 
   const visible = useMemo(() => {
-    let list = contas
     switch (tab) {
       case 'a_vencer':
-        list = contas.filter(
+        return contas.filter(
           (c) => c.status === 'a_vencer' || c.status === 'futura' || c.status === 'partial',
         )
-        break
       case 'vencidas':
-        list = contas.filter((c) => c.status === 'vencida')
-        break
+        return contas.filter((c) => c.status === 'vencida')
       case 'pagas':
-        list = contas.filter((c) => c.status === 'paga')
-        break
+        return contas.filter((c) => c.status === 'paga')
       default:
-        list = contas
-        break
+        return contas
     }
-
-    if (sourceFilter !== 'all') {
-      list = list.filter((c) => c.source === sourceFilter)
-    }
-
-    return list
-  }, [tab, sourceFilter, contas])
+  }, [tab, contas])
 
   // Group visible bills into the 4 layout sections (vencidas, esta semana,
   // próximas, pagas este mês). Only render non-empty sections.
@@ -375,54 +349,22 @@ export default function ContasAPagar() {
       </div>
 
       {/* Filters */}
-      <div className="space-y-3">
-        <Tabs value={tab} onValueChange={onTabChange}>
-          <TabsList className="w-full justify-start overflow-x-auto h-auto">
-            <TabsTrigger value="a_vencer" className="gap-1.5">
-              A vencer <CountBadge n={counts.a_vencer} />
-            </TabsTrigger>
-            <TabsTrigger value="vencidas" className="gap-1.5">
-              Vencidas <CountBadge n={counts.vencidas} tone="overdue" />
-            </TabsTrigger>
-            <TabsTrigger value="pagas" className="gap-1.5">
-              Pagas <CountBadge n={counts.pagas} tone="paid" />
-            </TabsTrigger>
-            <TabsTrigger value="todas" className="gap-1.5">
-              Todas <CountBadge n={counts.todas} />
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {/* Filtro por Origem (Segunda linha de filtros) */}
-        <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
-            {[
-              { value: 'all' as const, label: 'Todas as origens' },
-              { value: 'recurring' as const, label: 'Recorrentes' },
-              { value: 'invoice' as const, label: 'Faturas' },
-              { value: 'debt' as const, label: 'Dívidas' },
-              { value: 'investment' as const, label: 'Investimentos' },
-            ].map((sf) => {
-              const active = sourceFilter === sf.value
-              return (
-                <button
-                  key={sf.value}
-                  type="button"
-                  onClick={() => setSourceFilter(sf.value)}
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all',
-                    active
-                      ? 'bg-emerald-100 text-[#166534] dark:bg-emerald-950/60 dark:text-emerald-300 font-semibold shadow-xs'
-                      : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700',
-                  )}
-                >
-                  {sf.label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </div>
+      <Tabs value={tab} onValueChange={onTabChange}>
+        <TabsList className="w-full justify-start overflow-x-auto h-auto">
+          <TabsTrigger value="a_vencer" className="gap-1.5">
+            A vencer <CountBadge n={counts.a_vencer} />
+          </TabsTrigger>
+          <TabsTrigger value="vencidas" className="gap-1.5">
+            Vencidas <CountBadge n={counts.vencidas} tone="overdue" />
+          </TabsTrigger>
+          <TabsTrigger value="pagas" className="gap-1.5">
+            Pagas <CountBadge n={counts.pagas} tone="paid" />
+          </TabsTrigger>
+          <TabsTrigger value="todas" className="gap-1.5">
+            Todas <CountBadge n={counts.todas} />
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* List */}
       {loading ? (
