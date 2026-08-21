@@ -40,7 +40,6 @@ import { UnifiedHealthCard } from '@/components/UnifiedHealthCard'
 import { TransactionFormSheet } from '@/components/TransactionFormSheet'
 import { ScenarioComparator } from '@/components/ScenarioComparator'
 import { exportToCSV } from '@/lib/export-utils'
-import { DashboardInstallBanner } from '@/components/DashboardInstallBanner'
 import { MemberRecord, AIInsight } from '@/types/finance'
 import { getActiveMembersByFamilyId } from '@/services/members'
 import { getMonthName, formatBRL, cn } from '@/lib/utils'
@@ -497,7 +496,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in max-w-full overflow-x-hidden">
-      <DashboardInstallBanner />
       <div className="space-y-3">
         <h1 className="text-xl font-semibold text-gray-900 dark:text-foreground">
           Resumo Financeiro

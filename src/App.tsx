@@ -12,7 +12,7 @@ import { useNotifications } from '@/hooks/use-notifications'
 import { PrivacyProvider } from '@/hooks/use-privacy'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { OfflineBanner } from '@/components/OfflineBanner'
-import { InstallPrompt } from '@/components/InstallPrompt'
+import { DashboardInstallBanner } from '@/components/DashboardInstallBanner'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { SkipLink } from '@/components/SkipLink'
 import pb from '@/lib/pocketbase/client'
@@ -154,7 +154,7 @@ function AppInner() {
               <BrowserRouter>
                 <SkipLink />
                 <OfflineBanner />
-                <InstallPrompt />
+                <DashboardInstallBanner />
                 <TooltipProvider>
                   <Toaster />
                   <Sonner />

@@ -1,4 +1,13 @@
 import { useState, useEffect } from 'react'
+import { isIOS, isStandalone } from '@/lib/notification-utils'
+
+export { isIOS, isStandalone }
+
+export function isChromeIOS(): boolean {
+  if (typeof window === 'undefined') return false
+  const ua = window.navigator.userAgent
+  return ua.includes('CriOS')
+}
 
 interface BIPEvent extends Event {
   prompt: () => Promise<void>
@@ -21,7 +30,7 @@ export function usePwaInstall() {
     window.addEventListener('beforeinstallprompt', onBIP)
     window.addEventListener('appinstalled', onInstalled)
 
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    if (isStandalone()) {
       setIsInstalled(true)
     }
 
@@ -41,10 +50,20 @@ export function usePwaInstall() {
 
   const dismissInstall = () => setDeferredPrompt(null)
 
+  const standalone = isInstalled || isStandalone()
+  const chromeIOS = isChromeIOS()
+  const ios = isIOS()
+
+  // canInstall: (deferredPrompt existe OU isIOS) E !isStandalone E !isChromeIOS
+  const canInstall = (!!deferredPrompt || ios) && !standalone && !chromeIOS
+
   return {
-    canInstall: !!deferredPrompt && !isInstalled,
+    canInstall,
     promptInstall,
     dismissInstall,
-    isInstalled,
+    isInstalled: standalone,
+    isIOS: ios,
+    isChromeIOS: chromeIOS,
+    isStandalone: standalone,
   }
 }

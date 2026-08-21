@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Bot, Send, RotateCcw } from 'lucide-react'
+import { Bot, Send, RotateCcw, Mic, X, Check, Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useMonthlySummary } from '@/hooks/use-monthly-summary'
 import { ChatMessage } from '@/components/ChatMessage'
@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getConversations, createConversation } from '@/services/ai-conversations'
 import { chat as chatApi, executeAction, confirmAction } from '@/services/ai-advisor'
+import { useMicrophone } from '@/hooks/use-microphone'
+import pb from '@/lib/pocketbase/client'
 import { formatBRL } from '@/lib/utils'
 import type { AIConversationRecord } from '@/types/finance'
 
@@ -65,6 +67,16 @@ export default function Consultora() {
     tempId: string
   } | null>(null)
   const [confirmingAction, setConfirmingAction] = useState(false)
+  const [processingAudio, setProcessingAudio] = useState(false)
+
+  const {
+    isRecording,
+    isSupported,
+    error: micError,
+    startRecording,
+    stopRecording,
+    cancelRecording,
+  } = useMicrophone()
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -369,6 +381,142 @@ export default function Consultora() {
     }
   }
 
+  const handleStartMic = async () => {
+    await startRecording()
+  }
+
+  const handleCancelMic = () => {
+    cancelRecording()
+  }
+
+  const handleSendMic = async () => {
+    const blob = await stopRecording()
+    if (!blob || !family?.id) return
+
+    setProcessingAudio(true)
+    setError(false)
+    setShowChips(false)
+
+    // Adicionar mensagem do usuário indicando áudio
+    const userMsg: AIConversationRecord = {
+      id: 'temp-user-' + Date.now(),
+      family_id: family.id,
+      user_id: member?.id || '',
+      role: 'user',
+      content: '🎤 Mensagem de áudio enviada',
+      created: new Date().toISOString(),
+      updated: new Date().toISOString(),
+    }
+    setMessages((prev) => [...prev, userMsg])
+    setIsTyping(true)
+
+    try {
+      // Salvar mensagem de áudio no histórico
+      if (member?.id) {
+        try {
+          await createConversation({
+            family_id: family.id,
+            user_id: member.id,
+            role: 'user',
+            content: '🎤 Mensagem de áudio enviada',
+          })
+        } catch {
+          /* intentionally ignored */
+        }
+      }
+
+      const formData = new FormData()
+      formData.append('audio', blob, 'recording.webm')
+      formData.append('family_id', family.id)
+      if (member?.id) formData.append('user_id', member.id)
+
+      const backendUrl = import.meta.env.VITE_POCKETBASE_URL || ''
+      const token = pb.authStore.token
+      const response = await fetch(`${backendUrl}/backend/v1/financial-actions`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      })
+
+      if (!response.ok) throw new Error('Falha ao processar áudio')
+
+      const data = await response.json()
+      setIsTyping(false)
+
+      if (data.executable && data.action && data.params) {
+        const assistantContent =
+          data.reply ||
+          data.response ||
+          'Processei seu áudio! Veja a ação sugerida abaixo para sua confirmação:'
+        let savedAssistantId = 'temp-assistant-' + Date.now()
+
+        try {
+          if (member?.id) {
+            const savedAssistant = await createConversation({
+              family_id: family.id,
+              user_id: member.id,
+              role: 'assistant',
+              content: assistantContent,
+            })
+            setMessages((prev) => [...prev, savedAssistant])
+            savedAssistantId = savedAssistant.id
+          }
+        } catch {
+          const replyMsg: AIConversationRecord = {
+            id: savedAssistantId,
+            family_id: family.id,
+            user_id: member?.id || '',
+            role: 'assistant',
+            content: assistantContent,
+            created: new Date().toISOString(),
+            updated: new Date().toISOString(),
+          }
+          setMessages((prev) => [...prev, replyMsg])
+        }
+
+        setPendingAction({
+          action: data.action,
+          params: data.params,
+          summary: data.summary || '',
+          tempId: savedAssistantId,
+        })
+      } else {
+        const replyText =
+          data.reply ||
+          data.response ||
+          'Recebi seu áudio, mas não identifiquei uma ação executável.'
+        try {
+          if (member?.id) {
+            const savedAssistant = await createConversation({
+              family_id: family.id,
+              user_id: member.id,
+              role: 'assistant',
+              content: replyText,
+            })
+            setMessages((prev) => [...prev, savedAssistant])
+          }
+        } catch {
+          const replyMsg: AIConversationRecord = {
+            id: 'temp-assistant-' + Date.now(),
+            family_id: family.id,
+            user_id: member?.id || '',
+            role: 'assistant',
+            content: replyText,
+            created: new Date().toISOString(),
+            updated: new Date().toISOString(),
+          }
+          setMessages((prev) => [...prev, replyMsg])
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao processar áudio:', err)
+      setIsTyping(false)
+      setError(true)
+    } finally {
+      setProcessingAudio(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -491,25 +639,71 @@ export default function Consultora() {
 
       {/* Input */}
       <div className="pt-3 border-t border-gray-200">
+        {micError && <p className="text-xs text-red-500 mb-2 px-2">{micError}</p>}
         <div className="flex items-center gap-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Pergunte ou peça: 'Crie um desafio de economizar R$ 300'..."
-            disabled={isTyping || confirmingAction}
-            className="flex-1 px-4 py-2.5 text-sm bg-gray-100 border border-transparent rounded-full focus:outline-none focus:border-[#166534] focus:bg-white transition-colors disabled:opacity-50"
-          />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || isTyping || confirmingAction}
-            className="w-10 h-10 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
-            aria-label="Enviar mensagem"
-          >
-            <Send className="h-4 w-4" />
-          </button>
+          {/* Botão de microfone - só aparece se suportado */}
+          {isSupported && !isRecording && (
+            <button
+              onClick={handleStartMic}
+              disabled={isTyping || confirmingAction || processingAudio}
+              className="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              aria-label="Gravar áudio"
+            >
+              <Mic className="h-4 w-4" />
+            </button>
+          )}
+
+          {/* Durante gravação */}
+          {isRecording && (
+            <>
+              <button
+                onClick={handleCancelMic}
+                className="w-10 h-10 rounded-full bg-red-100 hover:bg-red-200 text-red-600 flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+                aria-label="Cancelar gravação"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <div className="flex-1 flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-full">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-sm text-red-700 font-medium">Gravando...</span>
+              </div>
+              <button
+                onClick={handleSendMic}
+                className="w-10 h-10 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shrink-0 transition-colors active:scale-95 cursor-pointer"
+                aria-label="Enviar áudio"
+              >
+                <Check className="h-4 w-4" />
+              </button>
+            </>
+          )}
+
+          {/* Input de texto normal (quando não está gravando) */}
+          {!isRecording && (
+            <>
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Pergunte ou peça: 'Crie um desafio de economizar R$ 300'..."
+                disabled={isTyping || confirmingAction || processingAudio}
+                className="flex-1 px-4 py-2.5 text-sm bg-gray-100 border border-transparent rounded-full focus:outline-none focus:border-[#166534] focus:bg-white transition-colors disabled:opacity-50"
+              />
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || isTyping || confirmingAction || processingAudio}
+                className="w-10 h-10 rounded-full bg-[#166534] hover:bg-[#15803D] text-white flex items-center justify-center shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 cursor-pointer"
+                aria-label="Enviar mensagem"
+              >
+                {processingAudio ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

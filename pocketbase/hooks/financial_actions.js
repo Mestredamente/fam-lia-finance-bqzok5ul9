@@ -5,15 +5,85 @@ routerAdd(
     e.response.header().set('Access-Control-Allow-Origin', '*')
     e.response.header().set('Access-Control-Allow-Headers', 'authorization, content-type')
 
-    var body = e.requestInfo().body || {}
+    var reqInfo = e.requestInfo()
+    var contentType = (reqInfo.headers['content-type'] || '').toLowerCase()
+    var isMultipart = contentType.indexOf('multipart/form-data') !== -1
+
+    var body = reqInfo.body || {}
     var familyId = (body.family_id || '').trim()
     var memberId = (body.user_id || '').trim()
     var message = (body.message || '').trim()
     var context = body.context || []
 
-    if (!familyId || !memberId || !message) {
+    var audioFile = null
+    var audioMime = 'audio/webm'
+    var audioBase64 = ''
+
+    if (isMultipart) {
+      try {
+        var files = reqInfo.files || {}
+        if (files.audio) {
+          audioFile = Array.isArray(files.audio) ? files.audio[0] : files.audio
+        } else {
+          var fileKeys = Object.keys(files)
+          for (var fki = 0; fki < fileKeys.length; fki++) {
+            var k = fileKeys[fki]
+            if (k === 'audio' || k.indexOf('audio') !== -1 || k.indexOf('recording') !== -1) {
+              audioFile = Array.isArray(files[k]) ? files[k][0] : files[k]
+              break
+            }
+          }
+          if (!audioFile && fileKeys.length > 0) {
+            audioFile = Array.isArray(files[fileKeys[0]])
+              ? files[fileKeys[0]][0]
+              : files[fileKeys[0]]
+          }
+        }
+      } catch (fErr) {
+        console.log('[financial-actions] error inspecting files:', fErr.message)
+      }
+
+      if (audioFile) {
+        try {
+          var rawBytes = audioFile.bytes ? audioFile.bytes() : audioFile.data || null
+          if (rawBytes) {
+            var b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+            var b64Parts = []
+            for (var bi = 0; bi < rawBytes.length; bi += 3) {
+              var a = rawBytes[bi]
+              var b = bi + 1 < rawBytes.length ? rawBytes[bi + 1] : 0
+              var c = bi + 2 < rawBytes.length ? rawBytes[bi + 2] : 0
+              b64Parts.push(
+                b64chars[a >> 2] +
+                  b64chars[((a & 3) << 4) | (b >> 4)] +
+                  (bi + 1 < rawBytes.length ? b64chars[((b & 15) << 2) | (c >> 6)] : '=') +
+                  (bi + 2 < rawBytes.length ? b64chars[c & 63] : '='),
+              )
+            }
+            audioBase64 = b64Parts.join('')
+          }
+
+          if (audioFile.header && audioFile.header.get) {
+            audioMime = audioFile.header.get('Content-Type') || audioMime
+          } else if (audioFile.contentType) {
+            audioMime = audioFile.contentType
+          }
+          if (audioFile.name) {
+            var ext = audioFile.name.split('.').pop().toLowerCase()
+            if (ext === 'mp4' || ext === 'm4a') audioMime = 'audio/mp4'
+            else if (ext === 'wav') audioMime = 'audio/wav'
+            else if (ext === 'ogg') audioMime = 'audio/ogg'
+            else if (ext === 'webm') audioMime = 'audio/webm'
+          }
+        } catch (encErr) {
+          console.log('[financial-actions] error encoding audio bytes:', encErr.message)
+        }
+      }
+    }
+
+    if (!familyId || !memberId || (!message && !audioBase64)) {
       return e.json(400, {
-        error: 'Parâmetros obrigatórios ausentes (family_id, user_id, message).',
+        error: 'Parâmetros obrigatórios ausentes (family_id, user_id e message/audio).',
       })
     }
 
@@ -401,9 +471,11 @@ routerAdd(
     var in30Days = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0]
 
     var sysPrompt =
-      'Você é uma assistente financeira com capacidade de EXECUTAR ações dentro do app Família Finance. O usuário pediu: "' +
-      message.replace(/"/g, "'") +
-      '". Data atual de referência: ' +
+      'Você é uma assistente financeira com capacidade de EXECUTAR ações dentro do app Família Finance. ' +
+      (audioBase64
+        ? 'Interprete este áudio do usuário em português do Brasil e determine a ação financeira correspondente. '
+        : 'O usuário pediu: "' + message.replace(/"/g, "'") + '". ') +
+      'Data atual de referência: ' +
       todayStr +
       '. Com base nos dados da família fornecidos abaixo, determine se isso corresponde a uma ação executável.\n\n' +
       'AÇÕES DISPONÍVEIS NA FASE 1:\n\n' +
@@ -429,7 +501,7 @@ routerAdd(
       "   - recurrence_pattern: 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'annually' (opcional, só se is_recurring=true)\n\n" +
       'REGRAS:\n' +
       '- Se o pedido do usuário for executável como uma das ações acima, retorne APENAS um JSON válido:\n' +
-      '  {"executable":true,"action":"create_challenge","params":{...},"summary":"descrição amigável em português do que será criado"}\n' +
+      '  {"executable":true,"action":"create_challenge","params":{...},"summary":"descrição amigável em português do que será criado","reply":"mensagem explicativa amigável"}\n' +
       '- Se NÃO for executável (ex: pergunta genérica, pedido de análise, dúvida), retorne APENAS um JSON válido:\n' +
       '  {"executable":false,"reply":"resposta em português explicando ou respondendo a dúvida"}\n' +
       '- Seja criativo e use os dados reais da família para sugerir valores e datas realistas\n' +
@@ -439,38 +511,113 @@ routerAdd(
       '- Para tarefas: se o usuário mencionar "assinaturas", analise as transações recorrentes e sugira tarefas específicas com categoria subscription_review\n' +
       '- A resposta DEVE ser APENAS o JSON, sem markdown, sem texto adicional.'
 
-    var aiMessages = [
-      { role: 'system', content: sysPrompt },
-      { role: 'user', content: 'Dados financeiros da família:\n\n' + contextText },
-    ]
-
-    if (context && Array.isArray(context) && context.length > 0) {
-      for (var ci2 = 0; ci2 < context.length && ci2 < 10; ci2++) {
-        var ctxRole = context[ci2].role === 'assistant' ? 'assistant' : 'user'
-        aiMessages.push({ role: ctxRole, content: context[ci2].content || '' })
-      }
-    }
-
-    aiMessages.push({ role: 'user', content: message })
-
-    var maxRetries = 3
-    var aiResult = null
+    var aiContent = ''
     var aiError = null
-    for (var retry = 0; retry < maxRetries; retry++) {
-      try {
-        aiResult = $ai.chat({ model: 'fast', messages: aiMessages })
-        aiError = null
-        break
-      } catch (err) {
-        aiError = err
-        var errStatus = err.status || 0
-        if (errStatus === 400 || errStatus === 401) break
+
+    if (audioBase64) {
+      // Fluxo Multimodal com Áudio
+      var GEMINI_API_KEY = $secrets.get('GEMINI_API_KEY') || ''
+      if (!GEMINI_API_KEY) {
+        // Fallback: tentar chamada via $ai.chat se possível, ou retornar erro
+        return e.json(500, {
+          error: 'Chave da API Gemini não configurada para processamento de áudio.',
+        })
+      }
+
+      var chosenModel = 'gemini-1.5-flash'
+      var geminiUrl =
+        'https://generativelanguage.googleapis.com/v1beta/models/' +
+        chosenModel +
+        ':generateContent'
+
+      var parts = [
+        {
+          inline_data: {
+            mime_type: audioMime,
+            data: audioBase64,
+          },
+        },
+        {
+          text:
+            sysPrompt +
+            '\n\nDados financeiros da família:\n\n' +
+            contextText +
+            '\n\nAnalise o áudio anexado e responda com o JSON solicitado.',
+        },
+      ]
+
+      var geminiBody = JSON.stringify({
+        contents: [{ parts: parts }],
+        generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
+      })
+
+      for (var aRetry = 0; aRetry < 3; aRetry++) {
+        try {
+          var aRes = $http.send({
+            url: geminiUrl,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+              'X-goog-api-key': GEMINI_API_KEY,
+            },
+            body: geminiBody,
+            timeout: 60,
+          })
+
+          if (aRes.statusCode === 200) {
+            var gData = JSON.parse(aRes.body || '{}')
+            if (
+              gData.candidates &&
+              gData.candidates[0] &&
+              gData.candidates[0].content &&
+              gData.candidates[0].content.parts &&
+              gData.candidates[0].content.parts[0]
+            ) {
+              aiContent = gData.candidates[0].content.parts[0].text || ''
+              aiError = null
+              break
+            }
+          } else {
+            aiError = new Error('Gemini HTTP ' + aRes.statusCode + ': ' + aRes.body)
+          }
+        } catch (err) {
+          aiError = err
+        }
+      }
+    } else {
+      // Fluxo normal de texto via $ai.chat
+      var aiMessages = [
+        { role: 'system', content: sysPrompt },
+        { role: 'user', content: 'Dados financeiros da família:\n\n' + contextText },
+      ]
+
+      if (context && Array.isArray(context) && context.length > 0) {
+        for (var ci2 = 0; ci2 < context.length && ci2 < 10; ci2++) {
+          var ctxRole = context[ci2].role === 'assistant' ? 'assistant' : 'user'
+          aiMessages.push({ role: ctxRole, content: context[ci2].content || '' })
+        }
+      }
+
+      aiMessages.push({ role: 'user', content: message })
+
+      var maxRetries = 3
+      for (var retry = 0; retry < maxRetries; retry++) {
+        try {
+          var aiResult = $ai.chat({ model: 'fast', messages: aiMessages })
+          aiContent = aiResult.choices[0].message.content
+          aiError = null
+          break
+        } catch (err) {
+          aiError = err
+          var errStatus = err.status || 0
+          if (errStatus === 400 || errStatus === 401) break
+        }
       }
     }
 
-    if (aiError) {
-      var errMsg = (aiError.message || '') + ''
-      var errSt = aiError.status || 500
+    if (aiError || !aiContent) {
+      var errMsg = (aiError ? aiError.message : '') + ''
+      var errSt = aiError && aiError.status ? aiError.status : 500
       if (errMsg.indexOf('config') !== -1 || errMsg.indexOf('provisioned') !== -1) {
         return e.json(503, {
           error: 'IA temporariamente indisponível. Tente novamente em alguns minutos.',
@@ -486,7 +633,6 @@ routerAdd(
       return e.json(500, { error: 'Erro ao processar com IA. Tente novamente.' })
     }
 
-    var aiContent = aiResult.choices[0].message.content
     var jsonStr = aiContent
     var cbMatch = aiContent.match(/```(?:json)?\s*([\s\S]*?)```/)
     if (cbMatch) {
@@ -507,6 +653,7 @@ routerAdd(
         success: true,
         executable: false,
         response: aiContent,
+        reply: aiContent,
       })
     }
 
@@ -521,6 +668,7 @@ routerAdd(
         action: parsed.action,
         params: parsed.params || {},
         summary: parsed.summary || 'Ação preparada pela assistente.',
+        reply: parsed.reply || parsed.summary || 'Ação preparada pela assistente.',
       })
     } else {
       var replyText = (parsed && (parsed.reply || parsed.response)) || aiContent
@@ -528,6 +676,7 @@ routerAdd(
         success: true,
         executable: false,
         response: replyText,
+        reply: replyText,
       })
     }
   },
