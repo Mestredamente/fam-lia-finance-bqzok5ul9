@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Plus,
   Sparkles,
-  Eye,
+  ChevronDown,
   SlidersHorizontal,
   Check,
   MoreHorizontal,
@@ -561,7 +561,7 @@ export default function Dashboard() {
                 disabled={period === 'tudo'}
                 className="inline-flex items-center gap-1.5 h-9 px-3 py-2 text-sm rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
               >
-                <Eye className="h-4 w-4" />
+                <ChevronDown className="h-4 w-4" />
                 <span className="hidden sm:inline">Ver todas</span>
               </button>
             </div>

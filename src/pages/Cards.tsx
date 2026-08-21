@@ -1,8 +1,17 @@
 import { useState } from 'react'
-import { Plus, CreditCard as CreditCardIcon, ChevronRight, AlertCircle } from 'lucide-react'
+import {
+  Plus,
+  CreditCard as CreditCardIcon,
+  ChevronRight,
+  AlertCircle,
+  MoreVertical,
+  Pencil,
+  Trash2,
+} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { useCreditCards } from '@/hooks/use-credit-cards'
+import { deleteCreditCard } from '@/services/credit-cards'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
@@ -10,13 +19,64 @@ import { CreditCardVisual } from '@/components/CreditCardVisual'
 import { CreditCardFormSheet } from '@/components/CreditCardFormSheet'
 import { TransactionFormSheet } from '@/components/TransactionFormSheet'
 import { EmptyState } from '@/components/EmptyState'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { toast } from '@/hooks/use-toast'
+import type { CreditCardRecord } from '@/types/finance'
 
 export default function Cards() {
   const { family, member } = useAuth()
   const navigate = useNavigate()
   const { cards, loading, error, refetch } = useCreditCards(family?.id)
   const [showForm, setShowForm] = useState(false)
+  const [editingCard, setEditingCard] = useState<CreditCardRecord | null>(null)
+  const [cardToDelete, setCardToDelete] = useState<CreditCardRecord | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [showTransactionForm, setShowTransactionForm] = useState(false)
+
+  const handleEdit = (e: React.MouseEvent, card: CreditCardRecord) => {
+    e.stopPropagation()
+    setEditingCard(card)
+    setShowForm(true)
+  }
+
+  const handleDeletePrompt = (e: React.MouseEvent, card: CreditCardRecord) => {
+    e.stopPropagation()
+    setCardToDelete(card)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!cardToDelete) return
+    setDeleting(true)
+    try {
+      await deleteCreditCard(cardToDelete.id)
+      toast({ title: 'Cartão excluído com sucesso' })
+      setCardToDelete(null)
+      refetch()
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao excluir cartão',
+        description: err?.message || 'Não foi possível excluir o cartão.',
+      })
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -63,17 +123,50 @@ export default function Cards() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {cards.map((card) => (
-            <div
-              key={card.id}
-              onClick={() => navigate(`/cards/${card.id}`)}
-              className="cursor-pointer group"
-            >
-              <CreditCardVisual card={card} ownerName={card.expand?.owner_id?.display_name} />
-              <div className="flex items-center justify-between mt-2 px-1">
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {card.expand?.owner_id?.display_name || '—'}
-                </span>
-                <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
+            <div key={card.id} className="relative group">
+              <div onClick={() => navigate(`/cards/${card.id}`)} className="cursor-pointer">
+                <div className="relative">
+                  <CreditCardVisual card={card} ownerName={card.expand?.owner_id?.display_name} />
+
+                  {/* Kebab menu on top-right of card */}
+                  <div className="absolute top-2 right-2 z-10" onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-full bg-black/20 hover:bg-black/40 text-white border-0 shadow-xs backdrop-blur-xs"
+                          aria-label="Opções do cartão"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-36">
+                        <DropdownMenuItem
+                          onClick={(e) => handleEdit(e, card)}
+                          className="cursor-pointer gap-2"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          <span>Editar</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => handleDeletePrompt(e, card)}
+                          className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>Excluir</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between mt-2 px-1">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {card.expand?.owner_id?.display_name || '—'}
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
+                </div>
               </div>
             </div>
           ))}
@@ -82,11 +175,40 @@ export default function Cards() {
 
       <CreditCardFormSheet
         open={showForm}
-        onOpenChange={setShowForm}
+        onOpenChange={(open) => {
+          setShowForm(open)
+          if (!open) setEditingCard(null)
+        }}
         familyId={family?.id || ''}
         defaultOwnerId={member?.id || ''}
-        onSaved={refetch}
+        editingCard={editingCard}
+        onSaved={() => {
+          setEditingCard(null)
+          refetch()
+        }}
       />
+
+      <AlertDialog open={!!cardToDelete} onOpenChange={(open) => !open && setCardToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cartão?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Todas as faturas vinculadas serão desvinculadas. As transações já criadas permanecem
+              no histórico.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <button
         onClick={() => setShowTransactionForm(true)}

@@ -17,6 +17,7 @@ import {
   ChevronRight,
   X,
   Home,
+  CheckSquare,
   type LucideIcon,
 } from 'lucide-react'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -67,7 +68,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: 'Projeções', path: '/projections', icon: CalendarClock },
       { label: 'Metas', path: '/metas', icon: Target },
       { label: 'Dívidas', path: '/dividas', icon: FileText },
-      { label: 'Casa', path: '/casa', icon: Home },
+      { label: 'Tarefas', path: '/casa', icon: CheckSquare },
       { label: 'Desafios', path: '/challenges', icon: Trophy },
     ],
   },
@@ -214,15 +215,49 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Header / Brand */}
+        {/* Top collapse / close zone - Dedicated row 1 (height h-12) */}
         <div
           className={cn(
-            'p-4 flex items-center border-b border-gray-100 dark:border-gray-800 transition-all',
-            isGlobalCollapsed ? 'lg:p-3 lg:justify-center' : 'justify-between gap-2',
+            'h-12 px-3 flex items-center border-b border-gray-100 dark:border-gray-800 transition-all',
+            isGlobalCollapsed ? 'lg:justify-center justify-end' : 'justify-end',
+          )}
+        >
+          {/* Desktop collapse toggle */}
+          <button
+            onClick={toggleGlobalCollapsed}
+            className="hidden lg:flex p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            title={isGlobalCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
+            aria-label="Alternar menu lateral"
+          >
+            {isGlobalCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </button>
+
+          {/* Mobile close button */}
+          <button
+            onClick={onClose}
+            className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+            aria-label="Fechar menu"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Brand / Logo - Row 2 */}
+        <div
+          className={cn(
+            'p-4 border-b border-gray-100 dark:border-gray-800 transition-all',
+            isGlobalCollapsed ? 'lg:p-3 flex lg:justify-center' : 'block',
           )}
         >
           <div
-            className="flex items-center gap-3 cursor-pointer min-w-0"
+            className={cn(
+              'flex items-center gap-3 cursor-pointer min-w-0',
+              isGlobalCollapsed && 'lg:justify-center',
+            )}
             onClick={() => handleNavigate('/dashboard')}
           >
             <div className="w-10 h-10 rounded-xl bg-[#166534] flex items-center justify-center text-white shrink-0">
@@ -242,28 +277,6 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
               </span>
             </div>
           </div>
-
-          {/* Desktop collapse toggle */}
-          <button
-            onClick={toggleGlobalCollapsed}
-            className={cn(
-              'hidden lg:flex p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors',
-              isGlobalCollapsed && 'hidden',
-            )}
-            title={isGlobalCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-            aria-label="Alternar menu lateral"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-
-          {/* Mobile close button */}
-          <button
-            onClick={onClose}
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
-            aria-label="Fechar menu"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
 
         {/* Navigation list */}

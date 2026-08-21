@@ -40,6 +40,7 @@ interface Props {
   familyId: string
   defaultOwnerId: string
   editingCard?: CreditCardRecord | null
+  card?: CreditCardRecord | null
   onSaved?: () => void
 }
 
@@ -48,9 +49,11 @@ export function CreditCardFormSheet({
   onOpenChange,
   familyId,
   defaultOwnerId,
-  editingCard,
+  editingCard: propEditingCard,
+  card,
   onSaved,
 }: Props) {
+  const editingCard = propEditingCard || card
   const [members, setMembers] = useState<MemberRecord[]>([])
   const [name, setName] = useState('')
   const [brand, setBrand] = useState('Visa')

@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react'
 import {
-  Home,
   List,
   User,
   LayoutDashboard,
@@ -14,7 +13,7 @@ import {
   Eye,
   EyeOff,
   LogOut,
-  SlidersHorizontal,
+  CheckSquare,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
@@ -34,7 +33,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { toggleSidebarGlobalState, GLOBAL_COLLAPSED_STORAGE_KEY } from '@/components/Sidebar'
+
 import ConsultoraView from '@/pages/Consultora'
 import { toast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
@@ -55,7 +54,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/evolucao': 'Evolução',
   '/profile': 'Perfil',
   '/notificacoes': 'Notificações',
-  '/casa': 'Casa',
+  '/casa': 'Tarefas',
   '/familia': 'Família',
   '/membros': 'Membros',
   '/regras-categorizacao': 'Regras',
@@ -87,17 +86,13 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
     navigate('/')
   }
 
-  const handleToggleSidebar = () => {
-    toggleSidebarGlobalState()
-  }
-
   return (
     <>
       <header
         role="banner"
         className="h-16 max-w-full overflow-x-hidden bg-white dark:bg-card border-b border-gray-200 dark:border-gray-800 px-3 md:px-6 lg:px-8 flex items-center justify-between gap-2 sm:gap-4 sticky top-0 z-30 shadow-subtle theme-transition"
       >
-        {/* Left: Mobile Menu / Collapse Button + Breadcrumb */}
+        {/* Left: Mobile Menu + Breadcrumb */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {/* Mobile hamburger */}
           {onMenuClick && (
@@ -109,16 +104,6 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
               <Menu className="h-5 w-5 text-gray-600 dark:text-gray-300" aria-hidden="true" />
             </button>
           )}
-
-          {/* Desktop sidebar collapse trigger */}
-          <button
-            onClick={handleToggleSidebar}
-            className="hidden lg:flex p-1.5 rounded-lg text-gray-500 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            title="Alternar menu lateral"
-            aria-label="Alternar menu lateral"
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-          </button>
 
           {/* Breadcrumb / Page Title */}
           <div className="flex items-center gap-2 min-w-0">
@@ -299,7 +284,7 @@ export function BottomNav({ onFabClick }: { onFabClick?: () => void }) {
   const tabs = [
     { label: 'Início', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Transações', path: '/transacoes', icon: List },
-    { label: 'Casa', path: '/casa', icon: Home },
+    { label: 'Tarefas', path: '/casa', icon: CheckSquare },
     { label: 'Perfil', path: '/profile', icon: User },
   ]
 
