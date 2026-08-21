@@ -1,3 +1,7 @@
+// Endpoint para IA Consultora Financeira com suporte a 2 fluxos:
+// 1. Fluxo de Texto: processado via $ai.chat (Skip AI Gateway)
+// 2. Fluxo de Áudio (Multimodal): áudio gravado via microfone (multipart/form-data)
+//    processado diretamente via Google Gemini REST API (gemini-1.5-flash) com inlineData
 routerAdd(
   'POST',
   '/backend/v1/financial-actions',
@@ -10,6 +14,14 @@ routerAdd(
     var isMultipart = contentType.indexOf('multipart/form-data') !== -1
 
     var body = reqInfo.body || {}
+    // Fallback: no multipart/form-data, campos de texto podem vir em reqInfo.form
+    if (isMultipart && (!body.family_id || !body.user_id)) {
+      var formFields = reqInfo.form || {}
+      if (formFields.family_id) body.family_id = formFields.family_id
+      if (formFields.user_id) body.user_id = formFields.user_id
+      if (formFields.message) body.message = formFields.message
+    }
+
     var familyId = (body.family_id || '').trim()
     var memberId = (body.user_id || '').trim()
     var message = (body.message || '').trim()
@@ -45,6 +57,26 @@ routerAdd(
 
       if (audioFile) {
         try {
+          if (audioFile.header && audioFile.header.get) {
+            audioMime = audioFile.header.get('Content-Type') || audioMime
+          } else if (audioFile.contentType) {
+            audioMime = audioFile.contentType
+          }
+          if (audioFile.name) {
+            var ext = audioFile.name.split('.').pop().toLowerCase()
+            if (ext === 'mp4' || ext === 'm4a') audioMime = 'audio/mp4'
+            else if (ext === 'wav') audioMime = 'audio/wav'
+            else if (ext === 'ogg') audioMime = 'audio/ogg'
+            else if (ext === 'webm') audioMime = 'audio/webm'
+          }
+
+          console.log(
+            '[financial-actions] Áudio recebido: tamanho=' +
+              (audioFile ? audioFile.size || '?' : 'N/A') +
+              ', mimeType=' +
+              audioMime,
+          )
+
           var rawBytes = audioFile.bytes ? audioFile.bytes() : audioFile.data || null
           if (rawBytes) {
             var b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
@@ -63,22 +95,21 @@ routerAdd(
             audioBase64 = b64Parts.join('')
           }
 
-          if (audioFile.header && audioFile.header.get) {
-            audioMime = audioFile.header.get('Content-Type') || audioMime
-          } else if (audioFile.contentType) {
-            audioMime = audioFile.contentType
-          }
-          if (audioFile.name) {
-            var ext = audioFile.name.split('.').pop().toLowerCase()
-            if (ext === 'mp4' || ext === 'm4a') audioMime = 'audio/mp4'
-            else if (ext === 'wav') audioMime = 'audio/wav'
-            else if (ext === 'ogg') audioMime = 'audio/ogg'
-            else if (ext === 'webm') audioMime = 'audio/webm'
-          }
+          console.log('[financial-actions] Base64 gerado: ' + audioBase64.length + ' caracteres')
         } catch (encErr) {
           console.log('[financial-actions] error encoding audio bytes:', encErr.message)
         }
       }
+    }
+
+    if (isMultipart && audioFile && audioBase64.length === 0) {
+      return e.json(200, {
+        success: false,
+        executable: false,
+        reply: 'O áudio está vazio. Tente gravar novamente.',
+        response: 'O áudio está vazio. Tente gravar novamente.',
+        error: 'O áudio está vazio. Tente gravar novamente.',
+      })
     }
 
     if (!familyId || !memberId || (!message && !audioBase64)) {
@@ -516,9 +547,10 @@ routerAdd(
 
     if (audioBase64) {
       // Fluxo Multimodal com Áudio
-      var GEMINI_API_KEY = $secrets.get('GEMINI_API_KEY') || ''
+      var GEMINI_API_KEY =
+        $os.getenv('GEMINI_API_KEY') ||
+        ($secrets.has('GEMINI_API_KEY') ? $secrets.get('GEMINI_API_KEY') : '')
       if (!GEMINI_API_KEY) {
-        // Fallback: tentar chamada via $ai.chat se possível, ou retornar erro
         return e.json(500, {
           error: 'Chave da API Gemini não configurada para processamento de áudio.',
         })
@@ -530,10 +562,17 @@ routerAdd(
         chosenModel +
         ':generateContent'
 
+      console.log(
+        '[financial-actions] Enviando para Gemini: model=' +
+          chosenModel +
+          ', mimeType=' +
+          audioMime,
+      )
+
       var parts = [
         {
-          inline_data: {
-            mime_type: audioMime,
+          inlineData: {
+            mimeType: audioMime,
             data: audioBase64,
           },
         },
@@ -564,6 +603,13 @@ routerAdd(
             timeout: 60,
           })
 
+          console.log(
+            '[financial-actions] Resposta Gemini status=' +
+              aRes.statusCode +
+              ', body_len=' +
+              (aRes.body ? aRes.body.length : 0),
+          )
+
           if (aRes.statusCode === 200) {
             var gData = JSON.parse(aRes.body || '{}')
             if (
@@ -575,12 +621,27 @@ routerAdd(
             ) {
               aiContent = gData.candidates[0].content.parts[0].text || ''
               aiError = null
+              console.log(
+                '[financial-actions] Gemini retornou ' +
+                  (aiContent ? aiContent.length : 0) +
+                  ' caracteres de conteúdo',
+              )
               break
+            } else {
+              console.log('[financial-actions] Gemini 200 mas candidates vazios:', aRes.body)
+              aiError = new Error('Resposta do Gemini vazia ou sem texto.')
             }
           } else {
+            console.log(
+              '[financial-actions] Gemini HTTP error: status=' +
+                aRes.statusCode +
+                ', body=' +
+                aRes.body,
+            )
             aiError = new Error('Gemini HTTP ' + aRes.statusCode + ': ' + aRes.body)
           }
         } catch (err) {
+          console.log('[financial-actions] erro ao chamar Gemini:', err.message)
           aiError = err
         }
       }
@@ -618,6 +679,24 @@ routerAdd(
     if (aiError || !aiContent) {
       var errMsg = (aiError ? aiError.message : '') + ''
       var errSt = aiError && aiError.status ? aiError.status : 500
+      console.log(
+        '[financial-actions] Falha IA (audio=' + (audioBase64 ? 'sim' : 'não') + '):',
+        errMsg,
+      )
+
+      if (audioBase64) {
+        return e.json(200, {
+          success: false,
+          executable: false,
+          reply:
+            'Não consegui processar este áudio. Tente gravar novamente ou digite sua mensagem.',
+          response:
+            'Não consegui processar este áudio. Tente gravar novamente ou digite sua mensagem.',
+          error:
+            'Não consegui processar este áudio. Tente gravar novamente ou digite sua mensagem.',
+        })
+      }
+
       if (errMsg.indexOf('config') !== -1 || errMsg.indexOf('provisioned') !== -1) {
         return e.json(503, {
           error: 'IA temporariamente indisponível. Tente novamente em alguns minutos.',
