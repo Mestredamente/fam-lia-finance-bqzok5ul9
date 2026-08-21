@@ -52,6 +52,23 @@ export interface FamilyRecord {
   invite_code: string
   created_by: string
   payoff_plan?: PayoffPlan | null
+  auto_weekly_summary?: boolean
+  auto_budget_alert?: boolean
+  auto_challenge_expiry?: boolean
+  auto_weekly_insights?: boolean
+  created: string
+  updated: string
+}
+
+export interface NotificationServerRecord {
+  id: string
+  family_id: string
+  user_id?: string | null
+  type: string
+  title: string
+  message: string
+  is_read: boolean
+  metadata?: Record<string, any> | null
   created: string
   updated: string
 }

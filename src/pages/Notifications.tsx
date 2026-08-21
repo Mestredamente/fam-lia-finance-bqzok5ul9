@@ -11,6 +11,9 @@ import {
   Sparkles,
   Layers,
   Inbox,
+  FileText,
+  Lightbulb,
+  Trophy,
 } from 'lucide-react'
 import { useNotificationsStore, type AppNotification } from '@/stores/notifications'
 import { Button } from '@/components/ui/button'
@@ -74,7 +77,15 @@ export function saveNotificationPrefs(prefs: NotificationPrefs) {
   }
 }
 
-type TabKey = 'todas' | 'nao_lidas' | 'vencimentos' | 'orcamento' | 'faturas'
+type TabKey =
+  | 'todas'
+  | 'nao_lidas'
+  | 'vencimentos'
+  | 'orcamento'
+  | 'faturas'
+  | 'resumos'
+  | 'insights'
+  | 'desafios'
 
 function formatRelativeTime(ts: number): string {
   const diff = Date.now() - ts
@@ -151,6 +162,14 @@ export default function NotificationsPage() {
         n.title.toLowerCase().includes('fatura') ||
         n.title.toLowerCase().includes('rotativo'),
     ).length
+    const resumos = notifications.filter((n) => n.type === 'weekly_summary').length
+    const insights = notifications.filter((n) => n.type === 'ai_insight').length
+    const desafios = notifications.filter(
+      (n) =>
+        n.type === 'challenge_expired' ||
+        n.type === 'challenge_completed' ||
+        n.title.toLowerCase().includes('desafio'),
+    ).length
 
     return {
       todas: notifications.length,
@@ -158,6 +177,9 @@ export default function NotificationsPage() {
       vencimentos,
       orcamento,
       faturas,
+      resumos,
+      insights,
+      desafios,
     }
   }, [notifications])
 
@@ -188,6 +210,17 @@ export default function NotificationsPage() {
             n.type === 'rotativo' ||
             n.title.toLowerCase().includes('fatura') ||
             n.title.toLowerCase().includes('rotativo'),
+        )
+      case 'resumos':
+        return notifications.filter((n) => n.type === 'weekly_summary')
+      case 'insights':
+        return notifications.filter((n) => n.type === 'ai_insight')
+      case 'desafios':
+        return notifications.filter(
+          (n) =>
+            n.type === 'challenge_expired' ||
+            n.type === 'challenge_completed' ||
+            n.title.toLowerCase().includes('desafio'),
         )
       default:
         return notifications
@@ -295,6 +328,21 @@ export default function NotificationsPage() {
             <CreditCard className="h-3.5 w-3.5" />
             Faturas
             {counts.faturas > 0 && <Badge variant="secondary">{counts.faturas}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="resumos" className="gap-1.5">
+            <FileText className="h-3.5 w-3.5" />
+            Resumos
+            {counts.resumos > 0 && <Badge variant="secondary">{counts.resumos}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="insights" className="gap-1.5">
+            <Lightbulb className="h-3.5 w-3.5" />
+            Insights
+            {counts.insights > 0 && <Badge variant="secondary">{counts.insights}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="desafios" className="gap-1.5">
+            <Trophy className="h-3.5 w-3.5" />
+            Desafios
+            {counts.desafios > 0 && <Badge variant="secondary">{counts.desafios}</Badge>}
           </TabsTrigger>
         </TabsList>
       </Tabs>

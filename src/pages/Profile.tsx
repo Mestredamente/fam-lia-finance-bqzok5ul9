@@ -13,6 +13,7 @@ import {
   BookOpen,
   Smartphone,
   Tags,
+  Cpu,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -44,6 +45,7 @@ import { getTransactionsByMember } from '@/services/transactions'
 import { createInvite, generateInviteCode } from '@/services/invites'
 import { getInvestmentsByOwner } from '@/services/investments'
 import { getDebtsByOwner } from '@/services/debts'
+import { updateFamily } from '@/services/families'
 import type { InvestmentRecord, DebtRecord } from '@/types/finance'
 import { toast } from '@/hooks/use-toast'
 import { formatBRL, getMonthName, getProgressBarColor, cn } from '@/lib/utils'
@@ -102,6 +104,8 @@ export default function Profile() {
     }
   }
 
+  const { refreshData } = useAuth()
+
   useEffect(() => {
     loadMembers()
   }, [family?.id])
@@ -110,6 +114,9 @@ export default function Profile() {
     loadInvestments()
     loadUserDebts()
   }, [member?.id])
+  useRealtime('families', () => {
+    refreshData()
+  })
   useRealtime('members', () => {
     loadMembers()
   })
@@ -432,6 +439,137 @@ export default function Profile() {
               <Switch
                 checked={member?.share_data ?? false}
                 onCheckedChange={(val) => updateMemberData({ share_data: val })}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Seção Automações */}
+      <Card className="border border-gray-100 shadow-subtle rounded-2xl bg-white">
+        <CardContent className="p-6 space-y-4">
+          <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+            <Cpu className="h-4 w-4 text-[#166534]" />
+            <h3 className="font-bold text-base text-gray-900">Automações</h3>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5 pr-2">
+                <span className="text-xs font-semibold text-gray-700 block">
+                  Resumo semanal aos domingos
+                </span>
+                <span className="text-[11px] text-gray-500 block">
+                  Receba o fechamento financeiro da semana com IA todo domingo às 20h
+                </span>
+              </div>
+              <Switch
+                checked={family?.auto_weekly_summary ?? true}
+                onCheckedChange={async (val) => {
+                  if (!family) return
+                  try {
+                    await updateFamily(family.id, { auto_weekly_summary: val })
+                    toast({
+                      title: 'Automação atualizada',
+                      description: `Resumo semanal ${val ? 'ativado' : 'desativado'}.`,
+                    })
+                  } catch {
+                    toast({
+                      variant: 'destructive',
+                      title: 'Erro',
+                      description: 'Não foi possível atualizar a preferência.',
+                    })
+                  }
+                }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5 pr-2">
+                <span className="text-xs font-semibold text-gray-700 block">
+                  Alertas de orçamento em tempo real
+                </span>
+                <span className="text-[11px] text-gray-500 block">
+                  Aviso automático quando uma categoria atingir 80% ou estourar 100%
+                </span>
+              </div>
+              <Switch
+                checked={family?.auto_budget_alert ?? true}
+                onCheckedChange={async (val) => {
+                  if (!family) return
+                  try {
+                    await updateFamily(family.id, { auto_budget_alert: val })
+                    toast({
+                      title: 'Automação atualizada',
+                      description: `Alertas de orçamento ${val ? 'ativados' : 'desativados'}.`,
+                    })
+                  } catch {
+                    toast({
+                      variant: 'destructive',
+                      title: 'Erro',
+                      description: 'Não foi possível atualizar a preferência.',
+                    })
+                  }
+                }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5 pr-2">
+                <span className="text-xs font-semibold text-gray-700 block">
+                  Verificação de desafios expirados
+                </span>
+                <span className="text-[11px] text-gray-500 block">
+                  Atualização diária de conclusão ou expiração de desafios à meia-noite
+                </span>
+              </div>
+              <Switch
+                checked={family?.auto_challenge_expiry ?? true}
+                onCheckedChange={async (val) => {
+                  if (!family) return
+                  try {
+                    await updateFamily(family.id, { auto_challenge_expiry: val })
+                    toast({
+                      title: 'Automação atualizada',
+                      description: `Verificação de desafios ${val ? 'ativada' : 'desativada'}.`,
+                    })
+                  } catch {
+                    toast({
+                      variant: 'destructive',
+                      title: 'Erro',
+                      description: 'Não foi possível atualizar a preferência.',
+                    })
+                  }
+                }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5 pr-2">
+                <span className="text-xs font-semibold text-gray-700 block">
+                  Insights da IA aos sábados
+                </span>
+                <span className="text-[11px] text-gray-500 block">
+                  3 recomendações práticas da consultora IA aos sábados às 09h
+                </span>
+              </div>
+              <Switch
+                checked={family?.auto_weekly_insights ?? true}
+                onCheckedChange={async (val) => {
+                  if (!family) return
+                  try {
+                    await updateFamily(family.id, { auto_weekly_insights: val })
+                    toast({
+                      title: 'Automação atualizada',
+                      description: `Insights de IA ${val ? 'ativados' : 'desativados'}.`,
+                    })
+                  } catch {
+                    toast({
+                      variant: 'destructive',
+                      title: 'Erro',
+                      description: 'Não foi possível atualizar a preferência.',
+                    })
+                  }
+                }}
               />
             </div>
           </div>

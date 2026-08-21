@@ -8,6 +8,8 @@ import {
   getTransactionsByFamilyAndDateRange,
 } from '@/services/transactions'
 import { getBudgetsByFamilyId } from '@/services/budgets'
+import { getNotificationsByFamilyId } from '@/services/notifications'
+import { addNotification } from '@/stores/notifications'
 import {
   notificationsSupported,
   sendNotification,
@@ -15,11 +17,71 @@ import {
   markNotificationSent,
   getTodayKey,
 } from '@/lib/notification-utils'
-import type { InvoiceRecord } from '@/types/finance'
+import type { InvoiceRecord, NotificationServerRecord } from '@/types/finance'
 
 export function useNotifications() {
   const { user, member, family } = useAuth()
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Realtime subscription for server notifications
+  useEffect(() => {
+    if (!family?.id) return
+
+    const syncBackendNotifications = async () => {
+      try {
+        const records = await getNotificationsByFamilyId(family.id)
+        for (const r of records) {
+          const timestamp = new Date(r.created).getTime()
+          addNotification({
+            id: r.id,
+            title: r.title,
+            description: r.message,
+            timestamp,
+            read: r.is_read,
+            type: r.type,
+            priority: (r.metadata?.priority as 'high' | 'medium' | 'low') || undefined,
+            metadata: r.metadata,
+          })
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    syncBackendNotifications()
+
+    let unsubscribe: (() => void) | undefined
+    pb.collection('notifications')
+      .subscribe('*', (e) => {
+        if (e.action === 'create' || e.action === 'update') {
+          const r = e.record as unknown as NotificationServerRecord
+          if (r.family_id === family.id) {
+            const timestamp = new Date(r.created).getTime()
+            addNotification({
+              id: r.id,
+              title: r.title,
+              description: r.message,
+              timestamp,
+              read: r.is_read,
+              type: r.type,
+              priority: (r.metadata?.priority as 'high' | 'medium' | 'low') || undefined,
+              metadata: r.metadata,
+            })
+          }
+        }
+      })
+      .then((unsub) => {
+        unsubscribe = unsub
+      })
+      .catch(() => {})
+
+    return () => {
+      if (unsubscribe) unsubscribe()
+      pb.collection('notifications')
+        .unsubscribe('*')
+        .catch(() => {})
+    }
+  }, [family?.id])
 
   useEffect(() => {
     if (!user || !family || !member) return

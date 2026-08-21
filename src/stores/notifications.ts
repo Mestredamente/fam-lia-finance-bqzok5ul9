@@ -12,6 +12,7 @@ export interface AppNotification {
   actionLabel?: string
   priority?: 'high' | 'medium' | 'low'
   amount?: number
+  metadata?: Record<string, any> | null
 }
 
 const STORAGE_KEY = 'ff_notifications'
@@ -41,13 +42,23 @@ function emit() {
   listeners.forEach((l) => l())
 }
 
-export function addNotification(notif: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) {
+export function addNotification(
+  notif: Omit<AppNotification, 'id' | 'timestamp' | 'read'> & {
+    id?: string
+    timestamp?: number
+    read?: boolean
+  },
+) {
+  const finalId = notif.id || Date.now().toString() + Math.random().toString(36).slice(2)
+  if (notifications.some((n) => n.id === finalId)) {
+    return
+  }
   notifications = [
     {
       ...notif,
-      id: Date.now().toString() + Math.random().toString(36).slice(2),
-      timestamp: Date.now(),
-      read: false,
+      id: finalId,
+      timestamp: notif.timestamp ?? Date.now(),
+      read: notif.read ?? false,
     },
     ...notifications,
   ].slice(0, MAX_NOTIFICATIONS)
@@ -55,16 +66,24 @@ export function addNotification(notif: Omit<AppNotification, 'id' | 'timestamp' 
   emit()
 }
 
-export function markAllRead() {
+export function markAllRead(familyId?: unknown) {
   notifications = notifications.map((n) => ({ ...n, read: true }))
   save()
   emit()
+  if (typeof familyId === 'string' && familyId) {
+    import('@/services/notifications').then(({ markAllNotificationsAsRead }) => {
+      markAllNotificationsAsRead(familyId).catch(() => {})
+    })
+  }
 }
 
 export function markAsRead(id: string) {
   notifications = notifications.map((n) => (n.id === id ? { ...n, read: true } : n))
   save()
   emit()
+  import('@/services/notifications').then(({ markNotificationAsRead }) => {
+    markNotificationAsRead(id).catch(() => {})
+  })
 }
 
 export function dismissNotification(id: string) {

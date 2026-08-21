@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-21T02:55:16.947Z",
+  "generatedAt": "2026-08-21T03:18:20.357Z",
   "collections": [
     {
       "name": "users",
@@ -91,6 +91,30 @@
         {
           "name": "payoff_plan",
           "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "auto_weekly_summary",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "auto_budget_alert",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "auto_challenge_expiry",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "auto_weekly_insights",
+          "type": "bool",
           "required": false,
           "system": false
         }
@@ -2343,6 +2367,83 @@
         "CREATE INDEX idx_ai_action_logs_user ON ai_action_logs (user_id)",
         "CREATE INDEX idx_ai_action_logs_created ON ai_action_logs (created)",
         "CREATE INDEX idx_ai_action_logs_status ON ai_action_logs (status)"
+      ]
+    },
+    {
+      "name": "notifications",
+      "type": "base",
+      "apiRules": {
+        "list": "family_id.created_by = @request.auth.id || @collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id || (user_id != '' && user_id = @request.auth.id)",
+        "view": "family_id.created_by = @request.auth.id || @collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id || (user_id != '' && user_id = @request.auth.id)",
+        "create": "@request.auth.id != ''",
+        "update": "family_id.created_by = @request.auth.id || @collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id || (user_id != '' && user_id = @request.auth.id)",
+        "delete": "family_id.created_by = @request.auth.id || @collection.members.user_id ?= @request.auth.id && @collection.members.family_id ?= family_id || (user_id != '' && user_id = @request.auth.id)"
+      },
+      "fields": [
+        {
+          "name": "family_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "families"
+        },
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "type",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "message",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "is_read",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_notifications_family_id ON notifications (family_id)",
+        "CREATE INDEX idx_notifications_type ON notifications (type)",
+        "CREATE INDEX idx_notifications_is_read ON notifications (is_read)",
+        "CREATE INDEX idx_notifications_created ON notifications (created)"
       ]
     }
   ]
