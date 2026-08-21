@@ -33,29 +33,16 @@ routerAdd(
 
     if (isMultipart) {
       try {
-        var files = reqInfo.files || {}
-        if (files.audio) {
-          audioFile = Array.isArray(files.audio) ? files.audio[0] : files.audio
-        } else {
-          var fileKeys = Object.keys(files)
-          for (var fki = 0; fki < fileKeys.length; fki++) {
-            var k = fileKeys[fki]
-            if (k === 'audio' || k.indexOf('audio') !== -1 || k.indexOf('recording') !== -1) {
-              audioFile = Array.isArray(files[k]) ? files[k][0] : files[k]
-              break
-            }
-          }
-          if (!audioFile && fileKeys.length > 0) {
-            audioFile = Array.isArray(files[fileKeys[0]])
-              ? files[fileKeys[0]][0]
-              : files[fileKeys[0]]
-          }
+        var uploadedFiles = e.findUploadedFiles('audio')
+        if (uploadedFiles && uploadedFiles.length > 0) {
+          audioFile = uploadedFiles[0]
         }
       } catch (fErr) {
         console.log('[financial-actions] error inspecting files:', fErr.message)
       }
 
       if (!audioFile) {
+        console.log('Nenhum arquivo de áudio encontrado no upload')
         return e.json(200, {
           success: false,
           executable: false,
