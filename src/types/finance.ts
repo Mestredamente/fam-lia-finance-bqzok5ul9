@@ -203,6 +203,7 @@ export interface TransactionRecord {
   amount: number
   description: string
   transaction_date: string
+  payment_date?: string | null
   is_shared: boolean
   is_fixed: boolean
   source: TransactionSource
@@ -483,7 +484,7 @@ export type DebtType =
   | 'condo'
   | 'other'
 
-export type BillStatus = 'paga' | 'vencida' | 'a_vencer' | 'futura'
+export type BillStatus = 'paga' | 'vencida' | 'a_vencer' | 'futura' | 'partial'
 export type BillSource = 'recurring' | 'investment' | 'debt' | 'invoice'
 
 export interface BillItem {
@@ -505,6 +506,8 @@ export interface BillItem {
   invoiceId?: string
   minimumPayment?: number
   monthRef?: string
+  partialAmount?: number | null
+  remainingAmount?: number | null
 }
 
 export interface BillSummary {

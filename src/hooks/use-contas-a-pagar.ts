@@ -64,11 +64,10 @@ export function useContasAPagar(familyId: string | undefined) {
         cardMap.set(c.id, c)
       }
 
-      // Pull all transactions for the current month once, then partition by
-      // the origin id we care about (recurring_id / investment_id / debt_id /
-      // invoice_id).
+      // Pull all transactions for the current month once, including those where
+      // payment_date falls in the month, then partition by the origin id we care about.
       const monthTx = await pb.collection('transactions').getFullList<TransactionRecord>({
-        filter: `family_id = "${familyId}" && transaction_date >= "${startISO}" && transaction_date < "${endISO}"`,
+        filter: `family_id = "${familyId}" && ((transaction_date >= "${startISO}" && transaction_date < "${endISO}") || (payment_date >= "${startISO}" && payment_date < "${endISO}"))`,
       })
 
       const txByRecurring = new Map<string, TransactionRecord>()
@@ -76,10 +75,26 @@ export function useContasAPagar(familyId: string | undefined) {
       const txByDebt = new Map<string, TransactionRecord>()
       const txByInvoice = new Map<string, TransactionRecord>()
       for (const t of monthTx) {
-        if (t.recurring_id) txByRecurring.set(t.recurring_id, t)
-        if (t.investment_id) txByInvestment.set(t.investment_id, t)
-        if (t.debt_id) txByDebt.set(t.debt_id, t)
-        if (t.invoice_id) txByInvoice.set(t.invoice_id, t)
+        if (t.recurring_id) {
+          if (!txByRecurring.has(t.recurring_id) || t.payment_date || t.status === 'paid') {
+            txByRecurring.set(t.recurring_id, t)
+          }
+        }
+        if (t.investment_id) {
+          if (!txByInvestment.has(t.investment_id) || t.payment_date || t.status === 'paid') {
+            txByInvestment.set(t.investment_id, t)
+          }
+        }
+        if (t.debt_id) {
+          if (!txByDebt.has(t.debt_id) || t.payment_date || t.status === 'paid') {
+            txByDebt.set(t.debt_id, t)
+          }
+        }
+        if (t.invoice_id) {
+          if (!txByInvoice.has(t.invoice_id) || t.payment_date || t.status === 'paid') {
+            txByInvoice.set(t.invoice_id, t)
+          }
+        }
       }
 
       console.log('[useContasAPagar] Total transações no mês:', monthTx.length, {
@@ -107,14 +122,8 @@ export function useContasAPagar(familyId: string | undefined) {
         if (!day || day < 1 || day > 31) continue
         const dueDate = computeDueDate(day, now)
         const paidTx = txByRecurring.get(r.id)
-        if (!paidTx) {
-          console.log('[useContasAPagar] Sem match em transação para recurring:', {
-            originId: r.id,
-            description: r.description,
-            mappedIds: Array.from(txByRecurring.keys()),
-          })
-        }
-        const status = paidTx ? 'paga' : deriveStatus(dueDate, now)
+        const isPaid = !!paidTx
+        const status = isPaid ? 'paga' : deriveStatus(dueDate, now, paidTx?.payment_date)
         items.push({
           id: `recurring-${r.id}`,
           description: r.description,
@@ -125,7 +134,7 @@ export function useContasAPagar(familyId: string | undefined) {
           originId: r.id,
           categoryId: r.category_id || undefined,
           type: r.type === 'receita' ? 'income' : 'expense',
-          paidDate: paidTx?.transaction_date,
+          paidDate: paidTx?.payment_date || paidTx?.transaction_date,
           transactionId: paidTx?.id,
         })
       }
@@ -151,7 +160,7 @@ export function useContasAPagar(familyId: string | undefined) {
           })
         }
         const isPaid = !!paidTx || isPaidByStatus
-        const status = isPaid ? 'paga' : deriveStatus(dueDate, now)
+        const status = isPaid ? 'paga' : deriveStatus(dueDate, now, paidTx?.payment_date)
         items.push({
           id: `investment-${inv.id}`,
           description: inv.name,
@@ -163,7 +172,7 @@ export function useContasAPagar(familyId: string | undefined) {
           extraInfo: `Parcela ${paid + 1}/${total}`,
           categoryId: inv.expense_category_id || inv.category_id || undefined,
           type: 'expense',
-          paidDate: paidTx?.transaction_date,
+          paidDate: paidTx?.payment_date || paidTx?.transaction_date,
           transactionId: paidTx?.id,
         })
       }
@@ -189,7 +198,7 @@ export function useContasAPagar(familyId: string | undefined) {
           })
         }
         const isPaid = !!paidTx || isPaidByStatus
-        const status = isPaid ? 'paga' : deriveStatus(dueDate, now)
+        const status = isPaid ? 'paga' : deriveStatus(dueDate, now, paidTx?.payment_date)
         const total = d.installments_total ?? 0
         const paid = d.installments_paid ?? 0
         items.push({
@@ -203,7 +212,7 @@ export function useContasAPagar(familyId: string | undefined) {
           extraInfo: total > 0 ? `Parcela ${paid + 1}/${total}` : undefined,
           categoryId: d.category_id || undefined,
           type: 'expense',
-          paidDate: paidTx?.transaction_date,
+          paidDate: paidTx?.payment_date || paidTx?.transaction_date,
           transactionId: paidTx?.id,
         })
       }
@@ -249,13 +258,19 @@ export function useContasAPagar(familyId: string | undefined) {
         }
 
         // Se a fatura é status='paid' ou encontramos transação correspondente, é paga
+        // Se a fatura é status='partial', mantemos status='partial' (não 'a_vencer')
         const status: BillStatus = isPaid
           ? 'paga'
           : inv.status === 'partial'
-            ? 'a_vencer'
-            : deriveStatus(dueDate, now)
+            ? 'partial'
+            : deriveStatus(dueDate, now, paidTx?.payment_date)
         const monthRefLabel = formatMonthRef(inv.month_ref)
         const minimumPayment = Math.round(inv.total_amount * 0.15 * 100) / 100
+        const partialAmt = inv.partial_amount ?? (paidTx ? paidTx.amount : null)
+        const remainingAmt =
+          inv.status === 'partial' && partialAmt != null
+            ? Math.max(0, inv.total_amount - partialAmt)
+            : null
 
         items.push({
           id: `invoice-${inv.id}`,
@@ -265,15 +280,17 @@ export function useContasAPagar(familyId: string | undefined) {
           source: 'invoice',
           status,
           originId: inv.id,
-          extraInfo: inv.status === 'partial' ? 'Pagamento parcial' : undefined,
+          extraInfo: inv.status === 'partial' ? 'Parcialmente paga' : undefined,
           type: 'expense',
-          paidDate: paidTx?.transaction_date || inv.paid_at || undefined,
+          paidDate: paidTx?.payment_date || paidTx?.transaction_date || inv.paid_at || undefined,
           transactionId: paidTx?.id,
           cardId: inv.card_id,
           cardName,
           invoiceId: inv.id,
           minimumPayment,
           monthRef: inv.month_ref,
+          partialAmount: partialAmt,
+          remainingAmount: remainingAmt,
         })
       }
 
@@ -354,7 +371,8 @@ function computeDueDate(day: number, ref: Date): Date {
   return due
 }
 
-function deriveStatus(dueDate: Date, now: Date): BillStatus {
+function deriveStatus(dueDate: Date, now: Date, paymentDate?: string | null): BillStatus {
+  if (paymentDate) return 'paga'
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const due = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate())
   const diffMs = due.getTime() - today.getTime()
@@ -417,14 +435,16 @@ export function buildBillPaymentPayload(
   familyId: string,
   ownerId: string,
 ): Record<string, unknown> | null {
-  if (bill.transactionId) return null
+  if (bill.transactionId && bill.status === 'paga') return null
+  const nowIso = new Date().toISOString()
   const base: Record<string, unknown> = {
     family_id: familyId,
     owner_id: ownerId,
     type: bill.type,
-    amount: bill.amount,
+    amount: bill.remainingAmount ?? bill.amount,
     description: bill.description,
-    transaction_date: new Date().toISOString(),
+    transaction_date: nowIso,
+    payment_date: nowIso,
     is_shared: false,
     is_fixed: true,
     status: 'paid',

@@ -1,10 +1,11 @@
-import { ArrowUpRight, ArrowDownRight, Wallet, AlertCircle, Eye } from 'lucide-react'
+import { ArrowUpRight, ArrowDownRight, Wallet, AlertCircle, ChevronDown } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AnimatedCounter } from '@/components/AnimatedCounter'
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { formatBRL, getProgressBarColor } from '@/lib/utils'
+import { usePrivacy } from '@/hooks/use-privacy'
 import { type PeriodType } from '@/lib/period-utils'
 
 interface DashboardSummaryProps {
@@ -42,6 +43,7 @@ export function DashboardSummary({
   year,
   month,
 }: DashboardSummaryProps) {
+  const { formatCurrency } = usePrivacy()
   if (loading) {
     return (
       <div className="space-y-4">
@@ -99,10 +101,10 @@ export function DashboardSummary({
             <Button
               size="sm"
               variant="outline"
-              className="h-8 text-xs"
+              className="h-8 text-xs gap-1"
               onClick={() => onPeriodChange('tudo')}
             >
-              <Eye className="h-3 w-3 mr-1" />
+              <ChevronDown className="h-3 w-3" />
               Ver todas
             </Button>
           )}
@@ -126,7 +128,7 @@ export function DashboardSummary({
                 Receitas
               </span>
               <span className="text-2xl font-extrabold text-[#166534] transition-all duration-300">
-                <AnimatedCounter value={totalReceitas} format={formatBRL} />
+                <AnimatedCounter value={totalReceitas} format={formatCurrency} />
               </span>
             </div>
             <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-[#166534]">
@@ -141,7 +143,7 @@ export function DashboardSummary({
                 Despesas
               </span>
               <span className="text-2xl font-extrabold text-red-600 transition-all duration-300">
-                <AnimatedCounter value={totalDespesas} format={formatBRL} />
+                <AnimatedCounter value={totalDespesas} format={formatCurrency} />
               </span>
             </div>
             <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center text-red-600">
@@ -156,7 +158,7 @@ export function DashboardSummary({
                 {isAllView ? 'Saldo geral' : 'Saldo do mês'}
               </span>
               <span className="text-2xl font-extrabold text-blue-700 transition-all duration-300">
-                <AnimatedCounter value={saldo} format={formatBRL} />
+                <AnimatedCounter value={saldo} format={formatCurrency} />
               </span>
             </div>
             <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700">

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-21T03:18:20.357Z",
+  "generatedAt": "2026-08-21T03:54:13.415Z",
   "collections": [
     {
       "name": "users",
@@ -718,6 +718,12 @@
           "required": false,
           "system": false,
           "collectionRef": "accounts"
+        },
+        {
+          "name": "payment_date",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -728,7 +734,8 @@
         "CREATE INDEX `idx_transactions_recurring_id` ON `transactions` (recurring_id)",
         "CREATE INDEX `idx_transactions_investment_id` ON `transactions` (investment_id)",
         "CREATE INDEX `idx_transactions_account_id` ON `transactions` (account_id)",
-        "CREATE INDEX `idx_transactions_transfer_to_account_id` ON `transactions` (transfer_to_account_id)"
+        "CREATE INDEX `idx_transactions_transfer_to_account_id` ON `transactions` (transfer_to_account_id)",
+        "CREATE INDEX `idx_transactions_payment_date` ON `transactions` (payment_date)"
       ]
     },
     {

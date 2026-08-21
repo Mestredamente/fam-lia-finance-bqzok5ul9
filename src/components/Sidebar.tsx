@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { usePermissions } from '@/hooks/use-permissions'
 import { usePendingInvoicesCount } from '@/hooks/use-pending-invoices-count'
+import { useContasAPagar } from '@/hooks/use-contas-a-pagar'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -93,6 +94,8 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   const { family } = useAuth()
   const perms = usePermissions()
   const pendingCount = usePendingInvoicesCount(family?.id)
+  const { summary: contasSummary } = useContasAPagar(family?.id)
+  const overdueBillsCount = contasSummary.countVencidas
 
   // Global desktop collapsed mode (icon only)
   const [isGlobalCollapsed, setIsGlobalCollapsed] = useState<boolean>(() => {
@@ -367,6 +370,18 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                             )}
                           >
                             {pendingCount > 9 ? '9+' : pendingCount}
+                          </span>
+                        )}
+                        {item.path === '/contas' && overdueBillsCount > 0 && (
+                          <span
+                            className={cn(
+                              'bg-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center',
+                              isGlobalCollapsed
+                                ? 'lg:absolute lg:top-1 lg:right-1 min-w-[16px] h-[16px] px-1 ml-auto'
+                                : 'ml-auto min-w-[18px] h-[18px] px-1',
+                            )}
+                          >
+                            {overdueBillsCount > 9 ? '9+' : overdueBillsCount}
                           </span>
                         )}
                       </button>

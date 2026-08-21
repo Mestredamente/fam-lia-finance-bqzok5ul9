@@ -44,6 +44,7 @@ import { DashboardInstallBanner } from '@/components/DashboardInstallBanner'
 import { MemberRecord, AIInsight } from '@/types/finance'
 import { getActiveMembersByFamilyId } from '@/services/members'
 import { getMonthName, formatBRL, cn } from '@/lib/utils'
+import { usePrivacy } from '@/hooks/use-privacy'
 import { ComprometimentoFuturoCard } from '@/components/ComprometimentoFuturoCard'
 import { UpcomingTasksSection } from '@/components/UpcomingTasksSection'
 import { EmotionalSpendingCard } from '@/components/EmotionalSpendingCard'
@@ -78,6 +79,7 @@ import { useNavigate } from 'react-router-dom'
 export default function Dashboard() {
   const { family, member } = useAuth()
   const navigate = useNavigate()
+  const { formatCurrency } = usePrivacy()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [members, setMembers] = useState<MemberRecord[]>([])
   const [selectedMember, setSelectedMember] = useState<MemberRecord | null>(null)
@@ -251,7 +253,7 @@ export default function Dashboard() {
                         {activeAccounts.length === 1 ? 'ativa' : 'ativas'})
                       </p>
                       <p className="text-lg font-extrabold text-[#166534] dark:text-emerald-400 truncate">
-                        {formatBRL(totalAccountsBalance)}
+                        {formatCurrency(totalAccountsBalance)}
                       </p>
                     </div>
                   </div>
@@ -709,7 +711,7 @@ export default function Dashboard() {
                           : 'text-amber-700 dark:text-amber-300',
                       )}
                     >
-                      Total {formatBRL(alert.total)}
+                      Total {formatCurrency(alert.total)}
                     </p>
                   </div>
                   <ArrowRight

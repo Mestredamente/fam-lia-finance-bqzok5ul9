@@ -37,10 +37,25 @@ import pb from '@/lib/pocketbase/client'
 import { getInvestmentsByFamilyId } from '@/services/investments'
 import { getDebtsByFamilyId } from '@/services/debts'
 import { formatBRL, cn } from '@/lib/utils'
+import { usePrivacy } from '@/hooks/use-privacy'
 import { toast } from '@/hooks/use-toast'
-import type { BillItem, BillStatus, InvestmentRecord, DebtRecord } from '@/types/finance'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import type {
+  BillItem,
+  BillStatus,
+  BillSource,
+  InvestmentRecord,
+  DebtRecord,
+} from '@/types/finance'
 
 type TabValue = 'a_vencer' | 'vencidas' | 'pagas' | 'todas'
+type SourceFilterValue = 'all' | BillSource
 
 const TAB_BY_QUERY: Record<string, TabValue> = {
   a_vencer: 'a_vencer',
@@ -64,10 +79,11 @@ const SOURCE_ICON = {
 } as const
 
 const STATUS_DOT: Record<BillStatus, React.ReactNode> = {
-  vencida: <span className="w-2.5 h-2.5 rounded-full bg-red-500" />,
-  a_vencer: <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />,
-  futura: <span className="w-2.5 h-2.5 rounded-full bg-gray-300" />,
-  paga: <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />,
+  vencida: <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />,
+  a_vencer: <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />,
+  partial: <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />,
+  futura: <span className="w-2.5 h-2.5 rounded-full bg-gray-300 shrink-0" />,
+  paga: <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />,
 }
 
 function formatDatePtBR(iso: string): string {
@@ -78,12 +94,14 @@ function formatDatePtBR(iso: string): string {
 export default function ContasAPagar() {
   const { family, member } = useAuth()
   const navigate = useNavigate()
+  const { formatCurrency } = usePrivacy()
   const [searchParams, setSearchParams] = useSearchParams()
   const { contas, summary, loading, error, refetch } = useContasAPagar(family?.id)
 
   const queryTab = searchParams.get('tab')
   const initialTab = TAB_BY_QUERY[queryTab || ''] || 'a_vencer'
   const [tab, setTab] = useState<TabValue>(initialTab)
+  const [sourceFilter, setSourceFilter] = useState<SourceFilterValue>('all')
 
   // Keep the active tab in sync with the URL (so dashboard alerts can deep-link).
   useEffect(() => {
@@ -124,7 +142,9 @@ export default function ContasAPagar() {
 
   const counts = useMemo(
     () => ({
-      a_vencer: contas.filter((c) => c.status === 'a_vencer').length,
+      a_vencer: contas.filter(
+        (c) => c.status === 'a_vencer' || c.status === 'futura' || c.status === 'partial',
+      ).length,
       vencidas: contas.filter((c) => c.status === 'vencida').length,
       pagas: contas.filter((c) => c.status === 'paga').length,
       todas: contas.length,
@@ -133,17 +153,30 @@ export default function ContasAPagar() {
   )
 
   const visible = useMemo(() => {
+    let list = contas
     switch (tab) {
       case 'a_vencer':
-        return contas.filter((c) => c.status === 'a_vencer' || c.status === 'futura')
+        list = contas.filter(
+          (c) => c.status === 'a_vencer' || c.status === 'futura' || c.status === 'partial',
+        )
+        break
       case 'vencidas':
-        return contas.filter((c) => c.status === 'vencida')
+        list = contas.filter((c) => c.status === 'vencida')
+        break
       case 'pagas':
-        return contas.filter((c) => c.status === 'paga')
+        list = contas.filter((c) => c.status === 'paga')
+        break
       default:
-        return contas
+        list = contas
+        break
     }
-  }, [tab, contas])
+
+    if (sourceFilter !== 'all') {
+      list = list.filter((c) => c.source === sourceFilter)
+    }
+
+    return list
+  }, [tab, sourceFilter, contas])
 
   // Group visible bills into the 4 layout sections (vencidas, esta semana,
   // próximas, pagas este mês). Only render non-empty sections.
@@ -217,9 +250,23 @@ export default function ContasAPagar() {
   const handlePayNow = useCallback((bill: BillItem) => {
     setPayPrefill({
       type: bill.type,
-      amount: bill.amount,
+      amount: bill.remainingAmount ?? bill.amount,
       description: bill.description,
       categoryId: bill.categoryId ?? null,
+      originId: bill.originId,
+      source:
+        bill.source === 'recurring'
+          ? 'recurring'
+          : bill.source === 'investment'
+            ? 'investment'
+            : bill.source === 'invoice'
+              ? 'invoice_import'
+              : 'recurring_debt',
+      debtId: bill.source === 'debt' ? bill.originId : null,
+      recurringId: bill.source === 'recurring' ? bill.originId : null,
+      investmentId: bill.source === 'investment' ? bill.originId : null,
+      invoiceId: bill.source === 'invoice' ? bill.invoiceId || bill.originId : null,
+      cardId: bill.cardId || null,
     })
     setPaySheetOpen(true)
   }, [])
@@ -306,44 +353,76 @@ export default function ContasAPagar() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SummaryCard label="Este mês" value={formatBRL(summary.totalMes)} tone="default" />
+        <SummaryCard label="Este mês" value={formatCurrency(summary.totalMes)} tone="default" />
         <SummaryCard
           label="Já pagas"
-          value={formatBRL(summary.totalPagas)}
+          value={formatCurrency(summary.totalPagas)}
           sub={summary.countPagas > 0 ? `${summary.countPagas} conta(s)` : undefined}
           tone="paid"
         />
         <SummaryCard
           label="Restante"
-          value={formatBRL(summary.totalRestante)}
+          value={formatCurrency(summary.totalRestante)}
           sub={summary.countRestante > 0 ? `${summary.countRestante} conta(s)` : undefined}
           tone="default"
         />
         <SummaryCard
           label="Vencidas"
-          value={formatBRL(summary.totalVencidas)}
+          value={formatCurrency(summary.totalVencidas)}
           sub={summary.countVencidas > 0 ? `${summary.countVencidas} conta(s)` : undefined}
           tone={summary.countVencidas > 0 ? 'overdue' : 'default'}
         />
       </div>
 
       {/* Filters */}
-      <Tabs value={tab} onValueChange={onTabChange}>
-        <TabsList className="w-full justify-start overflow-x-auto h-auto">
-          <TabsTrigger value="a_vencer" className="gap-1.5">
-            A vencer <CountBadge n={counts.a_vencer} />
-          </TabsTrigger>
-          <TabsTrigger value="vencidas" className="gap-1.5">
-            Vencidas <CountBadge n={counts.vencidas} tone="overdue" />
-          </TabsTrigger>
-          <TabsTrigger value="pagas" className="gap-1.5">
-            Pagas <CountBadge n={counts.pagas} tone="paid" />
-          </TabsTrigger>
-          <TabsTrigger value="todas" className="gap-1.5">
-            Todas <CountBadge n={counts.todas} />
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="space-y-3">
+        <Tabs value={tab} onValueChange={onTabChange}>
+          <TabsList className="w-full justify-start overflow-x-auto h-auto">
+            <TabsTrigger value="a_vencer" className="gap-1.5">
+              A vencer <CountBadge n={counts.a_vencer} />
+            </TabsTrigger>
+            <TabsTrigger value="vencidas" className="gap-1.5">
+              Vencidas <CountBadge n={counts.vencidas} tone="overdue" />
+            </TabsTrigger>
+            <TabsTrigger value="pagas" className="gap-1.5">
+              Pagas <CountBadge n={counts.pagas} tone="paid" />
+            </TabsTrigger>
+            <TabsTrigger value="todas" className="gap-1.5">
+              Todas <CountBadge n={counts.todas} />
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {/* Filtro por Origem (Segunda linha de filtros) */}
+        <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
+            {[
+              { value: 'all' as const, label: 'Todas as origens' },
+              { value: 'recurring' as const, label: 'Recorrentes' },
+              { value: 'invoice' as const, label: 'Faturas' },
+              { value: 'debt' as const, label: 'Dívidas' },
+              { value: 'investment' as const, label: 'Investimentos' },
+            ].map((sf) => {
+              const active = sourceFilter === sf.value
+              return (
+                <button
+                  key={sf.value}
+                  type="button"
+                  onClick={() => setSourceFilter(sf.value)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all',
+                    active
+                      ? 'bg-emerald-100 text-[#166534] dark:bg-emerald-950/60 dark:text-emerald-300 font-semibold shadow-xs'
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700',
+                  )}
+                >
+                  {sf.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
 
       {/* List */}
       {loading ? (
@@ -651,10 +730,12 @@ function BillRow({
   onDelete: () => void
   readonly?: boolean
 }) {
+  const { formatCurrency } = usePrivacy()
   const Icon = SOURCE_ICON[bill.source]
   const isIncome = bill.type === 'income'
   const amountColor = isIncome ? 'text-emerald-600' : 'text-gray-900 dark:text-foreground'
   const isPaid = bill.status === 'paga'
+  const isPartial = bill.status === 'partial'
   const isInvoice = bill.source === 'invoice'
   const isOverdueInvoice = isInvoice && bill.status === 'vencida'
   const daysOverdue = useMemo(() => {
@@ -722,10 +803,16 @@ function BillRow({
                 Vencida há {daysOverdue} {daysOverdue === 1 ? 'dia' : 'dias'}
               </Badge>
             )}
-            {bill.extraInfo && (
-              <Badge variant="secondary" className="text-[10px] py-0 px-1.5">
-                {bill.extraInfo}
+            {isPartial ? (
+              <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-0 text-[10px] py-0 px-1.5 font-bold">
+                Parcialmente paga
               </Badge>
+            ) : (
+              bill.extraInfo && (
+                <Badge variant="secondary" className="text-[10px] py-0 px-1.5">
+                  {bill.extraInfo}
+                </Badge>
+              )
             )}
           </div>
           <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -733,17 +820,46 @@ function BillRow({
             <span>
               {isPaid
                 ? `Paga em ${bill.paidDate ? formatDatePtBR(bill.paidDate) : '—'}`
-                : bill.status === 'vencida'
-                  ? `Venceu em ${formatDatePtBR(bill.dueDate)}`
-                  : `Vence em ${formatDatePtBR(bill.dueDate)}`}
+                : isPartial
+                  ? `Vencimento ${formatDatePtBR(bill.dueDate)} (restante pendente)`
+                  : bill.status === 'vencida'
+                    ? `Venceu em ${formatDatePtBR(bill.dueDate)}`
+                    : `Vence em ${formatDatePtBR(bill.dueDate)}`}
             </span>
           </div>
-          {/* Invoice: show the minimum payment below the due date / amount */}
-          {isInvoice && typeof bill.minimumPayment === 'number' && (
+          {/* Invoice: show the minimum payment & partial payment breakdown */}
+          {isInvoice && isPartial && (
+            <div className="mt-1 space-y-0.5 text-[11px] text-gray-600 dark:text-gray-400">
+              <div>
+                Total:{' '}
+                <span className="font-semibold text-gray-800 dark:text-gray-200">
+                  {formatCurrency(bill.amount)}
+                </span>
+                {bill.partialAmount != null && bill.partialAmount > 0 && (
+                  <>
+                    {' · '}
+                    Pago:{' '}
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      {formatCurrency(bill.partialAmount)}
+                    </span>
+                  </>
+                )}
+              </div>
+              {bill.remainingAmount != null && (
+                <div>
+                  Restante:{' '}
+                  <span className="font-bold text-amber-600 dark:text-amber-400">
+                    {formatCurrency(bill.remainingAmount)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+          {isInvoice && !isPartial && typeof bill.minimumPayment === 'number' && (
             <div className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
               Mínimo:{' '}
               <span className="font-medium text-gray-700 dark:text-gray-300">
-                {formatBRL(bill.minimumPayment)}
+                {formatCurrency(bill.minimumPayment)}
               </span>
             </div>
           )}
@@ -757,8 +873,13 @@ function BillRow({
         <div className="flex flex-col items-end gap-1 shrink-0">
           <span className={cn('font-bold text-sm whitespace-nowrap', amountColor)}>
             {isIncome ? '+ ' : '- '}
-            {formatBRL(bill.amount)}
+            {isPartial && bill.remainingAmount != null
+              ? formatCurrency(bill.remainingAmount)
+              : formatCurrency(bill.amount)}
           </span>
+          {isPartial && bill.remainingAmount != null && (
+            <span className="text-[10px] text-gray-400">restante</span>
+          )}
           {isPaid ? (
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           ) : readonly ? null : isInvoice ? (

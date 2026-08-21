@@ -169,6 +169,13 @@ export interface TransactionPrefill {
   description?: string
   categoryId?: string | null
   accountId?: string | null
+  originId?: string | null
+  source?: TransactionRecord['source'] | null
+  debtId?: string | null
+  recurringId?: string | null
+  investmentId?: string | null
+  invoiceId?: string | null
+  cardId?: string | null
 }
 
 interface Props {
@@ -204,6 +211,16 @@ export function TransactionFormSheet({
   const [time, setTime] = useState(nowHHMM)
   const [isShared, setIsShared] = useState(false)
   const [isFixed, setIsFixed] = useState(false)
+  // Bill origin & payment date fields
+  const [originId, setOriginId] = useState<string | null>(null)
+  const [originSource, setOriginSource] = useState<TransactionRecord['source'] | null>(null)
+  const [originDebtId, setOriginDebtId] = useState<string | null>(null)
+  const [originRecurringId, setOriginRecurringId] = useState<string | null>(null)
+  const [originInvestmentId, setOriginInvestmentId] = useState<string | null>(null)
+  const [originInvoiceId, setOriginInvoiceId] = useState<string | null>(null)
+  const [originCardId, setOriginCardId] = useState<string | null>(null)
+  const [isPaidBill, setIsPaidBill] = useState(false)
+  const [paymentDate, setPaymentDate] = useState('')
   // Payment mode (radio group — mutually exclusive).
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('once')
   // Installment fields — kept as strings so the inputs start EMPTY.
@@ -396,6 +413,35 @@ export function TransactionFormSheet({
         setTime(timePart ? timePart.slice(0, 5) : '12:00')
         setIsShared(editingTransaction.is_shared)
         setIsFixed(editingTransaction.is_fixed)
+        setOriginDebtId(editingTransaction.debt_id || null)
+        setOriginRecurringId(editingTransaction.recurring_id || null)
+        setOriginInvestmentId(editingTransaction.investment_id || null)
+        setOriginInvoiceId(editingTransaction.invoice_id || null)
+        setOriginCardId(editingTransaction.card_id || null)
+        setOriginSource(editingTransaction.source || null)
+        const hasOrigin = !!(
+          editingTransaction.debt_id ||
+          editingTransaction.recurring_id ||
+          editingTransaction.investment_id ||
+          editingTransaction.invoice_id
+        )
+        setOriginId(
+          editingTransaction.debt_id ||
+            editingTransaction.recurring_id ||
+            editingTransaction.investment_id ||
+            editingTransaction.invoice_id ||
+            null,
+        )
+        if (editingTransaction.payment_date) {
+          setIsPaidBill(true)
+          setPaymentDate(editingTransaction.payment_date.split('T')[0])
+        } else if (hasOrigin) {
+          setIsPaidBill(false)
+          setPaymentDate('')
+        } else {
+          setIsPaidBill(false)
+          setPaymentDate('')
+        }
         // Determine payment mode from the existing record.
         if (editingTransaction.is_installment) {
           setPaymentMode('installment')
@@ -456,6 +502,15 @@ export function TransactionFormSheet({
         setIsShared(false)
         setIsFixed(defaultIsFixed ?? false)
         setPaymentMode('once')
+        setIsPaidBill(false)
+        setPaymentDate('')
+        setOriginId(null)
+        setOriginSource(null)
+        setOriginDebtId(null)
+        setOriginRecurringId(null)
+        setOriginInvestmentId(null)
+        setOriginInvoiceId(null)
+        setOriginCardId(null)
         setInstallmentTotalStr('')
         setInstallmentCurrentStr('')
         setInstallmentValueStr('')
@@ -477,6 +532,17 @@ export function TransactionFormSheet({
           if (prefill.description) setDescription(prefill.description)
           if (prefill.categoryId) setCategoryId(prefill.categoryId)
           if (prefill.accountId) setAccountId(prefill.accountId)
+          if (prefill.originId) {
+            setOriginId(prefill.originId)
+            setOriginSource(prefill.source || null)
+            setOriginDebtId(prefill.debtId || null)
+            setOriginRecurringId(prefill.recurringId || null)
+            setOriginInvestmentId(prefill.investmentId || null)
+            setOriginInvoiceId(prefill.invoiceId || null)
+            setOriginCardId(prefill.cardId || null)
+            setIsPaidBill(true)
+            setPaymentDate(todayISO)
+          }
         }
       }
       setErrors({})
@@ -714,6 +780,27 @@ export function TransactionFormSheet({
         // Preserve an existing purchase_date when editing; new transactions
         // have none (the new form replaces it with installment_start_date).
         purchase_date: editingTransaction?.purchase_date ?? null,
+        payment_date:
+          isPaidBill && paymentDate ? new Date(`${paymentDate}T12:00:00`).toISOString() : null,
+        ...(originDebtId ? { debt_id: originDebtId, source: 'recurring_debt' as const } : {}),
+        ...(originRecurringId
+          ? { recurring_id: originRecurringId, source: 'recurring' as const }
+          : {}),
+        ...(originInvestmentId
+          ? { investment_id: originInvestmentId, source: 'investment' as const }
+          : {}),
+        ...(originInvoiceId
+          ? { invoice_id: originInvoiceId, source: 'invoice_import' as const }
+          : {}),
+        ...(originCardId ? { card_id: originCardId } : {}),
+        ...(originSource &&
+        !originDebtId &&
+        !originRecurringId &&
+        !originInvestmentId &&
+        !originInvoiceId
+          ? { source: originSource }
+          : {}),
+        ...(isPaidBill ? { status: 'paid' as const } : {}),
       }
       if (editingTransaction) {
         await updateTransaction(editingTransaction.id, data)
@@ -1404,6 +1491,52 @@ export function TransactionFormSheet({
               <span className="text-sm font-medium text-gray-700">Conta fixa mensal</span>
               <Switch checked={isFixed} onCheckedChange={setIsFixed} />
             </div>
+
+            {/* 7. Pagamento de conta / payment_date (quando origin_id presente) */}
+            {originId && (
+              <div className="space-y-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 p-3 border border-emerald-200 dark:border-emerald-900/50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label
+                      htmlFor="tx-is-paid-bill"
+                      className="text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wider block cursor-pointer"
+                    >
+                      Já foi pago?
+                    </Label>
+                    <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                      Registra a data em que esta conta foi quitada
+                    </span>
+                  </div>
+                  <Switch
+                    id="tx-is-paid-bill"
+                    checked={isPaidBill}
+                    onCheckedChange={(checked) => {
+                      setIsPaidBill(checked)
+                      if (checked && !paymentDate) {
+                        setPaymentDate(new Date().toISOString().split('T')[0])
+                      }
+                    }}
+                  />
+                </div>
+                {isPaidBill && (
+                  <div>
+                    <Label
+                      htmlFor="tx-payment-date"
+                      className="text-xs font-semibold text-gray-700 dark:text-gray-200"
+                    >
+                      Data do pagamento
+                    </Label>
+                    <Input
+                      id="tx-payment-date"
+                      type="date"
+                      value={paymentDate}
+                      onChange={(e) => setPaymentDate(e.target.value)}
+                      className="mt-1 bg-white dark:bg-card"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         {/* 7. Salvar — fixo no rodapé, sticky bottom */}
