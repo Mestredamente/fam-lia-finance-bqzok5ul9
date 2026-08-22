@@ -42,10 +42,7 @@ export function ExpensesByCategoryCard({ familyId, year, month, loading }: Props
     ...(otherTotal > 0 ? [{ name: 'Outros', value: otherTotal, color: '#CBD5E1' }] : []),
   ]
   const pieConfig: ChartConfig = {
-    value: {
-      label: 'Valor',
-      formatter: (v) => (typeof v === 'number' ? formatCurrency(v) : String(v)),
-    },
+    value: { label: 'Valor' },
   }
 
   if (chartsLoading && loading) {

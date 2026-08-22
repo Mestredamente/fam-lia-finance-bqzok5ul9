@@ -111,7 +111,13 @@ export function SavingsGoalsCard({ familyId }: Props) {
 
         <div className="space-y-3">
           {topGoals.map(({ goal, pct }) => (
-            <GoalMiniRow key={goal.id} goal={goal} pct={pct} onClick={() => navigate('/metas')} />
+            <GoalMiniRow
+              key={goal.id}
+              goal={goal}
+              pct={pct}
+              onClick={() => navigate('/metas')}
+              formatCurrency={formatCurrency}
+            />
           ))}
         </div>
       </CardContent>
@@ -123,10 +129,12 @@ function GoalMiniRow({
   goal,
   pct,
   onClick,
+  formatCurrency,
 }: {
   goal: SavingsGoal
   pct: number
   onClick: () => void
+  formatCurrency: (v: number) => string
 }) {
   const color = goal.color || '#10b981'
   return (
