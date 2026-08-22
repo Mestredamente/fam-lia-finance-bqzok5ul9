@@ -215,7 +215,13 @@ function groupIdenticalMonths(
   const out: GroupedMonth[] = []
   let cur: GroupedMonth | null = null
   for (const m of months) {
-    if (cur && cur.monthlyAmount === m.total) {
+    // Só estende o intervalo se o mês for CALENDARIAMENTE consecutivo ao
+    // fim do intervalo atual E tiver o mesmo total mensal. Sem isso, meses
+    // vazios filtrados no meio (ex.: um mês sem parcelas entre dois meses
+    // de valor idêntico) fariam a UI agrupar "Set–Nov" alegando 3 meses
+    // quando só 2 tinham parcelas — a contagem "X meses" ficaria errada.
+    const consecutive = cur ? isNextMonth(cur.endKey, m.key) : false
+    if (cur && consecutive && cur.monthlyAmount === m.total) {
       cur.endKey = m.key
       cur.total += m.total
       cur.count += m.count
@@ -232,6 +238,22 @@ function groupIdenticalMonths(
   }
   if (cur) out.push(cur)
   return out
+}
+
+/** Verdadeiro se nextKey (YYYY-MM) é o mês calendário imediatamente
+ *  seguinte a prevKey (YYYY-MM). Garante que agrupamentos só abranjam
+ *  períodos realmente consecutivos, mesmo após filtrar meses vazios. */
+function isNextMonth(prevKey: string, nextKey: string): boolean {
+  let py = Number(prevKey.slice(0, 4))
+  let pm = Number(prevKey.slice(5, 7))
+  const ny = Number(nextKey.slice(0, 4))
+  const nm = Number(nextKey.slice(5, 7))
+  pm += 1
+  if (pm > 12) {
+    pm = 1
+    py += 1
+  }
+  return py === ny && pm === nm
 }
 
 function keyToLabel(key: string): string {
