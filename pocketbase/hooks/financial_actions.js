@@ -11,8 +11,11 @@ routerAdd(
     e.response.header().set('Access-Control-Allow-Headers', 'authorization, content-type')
 
     var reqInfo = e.requestInfo()
-    var contentType = (reqInfo.headers['content-type'] || '').toLowerCase()
-    var isMultipart = contentType.indexOf('multipart/form-data') !== -1
+    var contentType =
+      (reqInfo.headers && (reqInfo.headers['Content-Type'] || reqInfo.headers['content-type'])) ||
+      ''
+    var isMultipart = contentType.indexOf('multipart/form-data') >= 0
+    console.log('[financial-actions] isMultipart:', isMultipart, 'contentType:', contentType)
 
     var body = reqInfo.body || {}
     // Fallback: no multipart/form-data, campos de texto podem vir em reqInfo.form
