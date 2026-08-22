@@ -54,7 +54,6 @@ import { useMonthComparison } from '@/hooks/use-month-comparison'
 import { MemberViewCard } from '@/components/MemberViewCard'
 import { PatrimonyCard } from '@/components/PatrimonyCard'
 import { SubscriptionsCard } from '@/components/SubscriptionsCard'
-import { AiInsightsCard } from '@/components/AiInsightsCard'
 import { CustomizableCard } from '@/components/CustomizableCard'
 import { BudgetAlertBanner } from '@/components/BudgetAlertBanner'
 import { useDashboardLayout, CARD_TITLES, type DashboardCardId } from '@/hooks/use-dashboard-layout'
@@ -293,8 +292,6 @@ export default function Dashboard() {
           return <PatrimonyCard familyId={family.id} />
         case 'subscriptions':
           return <SubscriptionsCard familyId={family.id} />
-        case 'aiInsights':
-          return <AiInsightsCard familyId={family.id} memberId={member?.id || ''} />
         case 'upcomingTasks':
           return <UpcomingTasksSection familyId={family.id} />
         case 'savingsGoals':

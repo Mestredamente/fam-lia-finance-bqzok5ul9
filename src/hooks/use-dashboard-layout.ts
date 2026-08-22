@@ -14,7 +14,6 @@ export type DashboardCardId =
   | 'futureCommitment'
   | 'patrimony'
   | 'subscriptions'
-  | 'aiInsights'
   | 'upcomingTasks'
   | 'savingsGoals'
   | 'emotionalSpending'
@@ -29,7 +28,6 @@ export const DEFAULT_CARD_ORDER: DashboardCardId[] = [
   'futureCommitment',
   'patrimony',
   'subscriptions',
-  'aiInsights',
   'upcomingTasks',
   'savingsGoals',
   'emotionalSpending',
@@ -43,7 +41,6 @@ export const CARD_TITLES: Record<DashboardCardId, string> = {
   futureCommitment: 'Comprometimento Futuro',
   patrimony: 'Patrimônio',
   subscriptions: 'Assinaturas',
-  aiInsights: 'Insights IA',
   upcomingTasks: 'Próximos Compromissos',
   savingsGoals: 'Metas de Economia',
   emotionalSpending: 'Padrões Emocionais de Gasto',
