@@ -30,7 +30,6 @@ export function ExpensesByCategoryCard({ familyId, year, month, loading }: Props
     loading: chartsLoading,
   } = useMonthlyCharts(familyId, year, month)
   const { formatCurrency } = usePrivacy()
-  const pieConfig: ChartConfig = { value: { label: 'Valor' } }
 
   // Penúltimo elemento = mês anterior; último = mês atual.
   const prevBreakdown = monthlyBreakdown[monthlyBreakdown.length - 2]
@@ -42,7 +41,12 @@ export function ExpensesByCategoryCard({ familyId, year, month, loading }: Props
     ...top5,
     ...(otherTotal > 0 ? [{ name: 'Outros', value: otherTotal, color: '#CBD5E1' }] : []),
   ]
-  const pieConfig: ChartConfig = { value: { label: 'Valor' } }
+  const pieConfig: ChartConfig = {
+    value: {
+      label: 'Valor',
+      formatter: (v) => (typeof v === 'number' ? formatCurrency(v) : String(v)),
+    },
+  }
 
   if (chartsLoading && loading) {
     return <Skeleton className="h-64 rounded-2xl" />

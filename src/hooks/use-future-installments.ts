@@ -3,6 +3,8 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { getFutureInstallments } from '@/services/future-installments'
 import type { TransactionRecord } from '@/types/finance'
 
+export type FutureInstallment = TransactionRecord
+
 export function useFutureInstallments(familyId: string | undefined) {
   const [installments, setInstallments] = useState<TransactionRecord[]>([])
   const [loading, setLoading] = useState(true)
