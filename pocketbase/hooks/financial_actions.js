@@ -7,6 +7,7 @@ routerAdd(
   'POST',
   '/backend/v1/financial-actions',
   (e) => {
+   try {
     e.response.header().set('Access-Control-Allow-Origin', '*')
     e.response.header().set('Access-Control-Allow-Headers', 'authorization, content-type')
 
@@ -29,6 +30,9 @@ routerAdd(
     // query params como fonte primária — PocketBase JSVM não expõe campos multipart no body
     var familyId = (reqInfo.query.family_id || body.family_id || '').trim()
     var memberId = (reqInfo.query.user_id || body.user_id || '').trim()
+    console.log('[financial-actions] body keys:', Object.keys(reqInfo.body || {}))
+    console.log('[financial-actions] audio_base64 len:', (reqInfo.body?.audio_base64 || '').length)
+    console.log('[financial-actions] familyId:', familyId, '| memberId:', memberId)
     console.log('[financial-actions] query:', JSON.stringify(reqInfo.query))
     console.log('[financial-actions] familyId:', familyId, 'memberId:', memberId)
     var message = (body.message || '').trim()
@@ -268,7 +272,7 @@ routerAdd(
       lines.push(
         m.getString('display_name') +
           ' (id: ' +
-          m.getId() +
+          var memberId = (m && typeof m.getId === 'function') ? m.getId() : (m && m.id ? m.id : '')
           ', ' +
           m.getString('role') +
           '): Renda ' +
@@ -822,8 +826,14 @@ routerAdd(
         reply: replyText,
       })
     }
+    } catch (err) {
+      console.log('[financial-actions] EXCEÇÃO:', err.message)
+      console.log('[financial-actions] STACK:', err.stack)
+      return e.json(500, { error: err.message, stack: err.stack })
+    }
   },
   $apis.requireAuth(),
+)
 )
 
 routerAdd(
