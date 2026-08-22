@@ -1,8 +1,16 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, Clock, Lightbulb, CalendarDays } from 'lucide-react'
+import { ChevronDown, Clock, Lightbulb, CalendarDays, Sparkles, Brain } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import { cn, formatBRL } from '@/lib/utils'
 import type { AIInsight, TransactionRecord, TransactionEmotion } from '@/types/finance'
+
+const INSIGHT_ICON: Record<AIInsight['tipo'], typeof Brain> = {
+  alerta: Lightbulb,
+  oportunidade: Lightbulb,
+  educacao: Brain,
+  comportamento: Brain,
+}
 
 interface EmotionMeta {
   value: TransactionEmotion
@@ -56,6 +64,12 @@ function weekdayIndex(jsDay: number): number {
 interface Props {
   transactions: TransactionRecord[]
   aiInsights?: AIInsight[]
+  /** True quando a IA ainda está gerando os insights (loading). */
+  aiLoading?: boolean
+  /** Texto de fallback estático exibido quando não há insights da IA. */
+  staticFallbackInsight?: string
+  /** Formatador de moeda que respeita o modo privacidade (olhinho). */
+  formatCurrency?: (val: number | null | undefined) => string
 }
 
 interface CellAgg {
@@ -63,8 +77,17 @@ interface CellAgg {
   count: number
 }
 
-export function EmotionalTemporalAnalysis({ transactions, aiInsights }: Props) {
+export function EmotionalTemporalAnalysis({
+  transactions,
+  aiInsights,
+  aiLoading = false,
+  staticFallbackInsight,
+  formatCurrency,
+}: Props) {
   const [expanded, setExpanded] = useState(false)
+  // Formato de moeda: respeita o modo privacidade quando fornecido pelo
+  // pai (EmotionalSpendingCard); cai para formatBRL quando usado isoladamente.
+  const fmt = formatCurrency || formatBRL
 
   const analysis = useMemo(() => {
     // emotion x weekday x period
@@ -186,7 +209,7 @@ export function EmotionalTemporalAnalysis({ transactions, aiInsights }: Props) {
     }
   }, [transactions])
 
-  const insights = useMemo(() => buildInsights(analysis), [analysis])
+  const insights = useMemo(() => buildInsights(analysis, fmt), [analysis, fmt])
 
   // Not enough data
   if (analysis.emotionTxCount < 5) {
@@ -294,7 +317,7 @@ export function EmotionalTemporalAnalysis({ transactions, aiInsights }: Props) {
                         return (
                           <div
                             key={i}
-                            title={`${WEEKDAYS_LONG[i]}: ${formatBRL(cell.total)} em gastos ${meta.label.toLowerCase()} (${cell.count} transações)`}
+                            title={`${WEEKDAYS_LONG[i]}: ${fmt(cell.total)} em gastos ${meta.label.toLowerCase()} (${cell.count} transações)`}
                             className={cn(
                               'flex h-9 items-center justify-center rounded-md text-[10px] font-medium transition-colors',
                               cell.total > 0
@@ -372,7 +395,7 @@ export function EmotionalTemporalAnalysis({ transactions, aiInsights }: Props) {
                         )}
                       >
                         {dom ? `${dom.emotion.emoji} ` : ''}
-                        {formatBRL(row.total)}
+                        {fmt(row.total)}
                       </span>
                     </div>
                   )
@@ -389,49 +412,91 @@ export function EmotionalTemporalAnalysis({ transactions, aiInsights }: Props) {
             </div>
           )}
 
-          {/* INSIGHTS — IA (se disponível) ou fallback estático */}
-          {aiInsights && aiInsights.length > 0 ? (
-            <div className="space-y-1.5">
-              <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                <Lightbulb className="h-3.5 w-3.5" />
-                Insights da IA
-              </h4>
-              <div className="space-y-1.5">
-                {aiInsights.map((ins, i) => (
-                  <div
-                    key={i}
-                    className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 px-3 py-2"
-                  >
-                    <p className="text-xs font-semibold text-gray-900 dark:text-foreground leading-snug">
-                      {ins.titulo}
-                    </p>
-                    <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed mt-0.5">
-                      {ins.descricao}
-                    </p>
+          {/* INSIGHTS consolidados — seção ÚNICA.
+              Mostra, quando disponíveis: (a) insights da IA (Gemini),
+              (b) insights automáticos de padrões temporais e (c) fallback
+              estático quando não há IA. Os valores monetários respeitam o
+              modo privacidade via `fmt`. */}
+          {(() => {
+            const hasAI = aiInsights && aiInsights.length > 0
+            const hasAuto = insights.length > 0
+            if (!aiLoading && !hasAI && !hasAuto && !staticFallbackInsight) return null
+            return (
+              <div className="space-y-2">
+                <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <Lightbulb className="h-3.5 w-3.5" />
+                  Insights
+                </h4>
+                {aiLoading ? (
+                  <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 p-3 space-y-2">
+                    <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                      <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                      <span className="text-[11px] font-semibold uppercase tracking-wider">
+                        Gerando insights com IA...
+                      </span>
+                    </div>
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-4/5" />
                   </div>
-                ))}
-              </div>
-            </div>
-          ) : insights.length > 0 ? (
-            <div className="space-y-1.5">
-              <h4 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                <Lightbulb className="h-3.5 w-3.5" />
-                Insights automáticos
-              </h4>
-              <div className="space-y-1.5">
-                {insights.map((ins, i) => (
-                  <div
-                    key={i}
-                    className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 px-3 py-2"
-                  >
-                    <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
-                      {ins}
-                    </p>
+                ) : hasAI ? (
+                  <div className="space-y-1.5">
+                    {aiInsights!.map((ins, i) => {
+                      const Icon = INSIGHT_ICON[ins.tipo] || Brain
+                      return (
+                        <div
+                          key={`ai-${i}`}
+                          className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 px-3 py-2"
+                        >
+                          <div className="flex items-start gap-2">
+                            <Icon className="h-4 w-4 text-[#166534] dark:text-emerald-400 shrink-0 mt-0.5" />
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-gray-900 dark:text-foreground leading-snug">
+                                {ins.titulo}
+                              </p>
+                              <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed mt-0.5">
+                                {ins.descricao}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                ))}
+                ) : null}
+
+                {!aiLoading && hasAuto && (
+                  <div className="space-y-1.5">
+                    {aiInsights && aiInsights.length > 0 && (
+                      <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                        Padrões temporais detectados
+                      </p>
+                    )}
+                    {insights.map((ins, i) => (
+                      <div
+                        key={`auto-${i}`}
+                        className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 px-3 py-2"
+                      >
+                        <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+                          {ins}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {!aiLoading && !hasAI && !hasAuto && staticFallbackInsight && (
+                  <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 px-3 py-2">
+                    <div className="flex items-start gap-2">
+                      <Brain className="h-4 w-4 text-[#166534] dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+                        {staticFallbackInsight}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          ) : null}
+            )
+          })()}
         </div>
       )}
     </div>
@@ -450,7 +515,10 @@ interface TemporalAnalysis {
   timeAvailable: boolean
 }
 
-function buildInsights(a: TemporalAnalysis): string[] {
+function buildInsights(
+  a: TemporalAnalysis,
+  fmt: (v: number | null | undefined) => string,
+): string[] {
   const out: string[] = []
 
   if (a.timeAvailable) {
@@ -483,7 +551,7 @@ function buildInsights(a: TemporalAnalysis): string[] {
       })
       peak.wd = bestWd
       out.push(
-        `Você gasta mais às ${WEEKDAYS_LONG[peak.wd]}s à ${PERIOD_LABEL_LONG[peak.period]} por ${peak.emotion.label.toLowerCase()} — ${formatBRL(peak.total)}.`,
+        `Você gasta mais às ${WEEKDAYS_LONG[peak.wd]}s à ${PERIOD_LABEL_LONG[peak.period]} por ${peak.emotion.label.toLowerCase()} — ${fmt(peak.total)}.`,
       )
     }
 
@@ -506,7 +574,7 @@ function buildInsights(a: TemporalAnalysis): string[] {
     if (pattern) {
       const pct = Math.round(pattern.pct * 100)
       out.push(
-        `${capitalize(PERIOD_LABEL_LONG[pattern.period])}s representam ${pct}% dos seus gastos ${pattern.emotion.label.toLowerCase()} (${formatBRL(pattern.total)}).`,
+        `${capitalize(PERIOD_LABEL_LONG[pattern.period])}s representam ${pct}% dos seus gastos ${pattern.emotion.label.toLowerCase()} (${fmt(pattern.total)}).`,
       )
     }
 
@@ -528,7 +596,7 @@ function buildInsights(a: TemporalAnalysis): string[] {
     }
     if (wdPeak) {
       out.push(
-        `Seu maior pico de gasto é às ${WEEKDAYS_LONG[wdPeak.wd]}s por ${wdPeak.emotion.label.toLowerCase()} — ${formatBRL(wdPeak.total)} (${wdPeak.count} transações).`,
+        `Seu maior pico de gasto é às ${WEEKDAYS_LONG[wdPeak.wd]}s por ${wdPeak.emotion.label.toLowerCase()} — ${fmt(wdPeak.total)} (${wdPeak.count} transações).`,
       )
     }
 
@@ -548,7 +616,7 @@ function buildInsights(a: TemporalAnalysis): string[] {
     if (pattern) {
       const pct = Math.round(pattern.pct * 100)
       out.push(
-        `${WEEKDAYS_LONG[pattern.wd]}s representam ${pct}% dos seus gastos ${pattern.emotion.label.toLowerCase()} (${formatBRL(pattern.total)}).`,
+        `${WEEKDAYS_LONG[pattern.wd]}s representam ${pct}% dos seus gastos ${pattern.emotion.label.toLowerCase()} (${fmt(pattern.total)}).`,
       )
     }
 

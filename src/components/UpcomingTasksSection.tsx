@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useUpcomingTasks } from '@/hooks/use-upcoming-tasks'
 import { taskCategoryMeta, getDaysRemaining } from '@/lib/household-icons'
+import { usePrivacy } from '@/hooks/use-privacy'
 import { formatBRL } from '@/lib/utils'
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
 export function UpcomingTasksSection({ familyId }: Props) {
   const navigate = useNavigate()
   const { tasks, totalEstimatedCost, overdueCount, loading } = useUpcomingTasks(familyId, 7)
+  const { formatCurrency } = usePrivacy()
 
   if (loading) {
     return (
@@ -80,7 +82,7 @@ export function UpcomingTasksSection({ familyId }: Props) {
                     {days && <span className={`text-xs ${days.color}`}>{days.text}</span>}
                     {task.estimated_cost != null && task.estimated_cost > 0 && (
                       <span className="text-xs text-gray-500">
-                        {formatBRL(task.estimated_cost)}
+                        {formatCurrency(task.estimated_cost)}
                       </span>
                     )}
                   </div>
@@ -100,7 +102,7 @@ export function UpcomingTasksSection({ familyId }: Props) {
       </div>
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-gray-700">
-          {formatBRL(totalEstimatedCost)} em compromissos pendentes
+          {formatCurrency(totalEstimatedCost)} em compromissos pendentes
         </span>
         <Button variant="outline" size="sm" onClick={() => navigate('/casa')}>
           Ver todas

@@ -5,6 +5,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
+import { usePrivacy } from '@/hooks/use-privacy'
 import { formatBRL } from '@/lib/utils'
 
 export interface CategoryItem {
@@ -20,6 +21,7 @@ interface AllCategoriesDialogProps {
 }
 
 export function AllCategoriesDialog({ open, onOpenChange, categories }: AllCategoriesDialogProps) {
+  const { formatCurrency } = usePrivacy()
   const sortedCategories = [...categories].sort((a, b) => b.value - a.value)
   const total = sortedCategories.reduce((sum, c) => sum + c.value, 0)
 
@@ -31,7 +33,7 @@ export function AllCategoriesDialog({ open, onOpenChange, categories }: AllCateg
             Todas as Despesas por Categoria
           </DialogTitle>
           <DialogDescription className="text-xs text-gray-500 dark:text-gray-400">
-            Detalhamento de gastos ordenados por maior valor · Total: {formatBRL(total)}
+            Detalhamento de gastos ordenados por maior valor · Total: {formatCurrency(total)}
           </DialogDescription>
         </DialogHeader>
 
@@ -61,7 +63,7 @@ export function AllCategoriesDialog({ open, onOpenChange, categories }: AllCateg
                           {pct.toFixed(1)}%
                         </span>
                         <span className="font-bold text-gray-900 dark:text-foreground">
-                          {formatBRL(cat.value)}
+                          {formatCurrency(cat.value)}
                         </span>
                       </div>
                     </div>

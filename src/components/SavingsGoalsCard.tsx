@@ -4,6 +4,7 @@ import { Target, ChevronRight } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useSavingsGoals } from '@/hooks/use-savings-goals'
+import { usePrivacy } from '@/hooks/use-privacy'
 import { formatBRL } from '@/lib/utils'
 import type { SavingsGoal } from '@/types/finance'
 
@@ -14,6 +15,7 @@ interface Props {
 export function SavingsGoalsCard({ familyId }: Props) {
   const navigate = useNavigate()
   const { goals, loading } = useSavingsGoals(familyId)
+  const { formatCurrency } = usePrivacy()
 
   const activeGoals = useMemo(() => goals.filter((g) => g.status === 'active'), [goals])
 
@@ -102,7 +104,8 @@ export function SavingsGoalsCard({ familyId }: Props) {
 
         <div className="mb-4">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            {formatBRL(summary.totalSaved)} poupados de {formatBRL(summary.totalTarget)} totais
+            {formatCurrency(summary.totalSaved)} poupados de {formatCurrency(summary.totalTarget)}{' '}
+            totais
           </p>
         </div>
 
@@ -152,7 +155,7 @@ function GoalMiniRow({
             />
           </div>
           <span className="text-[10px] text-gray-500 dark:text-gray-400 whitespace-nowrap shrink-0">
-            {formatBRL(goal.current_amount)} / {formatBRL(goal.target_amount)}
+            {formatCurrency(goal.current_amount)} / {formatCurrency(goal.target_amount)}
           </span>
         </div>
       </div>

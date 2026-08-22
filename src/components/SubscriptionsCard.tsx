@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useRealtime } from '@/hooks/use-realtime'
 import { getSubscriptionsByFamilyId } from '@/services/subscriptions'
+import { usePrivacy } from '@/hooks/use-privacy'
 import { formatBRL } from '@/lib/utils'
 import type { TransactionRecord } from '@/types/finance'
 
@@ -53,6 +54,7 @@ export function SubscriptionsCard({ familyId }: Props) {
   const navigate = useNavigate()
   const { groups: subscriptions, loading: subsLoading } = useSubscriptions(familyId)
   const totalMonthly = subscriptions.reduce((s, g) => s + g.monthly, 0)
+  const { formatCurrency } = usePrivacy()
 
   return (
     <Card
@@ -75,7 +77,7 @@ export function SubscriptionsCard({ familyId }: Props) {
           <p className="text-xs text-gray-500 mt-auto">Nenhuma assinatura detectada</p>
         ) : (
           <div className="flex flex-col gap-1 mt-auto">
-            <p className="text-lg font-bold text-gray-900">{formatBRL(totalMonthly)}</p>
+            <p className="text-lg font-bold text-gray-900">{formatCurrency(totalMonthly)}</p>
             <p className="text-xs text-gray-500">
               {subscriptions.length}{' '}
               {subscriptions.length === 1 ? 'assinatura ativa' : 'assinaturas ativas'}

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/chart'
 import { AllCategoriesDialog } from '@/components/AllCategoriesDialog'
 import { useMonthlyCharts } from '@/hooks/use-monthly-charts'
+import { usePrivacy } from '@/hooks/use-privacy'
 import { formatBRL, cn } from '@/lib/utils'
 import { getVariation, getVariationColor, formatVariation } from '@/lib/comparison-utils'
 
@@ -28,6 +29,8 @@ export function ExpensesByCategoryCard({ familyId, year, month, loading }: Props
     monthlyBreakdown,
     loading: chartsLoading,
   } = useMonthlyCharts(familyId, year, month)
+  const { formatCurrency } = usePrivacy()
+  const pieConfig: ChartConfig = { value: { label: 'Valor' } }
 
   // Penúltimo elemento = mês anterior; último = mês atual.
   const prevBreakdown = monthlyBreakdown[monthlyBreakdown.length - 2]
@@ -69,7 +72,16 @@ export function ExpensesByCategoryCard({ familyId, year, month, loading }: Props
                       <Cell key={i} fill={e.color} />
                     ))}
                   </Pie>
-                  <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        nameKey="name"
+                        formatter={(val) =>
+                          typeof val === 'number' ? formatCurrency(val) : String(val)
+                        }
+                      />
+                    }
+                  />
                 </PieChart>
               </ChartContainer>
               <div className="mt-2 space-y-1">
@@ -98,7 +110,7 @@ export function ExpensesByCategoryCard({ familyId, year, month, loading }: Props
                             title={
                               variation.isNew
                                 ? 'Categoria nova neste mês'
-                                : `Mês anterior: ${formatBRL(prevValue)}`
+                                : `Mês anterior: ${formatCurrency(prevValue)}`
                             }
                             className={cn(
                               'text-[10px] font-semibold whitespace-nowrap',
@@ -110,7 +122,7 @@ export function ExpensesByCategoryCard({ familyId, year, month, loading }: Props
                             {formatVariation(variation)}
                           </span>
                         )}
-                        <span className="font-medium text-gray-900">{formatBRL(c.value)}</span>
+                        <span className="font-medium text-gray-900">{formatCurrency(c.value)}</span>
                       </div>
                     </div>
                   )

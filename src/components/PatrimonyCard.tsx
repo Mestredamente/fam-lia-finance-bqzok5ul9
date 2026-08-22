@@ -3,6 +3,7 @@ import { Landmark } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usePatrimony } from '@/hooks/use-patrimony'
+import { usePrivacy } from '@/hooks/use-privacy'
 import { formatBRL } from '@/lib/utils'
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 export function PatrimonyCard({ familyId }: Props) {
   const navigate = useNavigate()
   const { netWorth, loading: patrimonyLoading } = usePatrimony(familyId)
+  const { formatCurrency } = usePrivacy()
 
   return (
     <Card
@@ -33,7 +35,7 @@ export function PatrimonyCard({ familyId }: Props) {
         ) : (
           <div className="flex flex-col gap-1 mt-auto">
             <p className="text-xs text-gray-500">Patrimônio líquido</p>
-            <p className="text-lg font-bold text-gray-900">{formatBRL(netWorth)}</p>
+            <p className="text-lg font-bold text-gray-900">{formatCurrency(netWorth)}</p>
           </div>
         )}
       </CardContent>

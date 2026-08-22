@@ -78,7 +78,7 @@ export function MemberBreakdown({
           Fundo levemente destacado (bg-primary/5), fonte bold. Visível em
           mobile e desktop. */}
       <div className="mb-3 rounded-lg bg-primary/5 border border-primary/10 p-2.5">
-        <div className="flex items-center gap-1.5 mb-1.5">
+        <div className="flex items-center gap-1.5 mb-1.5 sm:hidden">
           <Users className="h-3.5 w-3.5 text-primary" />
           <span className="text-xs font-bold uppercase tracking-wide text-primary">
             Total Família
@@ -118,33 +118,31 @@ export function MemberBreakdown({
             </span>
           </div>
         </div>
-        {/* Desktop: linha única alinhada à direita */}
-        <div className="hidden sm:flex sm:items-center sm:justify-end sm:gap-6">
-          <div className="text-right">
-            <span className="block text-[10px] uppercase text-muted-foreground">Receitas</span>
-            <span className="block text-sm font-bold tabular-nums text-green-600 dark:text-green-500">
-              {formatCurrency(totalIncome)}
+        {/* Desktop: mesma grade das linhas de membros — alinhamento consistente
+            das colunas [nome | receitas | despesas | saldo]. */}
+        <div className="hidden sm:grid sm:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(80px,1fr))] sm:gap-x-3 sm:items-center">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Users className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="text-xs font-bold uppercase tracking-wide text-primary truncate">
+              Total Família
             </span>
           </div>
-          <div className="text-right">
-            <span className="block text-[10px] uppercase text-muted-foreground">Despesas</span>
-            <span className="block text-sm font-bold tabular-nums text-red-600 dark:text-red-400">
-              {formatCurrency(totalExpenses)}
-            </span>
-          </div>
-          <div className="text-right">
-            <span className="block text-[10px] uppercase text-muted-foreground">Saldo</span>
-            <span
-              className={cn(
-                'block text-sm font-bold tabular-nums',
-                totalBalance >= 0
-                  ? 'text-green-600 dark:text-green-500'
-                  : 'text-red-600 dark:text-red-400',
-              )}
-            >
-              {formatCurrency(totalBalance)}
-            </span>
-          </div>
+          <span className="text-right text-sm font-bold tabular-nums text-green-600 dark:text-green-500">
+            {formatCurrency(totalIncome)}
+          </span>
+          <span className="text-right text-sm font-bold tabular-nums text-red-600 dark:text-red-400">
+            {formatCurrency(totalExpenses)}
+          </span>
+          <span
+            className={cn(
+              'text-right text-sm font-bold tabular-nums',
+              totalBalance >= 0
+                ? 'text-green-600 dark:text-green-500'
+                : 'text-red-600 dark:text-red-400',
+            )}
+          >
+            {formatCurrency(totalBalance)}
+          </span>
         </div>
       </div>
 
@@ -209,60 +207,56 @@ export function MemberBreakdown({
         })}
       </div>
 
-      {/* DESKTOP: table (>= 640px) */}
-      <table className="hidden w-full sm:table" style={{ tableLayout: 'auto' }}>
-        <thead>
-          <tr className="text-xs font-semibold uppercase border-b text-muted-foreground">
-            <th className="text-left px-2 pb-1.5 font-semibold whitespace-nowrap">Membro</th>
-            <th className="text-right px-2 pb-1.5 font-semibold whitespace-nowrap">Receitas</th>
-            <th className="text-right px-2 pb-1.5 font-semibold whitespace-nowrap">Despesas</th>
-            <th className="text-right px-2 pb-1.5 font-semibold whitespace-nowrap">Saldo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ m, income, expenses, balance }) => {
-            return (
-              <tr
-                key={m.id}
-                onClick={() => onMemberClick(m)}
-                className="rounded-lg hover:bg-accent/40 cursor-pointer transition-colors"
-              >
-                <td className="px-2 py-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Avatar className="h-10 w-10 border border-[#22C55E] shrink-0">
-                      <AvatarImage src={getMemberAvatarUrl(m)} alt={m.display_name} />
-                      <AvatarFallback className="bg-emerald-100 text-[#166534] text-xs font-bold">
-                        {m.display_name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <span className="block whitespace-normal text-sm font-medium leading-tight">
-                        {m.display_name}
-                      </span>
-                    </div>
-                  </div>
-                </td>
-                <td className="text-xs font-medium text-right tabular-nums px-2 py-2 text-green-600 dark:text-green-500">
-                  {formatCurrency(income)}
-                </td>
-                <td className="text-xs font-medium text-right tabular-nums px-2 py-2 text-red-600 dark:text-red-400">
-                  {formatCurrency(expenses)}
-                </td>
-                <td
-                  className={cn(
-                    'text-xs font-bold text-right tabular-nums px-2 py-2',
-                    balance >= 0
-                      ? 'text-green-600 dark:text-green-500'
-                      : 'text-red-600 dark:text-red-400',
-                  )}
-                >
-                  {formatCurrency(balance)}
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+      {/* DESKTOP: grade unificada (>= 640px). O cabeçalho, as linhas de membros
+          e a linha TOTAL usam o MESMO grid-template, garantindo alinhamento
+          perfeito das colunas [nome | receitas | despesas | saldo]. Valores à
+          direita, nomes à esquerda. */}
+      <div className="hidden sm:block">
+        {/* Cabeçalho */}
+        <div className="grid grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(80px,1fr))] gap-x-3 border-b pb-1.5 text-xs font-semibold uppercase text-muted-foreground">
+          <div className="text-left px-1">Membro</div>
+          <div className="text-right px-1">Receitas</div>
+          <div className="text-right px-1">Despesas</div>
+          <div className="text-right px-1">Saldo</div>
+        </div>
+        {/* Linhas de membros */}
+        {rows.map(({ m, income, expenses, balance }) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => onMemberClick(m)}
+            className="grid w-full grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(80px,1fr))] gap-x-3 items-center rounded-lg px-1 py-2 text-left hover:bg-accent/40 cursor-pointer transition-colors"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Avatar className="h-10 w-10 border border-[#22C55E] shrink-0">
+                <AvatarImage src={getMemberAvatarUrl(m)} alt={m.display_name} />
+                <AvatarFallback className="bg-emerald-100 text-[#166534] text-xs font-bold">
+                  {m.display_name.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="block truncate text-sm font-medium leading-tight">
+                {m.display_name}
+              </span>
+            </div>
+            <span className="text-right text-xs font-medium tabular-nums text-green-600 dark:text-green-500">
+              {formatCurrency(income)}
+            </span>
+            <span className="text-right text-xs font-medium tabular-nums text-red-600 dark:text-red-400">
+              {formatCurrency(expenses)}
+            </span>
+            <span
+              className={cn(
+                'text-right text-xs font-bold tabular-nums',
+                balance >= 0
+                  ? 'text-green-600 dark:text-green-500'
+                  : 'text-red-600 dark:text-red-400',
+              )}
+            >
+              {formatCurrency(balance)}
+            </span>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

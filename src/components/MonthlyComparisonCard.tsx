@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMonthlyCharts } from '@/hooks/use-monthly-charts'
+import { usePrivacy } from '@/hooks/use-privacy'
 import { getMonthName, formatBRL, cn } from '@/lib/utils'
 import { getVariation, getVariationColor, formatVariation } from '@/lib/comparison-utils'
 
@@ -23,6 +24,7 @@ const MAX_BAR_HEIGHT = 120 // px
 
 export function MonthlyComparisonCard({ familyId, year, month }: Props) {
   const { monthlyComparison, monthlyBreakdown, loading } = useMonthlyCharts(familyId, year, month)
+  const { formatCurrency } = usePrivacy()
 
   const data = useMemo(() => {
     const current = monthlyComparison[monthlyComparison.length - 1]
@@ -130,12 +132,12 @@ export function MonthlyComparisonCard({ familyId, year, month }: Props) {
     const diffText =
       variation.direction === 'stable'
         ? 'sem variação'
-        : `${diff >= 0 ? '+' : '-'}${formatBRL(Math.abs(diff))}${suffix}`
+        : `${diff >= 0 ? '+' : '-'}${formatCurrency(Math.abs(diff))}${suffix}`
     return (
       <div className="space-y-0.5">
         <span className="text-[11px] font-medium text-gray-500 block">{label}</span>
         <span className="text-base font-extrabold text-gray-900 dark:text-foreground block">
-          {formatBRL(value)}
+          {formatCurrency(value)}
         </span>
         <div className="flex items-center gap-1.5">
           <span className={cn('text-[11px] font-semibold', color)}>
@@ -152,7 +154,7 @@ export function MonthlyComparisonCard({ familyId, year, month }: Props) {
       <span className="text-gray-600 dark:text-gray-300 truncate">{c.name}</span>
       <div className="flex items-center gap-2 shrink-0">
         <span className="font-medium text-gray-900 dark:text-foreground">
-          {formatBRL(c.current)}
+          {formatCurrency(c.current)}
         </span>
         <span
           className={cn(
@@ -185,7 +187,7 @@ export function MonthlyComparisonCard({ familyId, year, month }: Props) {
                 <div
                   className="w-6 rounded-t bg-[#166534]"
                   style={{ height: barH(current.income) }}
-                  title={`Atual: ${formatBRL(current.income)}`}
+                  title={`Atual: ${formatCurrency(current.income)}`}
                 />
                 <span className="text-[9px] text-gray-500">Atual</span>
               </div>
@@ -193,7 +195,7 @@ export function MonthlyComparisonCard({ familyId, year, month }: Props) {
                 <div
                   className="w-6 rounded-t bg-[#86EFAC] dark:bg-green-900"
                   style={{ height: barH(prev.income) }}
-                  title={`Anterior: ${formatBRL(prev.income)}`}
+                  title={`Anterior: ${formatCurrency(prev.income)}`}
                 />
                 <span className="text-[9px] text-gray-400">Anterior</span>
               </div>
@@ -206,7 +208,7 @@ export function MonthlyComparisonCard({ familyId, year, month }: Props) {
                 <div
                   className="w-6 rounded-t bg-red-500"
                   style={{ height: barH(current.expenses) }}
-                  title={`Atual: ${formatBRL(current.expenses)}`}
+                  title={`Atual: ${formatCurrency(current.expenses)}`}
                 />
                 <span className="text-[9px] text-gray-500">Atual</span>
               </div>
@@ -214,7 +216,7 @@ export function MonthlyComparisonCard({ familyId, year, month }: Props) {
                 <div
                   className="w-6 rounded-t bg-red-200 dark:bg-red-900"
                   style={{ height: barH(prev.expenses) }}
-                  title={`Anterior: ${formatBRL(prev.expenses)}`}
+                  title={`Anterior: ${formatCurrency(prev.expenses)}`}
                 />
                 <span className="text-[9px] text-gray-400">Anterior</span>
               </div>

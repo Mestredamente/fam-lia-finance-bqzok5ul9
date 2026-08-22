@@ -7,6 +7,7 @@ import { useTransactions } from '@/hooks/use-transactions'
 import { useAuth } from '@/hooks/use-auth'
 import { useEmotionalInsights } from '@/hooks/use-emotional-insights'
 import { EmotionalTemporalAnalysis } from '@/components/EmotionalTemporalAnalysis'
+import { usePrivacy } from '@/hooks/use-privacy'
 import type { EmotionalInsightsContext } from '@/services/ai-advisor'
 import type { AIInsight, TransactionEmotion } from '@/types/finance'
 
@@ -91,6 +92,7 @@ export function EmotionalSpendingCard({ familyId, year, month, loading, onInsigh
   const { transactions, loading: txLoading } = useTransactions(familyId, year, month)
   const { member } = useAuth()
   const memberId = member?.id
+  const { formatCurrency } = usePrivacy()
 
   const analysis = useMemo(() => {
     const byEmotion = new Map<TransactionEmotion, number>()
@@ -319,11 +321,11 @@ export function EmotionalSpendingCard({ familyId, year, month, loading, onInsigh
           return [`${pct}% dos seus gastos este mês foram necessários. Bom controle!`]
         case 'impulsive':
           return [
-            `Você gastou ${formatBRL(dominant.total)} em compras impulsivas. Considere esperar 24h antes de comprar online.`,
+            `Você gastou ${formatCurrency(dominant.total)} em compras impulsivas. Considere esperar 24h antes de comprar online.`,
           ]
         case 'regret':
           return [
-            `Compras com arrependimento somam ${formatBRL(dominant.total)}. Sua principal categoria de arrependimento é ${topCatName}.`,
+            `Compras com arrependimento somam ${formatCurrency(dominant.total)}. Sua principal categoria de arrependimento é ${topCatName}.`,
           ]
         case 'happy':
           return [
@@ -331,14 +333,14 @@ export function EmotionalSpendingCard({ familyId, year, month, loading, onInsigh
           ]
         default:
           return [
-            `Sua emoção dominante este mês foi ${dominant.label.toLowerCase()}, com ${formatBRL(dominant.total)} (${pct}% do total).`,
+            `Sua emoção dominante este mês foi ${dominant.label.toLowerCase()}, com ${formatCurrency(dominant.total)} (${pct}% do total).`,
           ]
       }
     }
     return [
-      `Sua emoção com maior gasto foi ${dominant.label.toLowerCase()} (${formatBRL(dominant.total)}), mas nenhuma emoção domina mais de 50% dos seus gastos — bom equilíbrio.`,
+      `Sua emoção com maior gasto foi ${dominant.label.toLowerCase()} (${formatCurrency(dominant.total)}), mas nenhuma emoção domina mais de 50% dos seus gastos — bom equilíbrio.`,
     ]
-  }, [analysis, hasEmotionData])
+  }, [analysis, hasEmotionData, formatCurrency])
 
   const { aiInsights, loading: aiLoading } = useEmotionalInsights(
     familyId,
@@ -417,7 +419,7 @@ export function EmotionalSpendingCard({ familyId, year, month, loading, onInsigh
                         : 'text-gray-400 dark:text-gray-500',
                     )}
                   >
-                    {formatBRL(total)}
+                    {formatCurrency(total)}
                   </span>
                 </div>
               )
@@ -441,69 +443,26 @@ export function EmotionalSpendingCard({ familyId, year, month, loading, onInsigh
                   {r.topCat?.name || '—'}
                 </span>
                 <span className="font-medium text-gray-900 dark:text-foreground whitespace-nowrap">
-                  {formatBRL(r.topCat?.total || r.total)}
+                  {formatCurrency(r.topCat?.total || r.total)}
                 </span>
               </div>
             ))}
           </div>
         )}
 
-        {/* c) Insight — IA (Gemini) com fallback estático */}
-        <div className="mt-4 space-y-2">
-          {aiLoading ? (
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-lg space-y-2">
-              <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-                <Sparkles className="h-3.5 w-3.5 animate-pulse" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider">
-                  Gerando insights com IA...
-                </span>
-              </div>
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-4/5" />
-              <Skeleton className="h-3 w-3/5" />
-            </div>
-          ) : aiInsights.length > 0 ? (
-            <div className="space-y-1.5">
-              <h3 className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                <Sparkles className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                Insights da IA
-              </h3>
-              {aiInsights.map((ins, i) => {
-                const Icon = INSIGHT_ICON[ins.tipo] || Brain
-                return (
-                  <div
-                    key={i}
-                    className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-lg"
-                  >
-                    <div className="flex items-start gap-2">
-                      <Icon className="h-4 w-4 text-[#166534] dark:text-emerald-400 shrink-0 mt-0.5" />
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-gray-900 dark:text-foreground leading-snug">
-                          {ins.titulo}
-                        </p>
-                        <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed mt-0.5">
-                          {ins.descricao}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-lg">
-              <div className="flex items-start gap-2">
-                <Brain className="h-4 w-4 text-[#166534] dark:text-emerald-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
-                  {staticFallbackInsight[0]}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* d) Padrões Temporais (heatmap + período do dia + insights) */}
-        <EmotionalTemporalAnalysis transactions={transactions} aiInsights={aiInsights} />
+        {/* c) Padrões Temporais (heatmap + período do dia + insights).
+            Os insights da IA (Gemini) com fallback estático são renderizados
+            UMA ÚNICA vez, aqui dentro, consolidando padrões emocionais e
+            temporais — evita a duplicidade anterior em que a seção de insights
+            aparecia duas vezes (uma aqui no topo e outra dentro do drill-down
+            temporal). */}
+        <EmotionalTemporalAnalysis
+          transactions={transactions}
+          aiInsights={aiInsights}
+          aiLoading={aiLoading}
+          staticFallbackInsight={staticFallbackInsight[0]}
+          formatCurrency={formatCurrency}
+        />
       </CardContent>
     </Card>
   )
