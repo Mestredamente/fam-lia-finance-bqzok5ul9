@@ -1,7 +1,7 @@
 // Endpoint para IA Consultora Financeira com suporte a 2 fluxos:
 // 1. Fluxo de Texto: processado via $ai.chat (Skip AI Gateway)
 // 2. Fluxo de Áudio (Multimodal): áudio gravado via microfone (multipart/form-data)
-//    processado diretamente via Google Gemini REST API (gemini-1.5-flash) com inlineData
+//    processado diretamente via Google Gemini REST API (gemini-2.0-flash) com inlineData
 console.log('[financial-actions] Hook carregado e rota registrada em /backend/v1/financial-actions')
 routerAdd(
   'POST',
@@ -634,11 +634,9 @@ routerAdd(
 
       if (audioBase64) {
         // Fluxo Multimodal com Áudio
-        var GEMINI_API_KEY =
-          $os.getenv('GEMINI_API_KEY') ||
-          ($secrets.has('GEMINI_API_KEY') ? $secrets.get('GEMINI_API_KEY') : '')
+        var GEMINI_API_KEY = $os.getenv('GEMINI_API_KEY') || ''
         if (!GEMINI_API_KEY) {
-          console.log('[financial-actions] Chave GEMINI_API_KEY não configurada')
+          console.log('[financial-actions] GEMINI_API_KEY vazia')
           return e.json(200, {
             success: false,
             executable: false,
@@ -648,11 +646,12 @@ routerAdd(
           })
         }
 
-        var chosenModel = 'gemini-1.5-flash'
+        var chosenModel = 'gemini-2.0-flash'
         var geminiUrl =
           'https://generativelanguage.googleapis.com/v1beta/models/' +
           chosenModel +
-          ':generateContent'
+          ':generateContent?key=' +
+          GEMINI_API_KEY
 
         console.log(
           '[financial-actions] Enviando para Gemini: model=' +
@@ -689,7 +688,6 @@ routerAdd(
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json; charset=utf-8',
-                'X-goog-api-key': GEMINI_API_KEY,
               },
               body: geminiBody,
               timeout: 60,
