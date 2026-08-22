@@ -38,131 +38,63 @@ routerAdd(
     var audioMime = 'audio/webm'
     var audioBase64 = ''
 
-    if (isMultipart) {
-      try {
-        var uploadedFiles = e.findUploadedFiles('audio')
-        if (uploadedFiles && uploadedFiles.length > 0) {
-          audioFile = uploadedFiles[0]
-        }
-      } catch (fErr) {
-        console.log('[financial-actions] error inspecting files:', fErr.message)
+    // Áudio: sempre tentar ler — PocketBase JSVM não expõe Content-Type
+    try {
+      var uploadedFiles = e.findUploadedFiles('audio')
+      if (uploadedFiles && uploadedFiles.length > 0) {
+        audioFile = uploadedFiles[0]
+      }
+    } catch (fErr) {
+      console.log('[financial-actions] error inspecting files:', fErr.message)
+    }
+
+    if (!audioFile) {
+      console.log('Nenhum arquivo de áudio encontrado no upload')
+      return e.json(200, {
+        success: false,
+        executable: false,
+        reply: 'Arquivo de áudio não recebido. Tente gravar novamente.',
+        response: 'Arquivo de áudio não recebido. Tente gravar novamente.',
+        error: 'Arquivo de áudio não recebido. Tente gravar novamente.',
+      })
+    }
+
+    try {
+      console.log('Propriedades do audioFile:', Object.keys(audioFile))
+
+      // Detectar mimeType
+      audioMime = audioFile.type || audioFile.contentType || 'audio/webm'
+      if (audioFile.header && audioFile.header.get) {
+        audioMime = audioFile.header.get('Content-Type') || audioMime
+      }
+      if (audioFile.name) {
+        var ext = audioFile.name.split('.').pop().toLowerCase()
+        if (ext === 'mp4' || ext === 'm4a') audioMime = 'audio/mp4'
+        else if (ext === 'wav') audioMime = 'audio/wav'
+        else if (ext === 'ogg') audioMime = 'audio/ogg'
+        else if (ext === 'webm') audioMime = 'audio/webm'
       }
 
-      if (!audioFile) {
-        console.log('Nenhum arquivo de áudio encontrado no upload')
-        return e.json(200, {
-          success: false,
-          executable: false,
-          reply: 'Arquivo de áudio não recebido. Tente gravar novamente.',
-          response: 'Arquivo de áudio não recebido. Tente gravar novamente.',
-          error: 'Arquivo de áudio não recebido. Tente gravar novamente.',
-        })
+      // Acessar bytes brutos do PocketBase (Go: .Bytes)
+      var rawBytes = audioFile.Bytes || null
+      if (!rawBytes || !rawBytes.length) {
+        rawBytes = audioFile.bytes || null
+      }
+      if (!rawBytes || !rawBytes.length) {
+        if (typeof audioFile.bytes === 'function') {
+          try {
+            rawBytes = audioFile.bytes()
+          } catch (_) {}
+        }
+      }
+      if (!rawBytes || !rawBytes.length) {
+        rawBytes = audioFile.data || null
       }
 
-      try {
-        console.log('Propriedades do audioFile:', Object.keys(audioFile))
+      console.log('Áudio recebido:', rawBytes ? rawBytes.length : 0, 'bytes')
 
-        // Detectar mimeType
-        audioMime = audioFile.type || audioFile.contentType || 'audio/webm'
-        if (audioFile.header && audioFile.header.get) {
-          audioMime = audioFile.header.get('Content-Type') || audioMime
-        }
-        if (audioFile.name) {
-          var ext = audioFile.name.split('.').pop().toLowerCase()
-          if (ext === 'mp4' || ext === 'm4a') audioMime = 'audio/mp4'
-          else if (ext === 'wav') audioMime = 'audio/wav'
-          else if (ext === 'ogg') audioMime = 'audio/ogg'
-          else if (ext === 'webm') audioMime = 'audio/webm'
-        }
-
-        // Acessar bytes brutos do PocketBase (Go: .Bytes)
-        var rawBytes = audioFile.Bytes || null
-        if (!rawBytes || !rawBytes.length) {
-          rawBytes = audioFile.bytes || null
-        }
-        if (!rawBytes || !rawBytes.length) {
-          if (typeof audioFile.bytes === 'function') {
-            try {
-              rawBytes = audioFile.bytes()
-            } catch (_) {}
-          }
-        }
-        if (!rawBytes || !rawBytes.length) {
-          rawBytes = audioFile.data || null
-        }
-
-        console.log('Áudio recebido:', rawBytes ? rawBytes.length : 0, 'bytes')
-
-        if (!rawBytes || !rawBytes.length) {
-          console.log('[financial-actions] Não conseguiu ler bytes. Keys:', Object.keys(audioFile))
-          return e.json(200, {
-            success: false,
-            executable: false,
-            reply: 'Não consegui ler o arquivo de áudio. Tente novamente.',
-            response: 'Não consegui ler o arquivo de áudio. Tente novamente.',
-            error: 'Não consegui ler o arquivo de áudio. Tente novamente.',
-          })
-        }
-
-        // Validação de tamanho
-        if (rawBytes.length < 100) {
-          return e.json(200, {
-            success: false,
-            executable: false,
-            reply: 'O áudio é muito curto. Tente gravar por mais tempo.',
-            response: 'O áudio é muito curto. Tente gravar por mais tempo.',
-            error: 'O áudio é muito curto. Tente gravar por mais tempo.',
-          })
-        }
-        if (rawBytes.length > 10 * 1024 * 1024) {
-          return e.json(200, {
-            success: false,
-            executable: false,
-            reply: 'O áudio é muito longo. Grave uma mensagem mais curta.',
-            response: 'O áudio é muito longo. Grave uma mensagem mais curta.',
-            error: 'O áudio é muito longo. Grave uma mensagem mais curta.',
-          })
-        }
-
-        // Conversão de []byte Go para base64
-        // rawBytes é um array de bytes Go ([]byte): iterar com for loop sobre rawBytes.length, String.fromCharCode, depois btoa se disponível ou encoder
-        var binaryStr = ''
-        for (var bi = 0; bi < rawBytes.length; bi++) {
-          binaryStr += String.fromCharCode(rawBytes[bi])
-        }
-
-        if (typeof btoa === 'function') {
-          audioBase64 = btoa(binaryStr)
-        } else {
-          var b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-          var b64Parts = []
-          for (var i = 0; i < rawBytes.length; i += 3) {
-            var a = rawBytes[i]
-            var b = i + 1 < rawBytes.length ? rawBytes[i + 1] : 0
-            var c = i + 2 < rawBytes.length ? rawBytes[i + 2] : 0
-            b64Parts.push(
-              b64chars[a >> 2] +
-                b64chars[((a & 3) << 4) | (b >> 4)] +
-                (i + 1 < rawBytes.length ? b64chars[((b & 15) << 2) | (c >> 6)] : '=') +
-                (i + 2 < rawBytes.length ? b64chars[c & 63] : '='),
-            )
-          }
-          audioBase64 = b64Parts.join('')
-        }
-
-        console.log('Base64 gerado:', audioBase64.length, 'chars')
-
-        if (audioBase64.length === 0) {
-          return e.json(200, {
-            success: false,
-            executable: false,
-            reply: 'Não consegui ler o áudio. Tente gravar novamente.',
-            response: 'Não consegui ler o áudio. Tente gravar novamente.',
-            error: 'Não consegui ler o áudio. Tente gravar novamente.',
-          })
-        }
-      } catch (encErr) {
-        console.log('[financial-actions] error encoding audio bytes:', encErr.message)
+      if (!rawBytes || !rawBytes.length) {
+        console.log('[financial-actions] Não conseguiu ler bytes. Keys:', Object.keys(audioFile))
         return e.json(200, {
           success: false,
           executable: false,
@@ -171,6 +103,73 @@ routerAdd(
           error: 'Não consegui ler o arquivo de áudio. Tente novamente.',
         })
       }
+
+      // Validação de tamanho
+      if (rawBytes.length < 100) {
+        return e.json(200, {
+          success: false,
+          executable: false,
+          reply: 'O áudio é muito curto. Tente gravar por mais tempo.',
+          response: 'O áudio é muito curto. Tente gravar por mais tempo.',
+          error: 'O áudio é muito curto. Tente gravar por mais tempo.',
+        })
+      }
+      if (rawBytes.length > 10 * 1024 * 1024) {
+        return e.json(200, {
+          success: false,
+          executable: false,
+          reply: 'O áudio é muito longo. Grave uma mensagem mais curta.',
+          response: 'O áudio é muito longo. Grave uma mensagem mais curta.',
+          error: 'O áudio é muito longo. Grave uma mensagem mais curta.',
+        })
+      }
+
+      // Conversão de []byte Go para base64
+      // rawBytes é um array de bytes Go ([]byte): iterar com for loop sobre rawBytes.length, String.fromCharCode, depois btoa se disponível ou encoder
+      var binaryStr = ''
+      for (var bi = 0; bi < rawBytes.length; bi++) {
+        binaryStr += String.fromCharCode(rawBytes[bi])
+      }
+
+      if (typeof btoa === 'function') {
+        audioBase64 = btoa(binaryStr)
+      } else {
+        var b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+        var b64Parts = []
+        for (var i = 0; i < rawBytes.length; i += 3) {
+          var a = rawBytes[i]
+          var b = i + 1 < rawBytes.length ? rawBytes[i + 1] : 0
+          var c = i + 2 < rawBytes.length ? rawBytes[i + 2] : 0
+          b64Parts.push(
+            b64chars[a >> 2] +
+              b64chars[((a & 3) << 4) | (b >> 4)] +
+              (i + 1 < rawBytes.length ? b64chars[((b & 15) << 2) | (c >> 6)] : '=') +
+              (i + 2 < rawBytes.length ? b64chars[c & 63] : '='),
+          )
+        }
+        audioBase64 = b64Parts.join('')
+      }
+
+      console.log('Base64 gerado:', audioBase64.length, 'chars')
+
+      if (audioBase64.length === 0) {
+        return e.json(200, {
+          success: false,
+          executable: false,
+          reply: 'Não consegui ler o áudio. Tente gravar novamente.',
+          response: 'Não consegui ler o áudio. Tente gravar novamente.',
+          error: 'Não consegui ler o áudio. Tente gravar novamente.',
+        })
+      }
+    } catch (encErr) {
+      console.log('[financial-actions] error encoding audio bytes:', encErr.message)
+      return e.json(200, {
+        success: false,
+        executable: false,
+        reply: 'Não consegui ler o arquivo de áudio. Tente novamente.',
+        response: 'Não consegui ler o arquivo de áudio. Tente novamente.',
+        error: 'Não consegui ler o arquivo de áudio. Tente novamente.',
+      })
     }
 
     if (!familyId || !memberId || (!message && !audioBase64)) {
