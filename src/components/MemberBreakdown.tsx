@@ -118,24 +118,26 @@ export function MemberBreakdown({
             </span>
           </div>
         </div>
-        {/* Desktop: mesma grade das linhas de membros — alinhamento consistente
-            das colunas [nome | receitas | despesas | saldo]. */}
-        <div className="hidden sm:grid sm:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(80px,1fr))] sm:gap-x-3 sm:items-center">
-          <div className="flex items-center gap-1.5 min-w-0">
+        {/* Desktop: MESMO grid-template do cabeçalho e das linhas de membros.
+            sm:-mx-2.5 anula o padding horizontal (p-2.5) do box para que as
+            colunas coincidam com as linhas abaixo; px-1 em cada célula mantém o
+            recuo visual idêntico ao cabeçalho. Nomes à esquerda, valores à direita. */}
+        <div className="hidden sm:grid sm:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(80px,1fr))] sm:gap-x-3 sm:items-center sm:-mx-2.5">
+          <div className="flex items-center gap-1.5 min-w-0 px-1">
             <Users className="h-3.5 w-3.5 text-primary shrink-0" />
             <span className="text-xs font-bold uppercase tracking-wide text-primary truncate">
               Total Família
             </span>
           </div>
-          <span className="text-right text-sm font-bold tabular-nums text-green-600 dark:text-green-500">
+          <span className="text-right text-sm font-bold tabular-nums text-green-600 dark:text-green-500 px-1">
             {formatCurrency(totalIncome)}
           </span>
-          <span className="text-right text-sm font-bold tabular-nums text-red-600 dark:text-red-400">
+          <span className="text-right text-sm font-bold tabular-nums text-red-600 dark:text-red-400 px-1">
             {formatCurrency(totalExpenses)}
           </span>
           <span
             className={cn(
-              'text-right text-sm font-bold tabular-nums',
+              'text-right text-sm font-bold tabular-nums px-1',
               totalBalance >= 0
                 ? 'text-green-600 dark:text-green-500'
                 : 'text-red-600 dark:text-red-400',
@@ -225,9 +227,9 @@ export function MemberBreakdown({
             key={m.id}
             type="button"
             onClick={() => onMemberClick(m)}
-            className="grid w-full grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(80px,1fr))] gap-x-3 items-center rounded-lg px-1 py-2 text-left hover:bg-accent/40 cursor-pointer transition-colors"
+            className="grid w-full grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(80px,1fr))] gap-x-3 items-center rounded-lg py-2 text-left hover:bg-accent/40 cursor-pointer transition-colors"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0 px-1">
               <Avatar className="h-10 w-10 border border-[#22C55E] shrink-0">
                 <AvatarImage src={getMemberAvatarUrl(m)} alt={m.display_name} />
                 <AvatarFallback className="bg-emerald-100 text-[#166534] text-xs font-bold">
@@ -238,15 +240,15 @@ export function MemberBreakdown({
                 {m.display_name}
               </span>
             </div>
-            <span className="text-right text-xs font-medium tabular-nums text-green-600 dark:text-green-500">
+            <span className="text-right text-xs font-medium tabular-nums text-green-600 dark:text-green-500 px-1">
               {formatCurrency(income)}
             </span>
-            <span className="text-right text-xs font-medium tabular-nums text-red-600 dark:text-red-400">
+            <span className="text-right text-xs font-medium tabular-nums text-red-600 dark:text-red-400 px-1">
               {formatCurrency(expenses)}
             </span>
             <span
               className={cn(
-                'text-right text-xs font-bold tabular-nums',
+                'text-right text-xs font-bold tabular-nums px-1',
                 balance >= 0
                   ? 'text-green-600 dark:text-green-500'
                   : 'text-red-600 dark:text-red-400',
