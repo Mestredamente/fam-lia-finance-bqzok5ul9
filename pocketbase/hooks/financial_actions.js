@@ -2,6 +2,7 @@
 // 1. Fluxo de Texto: processado via $ai.chat (Skip AI Gateway)
 // 2. Fluxo de Áudio (Multimodal): áudio gravado via microfone (multipart/form-data)
 //    processado diretamente via Google Gemini REST API (gemini-1.5-flash) com inlineData
+console.log('[financial-actions] Hook carregado e rota registrada em /backend/v1/financial-actions')
 routerAdd(
   'POST',
   '/backend/v1/financial-actions',

@@ -448,7 +448,17 @@ export default function Consultora() {
         body: formData,
       })
 
-      if (!response.ok) throw new Error('Falha ao processar áudio')
+      if (!response.ok) {
+        console.log('Audio response status:', response.status, 'statusText:', response.statusText)
+        let errorBody = ''
+        try {
+          errorBody = await response.text()
+        } catch {
+          /* ignore */
+        }
+        console.log('Audio error body:', errorBody)
+        throw new Error('Falha ao processar áudio')
+      }
 
       const data = await response.json()
       setIsTyping(false)
