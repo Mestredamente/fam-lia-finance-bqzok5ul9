@@ -26,8 +26,11 @@ routerAdd(
       if (formFields.message) body.message = formFields.message
     }
 
-    var familyId = (body.family_id || '').trim()
-    var memberId = (body.user_id || '').trim()
+    // query params como fonte primária — PocketBase JSVM não expõe campos multipart no body
+    var familyId = (reqInfo.query.family_id || body.family_id || '').trim()
+    var memberId = (reqInfo.query.user_id || body.user_id || '').trim()
+    console.log('[financial-actions] query:', JSON.stringify(reqInfo.query))
+    console.log('[financial-actions] familyId:', familyId, 'memberId:', memberId)
     var message = (body.message || '').trim()
     var context = body.context || []
 

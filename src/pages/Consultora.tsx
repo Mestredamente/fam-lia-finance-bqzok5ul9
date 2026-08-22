@@ -437,12 +437,15 @@ export default function Consultora() {
 
       const formData = new FormData()
       formData.append('audio', blob, 'recording.webm')
-      formData.append('family_id', family.id)
-      if (member?.id) formData.append('user_id', member.id)
+      // family_id e user_id NÃO vão no FormData — o PocketBase JSVM não lê campos multipart
 
       const backendUrl = import.meta.env.VITE_POCKETBASE_URL || ''
       const token = pb.authStore.token
-      const response = await fetch(`${backendUrl}/backend/v1/financial-actions`, {
+      const url = `${backendUrl}/backend/v1/financial-actions?family_id=${family.id}&user_id=${member?.id || ''}`
+      console.log('[Consultora] URL final:', url)
+      console.log('[Consultora] familyId:', family.id, 'userId:', member?.id)
+      console.log('[Consultora] FormData keys:', [...formData.keys()])
+      const response = await fetch(url, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
