@@ -50,6 +50,21 @@ function isActionIntent(text: string): boolean {
   return hasVerb && hasTarget
 }
 
+// Converte um Blob de áudio para base64 puro (sem o prefixo data:URL),
+// usado no plano B de envio do áudio como JSON.
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string
+      const commaIdx = dataUrl.indexOf(',')
+      resolve(commaIdx >= 0 ? dataUrl.slice(commaIdx + 1) : dataUrl)
+    }
+    reader.onerror = () => reject(new Error('Falha ao converter áudio para base64'))
+    reader.readAsDataURL(blob)
+  })
+}
+
 export default function Consultora() {
   const { family, member, user } = useAuth()
   const [messages, setMessages] = useState<AIConversationRecord[]>([])
@@ -435,20 +450,28 @@ export default function Consultora() {
         }
       }
 
-      const formData = new FormData()
-      formData.append('audio', blob, 'recording.webm')
-      // family_id e user_id NÃO vão no FormData — o PocketBase JSVM não lê campos multipart
+      // Plano B (JSON): converter o blob de áudio para base64 no frontend e enviar
+      // como JSON. O PocketBase JSVM não expõe os bytes do multipart de forma
+      // confiável, então enviamos o base64 pronto — o backend lê body.audio_base64.
+      const audioBase64 = await blobToBase64(blob)
+      const audioMime = blob.type || 'audio/webm'
+      console.log('[Consultora] Enviando áudio como JSON, base64 len:', audioBase64.length)
 
       const backendUrl = import.meta.env.VITE_POCKETBASE_URL || ''
       const token = pb.authStore.token
       const url = `${backendUrl}/backend/v1/financial-actions?family_id=${family.id}&user_id=${member?.id || ''}`
-      console.log('[Consultora] URL final:', url)
-      console.log('[Consultora] familyId:', family.id, 'userId:', member?.id)
-      console.log('[Consultora] FormData keys:', [...formData.keys()])
       const response = await fetch(url, {
         method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          audio_base64: audioBase64,
+          audio_mime: audioMime,
+          family_id: family.id,
+          user_id: member?.id || '',
+        }),
       })
 
       if (!response.ok) {
