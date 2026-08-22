@@ -663,8 +663,8 @@ routerAdd(
 
         var parts = [
           {
-            inlineData: {
-              mimeType: audioMime,
+            inline_data: {
+              mime_type: audioMime,
               data: audioBase64,
             },
           },
